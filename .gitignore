@@ -1,0 +1,20 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+backend/.coverage
+backend/.tmp/
+
+# Local environment files
+.env
+backend/.env
+
+# Local SQLite databases
+*.db
+backend/tests/*.db
+
+# Editor settings
+.vscode/

@@ -1,0 +1,112 @@
+from datetime import UTC, datetime, timedelta
+
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.errors import APIError
+from app.core.responses import vendor_response
+from app.core.security import create_access_token, generate_refresh_token, hash_password, hash_refresh_token, verify_password
+from app.dependencies import get_current_user, utcnow
+from app.db import get_db
+from app.models import RefreshToken, User
+from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserOut
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _create_auth_payload(user: User, refresh_token: str) -> dict:
+    return AuthResponse(
+        user=UserOut.model_validate(user),
+        access_token=create_access_token(user.id),
+        refresh_token=refresh_token,
+        access_token_expires_in=settings.access_token_expires_in,
+    ).model_dump()
+
+
+@router.post("/register")
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    user = User(username=payload.username, password_hash=hash_password(payload.password), currency_code=payload.currency_code)
+    db.add(user)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise APIError(status=409, title="Conflict", detail="Username already exists") from exc
+
+    refresh_token = generate_refresh_token()
+    refresh = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh_token),
+        expires_at=utcnow() + timedelta(days=settings.refresh_token_expires_days),
+    )
+    db.add(refresh)
+    db.commit()
+    return vendor_response(_create_auth_payload(user, refresh_token), status_code=201)
+
+
+@router.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.username == payload.username))
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise APIError(status=401, title="Unauthorized", detail="User or password invalid")
+
+    refresh_token = generate_refresh_token()
+    refresh = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh_token),
+        expires_at=utcnow() + timedelta(days=settings.refresh_token_expires_days),
+    )
+    db.add(refresh)
+    db.commit()
+    return vendor_response(_create_auth_payload(user, refresh_token), status_code=200)
+
+
+@router.post("/refresh")
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    token_hash = hash_refresh_token(payload.refresh_token)
+    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    if not refresh_row or _as_utc(refresh_row.expires_at) < utcnow():
+        raise APIError(status=401, title="Unauthorized", detail="Refresh token is invalid or expired")
+    if refresh_row.revoked_at is not None:
+        raise APIError(status=403, title="Forbidden", detail="Refresh token is revoked or not allowed")
+
+    user = db.scalar(select(User).where(User.id == refresh_row.user_id))
+    if not user:
+        raise APIError(status=401, title="Unauthorized", detail="Refresh token is invalid or expired")
+
+    refresh_row.revoked_at = utcnow()
+    new_refresh_token = generate_refresh_token()
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(new_refresh_token),
+            expires_at=utcnow() + timedelta(days=settings.refresh_token_expires_days),
+        )
+    )
+    db.commit()
+    return vendor_response(_create_auth_payload(user, new_refresh_token), status_code=200)
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    payload: RefreshRequest,
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    token_hash = hash_refresh_token(payload.refresh_token)
+    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    if not refresh_row or refresh_row.revoked_at is not None:
+        raise APIError(status=403, title="Forbidden", detail="Refresh token revoked or not allowed")
+
+    refresh_row.revoked_at = utcnow()
+    db.commit()
+    return Response(status_code=204)
