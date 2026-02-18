@@ -6,6 +6,8 @@ from app.main import app
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
+MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/category-type-mismatch"
+MISMATCH_TITLE = "Category type mismatch"
 
 
 def _register_user(client: TestClient):
@@ -25,6 +27,69 @@ def _register_user(client: TestClient):
         "access": body["access_token"],
         "refresh": body["refresh_token"],
     }
+
+
+def _auth_headers(access: str) -> dict[str, str]:
+    return {
+        "accept": VENDOR,
+        "content-type": VENDOR,
+        "authorization": f"Bearer {access}",
+    }
+
+
+def _create_account(client: TestClient, headers: dict[str, str], name: str) -> str:
+    response = client.post(
+        "/api/accounts",
+        json={"name": name, "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def _create_category(client: TestClient, headers: dict[str, str], name: str, type_: str) -> str:
+    response = client.post(
+        "/api/categories",
+        json={"name": name, "type": type_, "note": type_},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def _create_transaction(
+    client: TestClient,
+    headers: dict[str, str],
+    *,
+    type_: str,
+    account_id: str,
+    category_id: str,
+    note: str,
+    date: str = "2026-02-01",
+) -> tuple[int, dict]:
+    response = client.post(
+        "/api/transactions",
+        json={
+            "type": type_,
+            "account_id": account_id,
+            "category_id": category_id,
+            "amount_cents": 7000,
+            "date": date,
+            "merchant": "Acme",
+            "note": note,
+        },
+        headers=headers,
+    )
+    return response.status_code, response.json()
+
+
+def _assert_category_mismatch_problem(response):
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == MISMATCH_TYPE
+    assert body["title"] == MISMATCH_TITLE
+    assert body["status"] == 409
 
 
 def test_problem_details_on_invalid_accept():
@@ -193,109 +258,71 @@ def test_create_transaction_fails_when_account_is_archived():
 def test_create_transaction_fails_when_category_type_mismatch():
     with TestClient(app) as client:
         user = _register_user(client)
-        auth_headers = {
-            "accept": VENDOR,
-            "content-type": VENDOR,
-            "authorization": f"Bearer {user['access']}",
-        }
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "for-mismatch")
+        income_category_id = _create_category(client, auth_headers, "income-mismatch-dir", "income")
+        expense_category_id = _create_category(client, auth_headers, "expense-mismatch-dir", "expense")
 
-        account = client.post(
-            "/api/accounts",
-            json={"name": "for-mismatch", "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
-            headers=auth_headers,
-        )
-        assert account.status_code == 201
-        account_id = account.json()["id"]
-
-        expense_category = client.post(
-            "/api/categories",
-            json={"name": "groceries-mismatch", "type": "expense", "note": "expense"},
-            headers=auth_headers,
-        )
-        assert expense_category.status_code == 201
-        expense_category_id = expense_category.json()["id"]
-
-        create_tx = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_id,
-                "category_id": expense_category_id,
-                "amount_cents": 7000,
-                "date": "2026-02-01",
-                "merchant": "Acme",
-                "note": "mismatch",
-            },
-            headers=auth_headers,
-        )
-        assert create_tx.status_code == 409
-        assert create_tx.headers["content-type"].startswith(PROBLEM)
-        body = create_tx.json()
-        assert body["type"] == "https://api.budgetbuddy.dev/problems/category-type-mismatch"
-        assert body["title"] == "Category type mismatch"
-        assert body["status"] == 409
+        for tx_type, category_id in [
+            ("income", expense_category_id),  # income->expense mismatch
+            ("expense", income_category_id),  # expense->income mismatch
+        ]:
+            response = client.post(
+                "/api/transactions",
+                json={
+                    "type": tx_type,
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 7000,
+                    "date": "2026-02-01",
+                    "merchant": "Acme",
+                    "note": f"mismatch-{tx_type}",
+                },
+                headers=auth_headers,
+            )
+            _assert_category_mismatch_problem(response)
 
 
 def test_patch_transaction_fails_when_category_type_mismatch():
     with TestClient(app) as client:
         user = _register_user(client)
-        auth_headers = {
-            "accept": VENDOR,
-            "content-type": VENDOR,
-            "authorization": f"Bearer {user['access']}",
-        }
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "for-patch-mismatch")
+        income_category_id = _create_category(client, auth_headers, "income-patch-mismatch", "income")
+        expense_category_id = _create_category(client, auth_headers, "expense-patch-mismatch", "expense")
 
-        account = client.post(
-            "/api/accounts",
-            json={"name": "for-patch-mismatch", "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
-            headers=auth_headers,
-        )
-        assert account.status_code == 201
-        account_id = account.json()["id"]
+        for initial_type, initial_category, mismatch_category in [
+            ("income", income_category_id, expense_category_id),  # income->expense mismatch
+            ("expense", expense_category_id, income_category_id),  # expense->income mismatch
+        ]:
+            status, created_body = _create_transaction(
+                client,
+                auth_headers,
+                type_=initial_type,
+                account_id=account_id,
+                category_id=initial_category,
+                note=f"valid-{initial_type}",
+                date="2026-02-02",
+            )
+            assert status == 201
+            transaction_id = created_body["id"]
 
-        income_category = client.post(
-            "/api/categories",
-            json={"name": "income-mismatch", "type": "income", "note": "income"},
-            headers=auth_headers,
-        )
-        assert income_category.status_code == 201
-        income_category_id = income_category.json()["id"]
+            # Non-mismatch patch remains valid.
+            valid_patch = client.patch(
+                f"/api/transactions/{transaction_id}",
+                json={"note": "still-valid"},
+                headers=auth_headers,
+            )
+            assert valid_patch.status_code == 200
+            assert valid_patch.headers["content-type"].startswith(VENDOR)
 
-        expense_category = client.post(
-            "/api/categories",
-            json={"name": "expense-mismatch", "type": "expense", "note": "expense"},
-            headers=auth_headers,
-        )
-        assert expense_category.status_code == 201
-        expense_category_id = expense_category.json()["id"]
-
-        created = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_id,
-                "category_id": income_category_id,
-                "amount_cents": 10000,
-                "date": "2026-02-02",
-                "merchant": "Acme",
-                "note": "valid-first",
-            },
-            headers=auth_headers,
-        )
-        assert created.status_code == 201
-        transaction_id = created.json()["id"]
-
-        patched = client.patch(
-            f"/api/transactions/{transaction_id}",
-            json={"category_id": expense_category_id},
-            headers=auth_headers,
-        )
-        assert patched.status_code == 409
-        assert patched.headers["content-type"].startswith(PROBLEM)
-        body = patched.json()
-        assert body["type"] == "https://api.budgetbuddy.dev/problems/category-type-mismatch"
-        assert body["title"] == "Category type mismatch"
-        assert body["status"] == 409
+            # Mismatch patch by changing category_id must fail.
+            mismatch_patch = client.patch(
+                f"/api/transactions/{transaction_id}",
+                json={"category_id": mismatch_category},
+                headers=auth_headers,
+            )
+            _assert_category_mismatch_problem(mismatch_patch)
 
 
 def test_transaction_validation_error_returns_problem_details():

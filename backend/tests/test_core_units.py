@@ -74,8 +74,10 @@ def test_password_and_token_security_paths(monkeypatch):
     with pytest.raises(ValueError):
         decode_access_token("invalid-token-format")
 
-    # Signature failure path.
-    mutated = token[:-1] + ("A" if token[-1] != "A" else "B")
+    # Signature failure path: mutate the signature segment directly.
+    payload_seg, signature = token.split(".", 1)
+    mutated_signature = ("A" if signature[0] != "A" else "B") + signature[1:]
+    mutated = f"{payload_seg}.{mutated_signature}"
     with pytest.raises(ValueError):
         decode_access_token(mutated)
 
