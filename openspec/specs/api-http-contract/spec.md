@@ -18,6 +18,10 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** `POST /transactions` references an account whose `archived_at` is not null
 - **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, and `status=409`
 
+#### Scenario: Category type mismatch conflict has canonical ProblemDetails
+- **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` has `type` different from the selected category `type`
+- **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/category-type-mismatch`, `title=Category type mismatch`, and `status=409`
+
 ### Requirement: Accept header negotiation
 The backend MUST validate `Accept` headers for endpoints in the contract and return `406` with `ProblemDetails` when the expected media type is not acceptable.
 

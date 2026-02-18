@@ -190,6 +190,114 @@ def test_create_transaction_fails_when_account_is_archived():
         assert body["status"] == 409
 
 
+def test_create_transaction_fails_when_category_type_mismatch():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = {
+            "accept": VENDOR,
+            "content-type": VENDOR,
+            "authorization": f"Bearer {user['access']}",
+        }
+
+        account = client.post(
+            "/api/accounts",
+            json={"name": "for-mismatch", "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
+            headers=auth_headers,
+        )
+        assert account.status_code == 201
+        account_id = account.json()["id"]
+
+        expense_category = client.post(
+            "/api/categories",
+            json={"name": "groceries-mismatch", "type": "expense", "note": "expense"},
+            headers=auth_headers,
+        )
+        assert expense_category.status_code == 201
+        expense_category_id = expense_category.json()["id"]
+
+        create_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 7000,
+                "date": "2026-02-01",
+                "merchant": "Acme",
+                "note": "mismatch",
+            },
+            headers=auth_headers,
+        )
+        assert create_tx.status_code == 409
+        assert create_tx.headers["content-type"].startswith(PROBLEM)
+        body = create_tx.json()
+        assert body["type"] == "https://api.budgetbuddy.dev/problems/category-type-mismatch"
+        assert body["title"] == "Category type mismatch"
+        assert body["status"] == 409
+
+
+def test_patch_transaction_fails_when_category_type_mismatch():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = {
+            "accept": VENDOR,
+            "content-type": VENDOR,
+            "authorization": f"Bearer {user['access']}",
+        }
+
+        account = client.post(
+            "/api/accounts",
+            json={"name": "for-patch-mismatch", "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
+            headers=auth_headers,
+        )
+        assert account.status_code == 201
+        account_id = account.json()["id"]
+
+        income_category = client.post(
+            "/api/categories",
+            json={"name": "income-mismatch", "type": "income", "note": "income"},
+            headers=auth_headers,
+        )
+        assert income_category.status_code == 201
+        income_category_id = income_category.json()["id"]
+
+        expense_category = client.post(
+            "/api/categories",
+            json={"name": "expense-mismatch", "type": "expense", "note": "expense"},
+            headers=auth_headers,
+        )
+        assert expense_category.status_code == 201
+        expense_category_id = expense_category.json()["id"]
+
+        created = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 10000,
+                "date": "2026-02-02",
+                "merchant": "Acme",
+                "note": "valid-first",
+            },
+            headers=auth_headers,
+        )
+        assert created.status_code == 201
+        transaction_id = created.json()["id"]
+
+        patched = client.patch(
+            f"/api/transactions/{transaction_id}",
+            json={"category_id": expense_category_id},
+            headers=auth_headers,
+        )
+        assert patched.status_code == 409
+        assert patched.headers["content-type"].startswith(PROBLEM)
+        body = patched.json()
+        assert body["type"] == "https://api.budgetbuddy.dev/problems/category-type-mismatch"
+        assert body["title"] == "Category type mismatch"
+        assert body["status"] == 409
+
+
 def test_transaction_validation_error_returns_problem_details():
     with TestClient(app) as client:
         user = _register_user(client)

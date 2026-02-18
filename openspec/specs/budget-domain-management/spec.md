@@ -41,6 +41,10 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 - **WHEN** a client calls `POST /transactions` with an `account_id` that belongs to the user and has `archived_at != null`
 - **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, `status=409`
 
+#### Scenario: Category type mismatch on transaction write is rejected
+- **WHEN** a client calls `POST /transactions` or `PATCH /transactions/{transaction_id}` with `type` not matching selected `category.type`
+- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.budgetbuddy.dev/problems/category-type-mismatch`, `title=Category type mismatch`, `status=409`
+
 ### Requirement: Ownership and access control across domain resources
 The backend MUST enforce authenticated user ownership for accounts, categories, and transactions.
 

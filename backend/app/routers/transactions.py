@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.errors import account_archived_error
+from app.errors import account_archived_error, category_type_mismatch_error
 from app.core.errors import APIError
 from app.core.pagination import decode_cursor, encode_cursor
 from app.core.responses import vendor_response
@@ -43,7 +43,7 @@ def _validate_business_rules(db: Session, user_id: str, payload: dict):
     account = _owned_account_or_conflict(db, user_id, payload["account_id"])
     category = _owned_category_or_conflict(db, user_id, payload["category_id"])
     if payload["type"] != category.type:
-        raise APIError(status=409, title="Conflict", detail="Business rule conflict")
+        raise category_type_mismatch_error()
     return account, category
 
 
