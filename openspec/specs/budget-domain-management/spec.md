@@ -37,6 +37,10 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 - **WHEN** a transaction write violates domain constraints (for example archived account or type mismatch)
 - **THEN** the API SHALL return `409` as `ProblemDetails`
 
+#### Scenario: Creating transaction on archived account is rejected
+- **WHEN** a client calls `POST /transactions` with an `account_id` that belongs to the user and has `archived_at != null`
+- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, `status=409`
+
 ### Requirement: Ownership and access control across domain resources
 The backend MUST enforce authenticated user ownership for accounts, categories, and transactions.
 

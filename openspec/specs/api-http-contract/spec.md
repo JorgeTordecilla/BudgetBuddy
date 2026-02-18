@@ -14,6 +14,10 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** request data violates schema constraints
 - **THEN** the API SHALL return status `400` with `Content-Type: application/problem+json` and a body containing `type`, `title`, and `status`
 
+#### Scenario: Archived account conflict has canonical ProblemDetails
+- **WHEN** `POST /transactions` references an account whose `archived_at` is not null
+- **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, and `status=409`
+
 ### Requirement: Accept header negotiation
 The backend MUST validate `Accept` headers for endpoints in the contract and return `406` with `ProblemDetails` when the expected media type is not acceptable.
 

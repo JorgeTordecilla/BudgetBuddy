@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from app.errors import account_archived_error
 from app.core.errors import APIError
 from app.core.pagination import decode_cursor, encode_cursor
 from app.core.responses import vendor_response
@@ -24,8 +25,10 @@ def _owned_transaction_or_403(db: Session, user_id: str, transaction_id: str) ->
 
 def _owned_account_or_conflict(db: Session, user_id: str, account_id: str) -> Account:
     account = db.scalar(select(Account).where(and_(Account.id == account_id, Account.user_id == user_id)))
-    if not account or account.archived_at is not None:
+    if not account:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
+    if account.archived_at is not None:
+        raise account_archived_error()
     return account
 
 
