@@ -42,8 +42,16 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 - **THEN** the API SHALL return `200` ordered most recent first with `{ items, next_cursor }`
 
 #### Scenario: Transaction business-rule conflict
-- **WHEN** a transaction write violates domain constraints (for example archived account or type mismatch)
+- **WHEN** a transaction write violates domain constraints (for example archived account, archived category, or type mismatch)
 - **THEN** the API SHALL return `409` as `ProblemDetails`
+
+#### Scenario: Create transaction with archived category is rejected
+- **WHEN** `POST /transactions` uses `category_id` for a category with `archived_at != null`
+- **THEN** the API SHALL reject with canonical category archived `409` ProblemDetails
+
+#### Scenario: Patch transaction with archived effective category is rejected
+- **WHEN** `PATCH /transactions/{transaction_id}` resolves to an archived category (by changing `category_id` or keeping existing archived category)
+- **THEN** the API SHALL reject with canonical category archived `409` ProblemDetails
 
 #### Scenario: Creating transaction on archived account is rejected
 - **WHEN** a client calls `POST /transactions` with an `account_id` that belongs to the user and has `archived_at != null`

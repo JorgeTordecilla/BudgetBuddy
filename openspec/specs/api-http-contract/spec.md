@@ -34,6 +34,10 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** `POST /transactions` references an account whose `archived_at` is not null
 - **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, and `status=409`
 
+#### Scenario: Category archived conflict has canonical ProblemDetails
+- **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` resolves to a category whose `archived_at` is not null
+- **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/category-archived`, `title=Category is archived`, and `status=409`
+
 #### Scenario: Category type mismatch conflict has canonical ProblemDetails
 - **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` has `type` different from the selected category `type`
 - **THEN** the API SHALL return `409` with `application/problem+json` and `type=https://api.budgetbuddy.dev/problems/category-type-mismatch`, `title=Category type mismatch`, and `status=409`
@@ -60,6 +64,13 @@ The backend MUST validate `Accept` headers for endpoints in the contract and ret
 #### Scenario: Category restore with unsupported Accept header
 - **WHEN** a client calls `PATCH /categories/{category_id}` with `archived_at: null` and sends an unsupported `Accept` header
 - **THEN** the API SHALL return `406` with `application/problem+json`
+
+### Requirement: OpenAPI response mapping for transaction conflicts
+Transaction write endpoints MUST expose conflict responses in OpenAPI with `application/problem+json`.
+
+#### Scenario: OpenAPI includes category archived conflict on transaction create and patch
+- **WHEN** contract files are reviewed for `POST /transactions` and `PATCH /transactions/{transaction_id}`
+- **THEN** both endpoints SHALL include `409` response mapping with `application/problem+json`
 
 ### Requirement: 204 responses have no response body
 The backend MUST return empty bodies for `204 No Content` responses.

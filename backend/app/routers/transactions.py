@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.errors import account_archived_error, category_type_mismatch_error, forbidden_error
+from app.errors import account_archived_error, category_archived_error, category_type_mismatch_error, forbidden_error
 from app.core.errors import APIError
 from app.core.pagination import decode_cursor, encode_cursor
 from app.core.responses import vendor_response
@@ -34,8 +34,10 @@ def _owned_account_or_conflict(db: Session, user_id: str, account_id: str) -> Ac
 
 def _owned_category_or_conflict(db: Session, user_id: str, category_id: str) -> Category:
     category = db.scalar(select(Category).where(and_(Category.id == category_id, Category.user_id == user_id)))
-    if not category or category.archived_at is not None:
+    if not category:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
+    if category.archived_at is not None:
+        raise category_archived_error()
     return category
 
 
@@ -124,6 +126,8 @@ def patch_transaction(transaction_id: str, payload: TransactionUpdate, current_u
             "category_id": data.get("category_id", row.category_id),
         }
         _validate_business_rules(db, current_user.id, merged)
+    else:
+        _owned_category_or_conflict(db, current_user.id, row.category_id)
 
     for key, value in data.items():
         setattr(row, key, value)

@@ -14,6 +14,8 @@ FORBIDDEN_TYPE = "https://api.budgetbuddy.dev/problems/forbidden"
 FORBIDDEN_TITLE = "Forbidden"
 NOT_ACCEPTABLE_TYPE = "https://api.budgetbuddy.dev/problems/not-acceptable"
 NOT_ACCEPTABLE_TITLE = "Not Acceptable"
+CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived"
+CATEGORY_ARCHIVED_TITLE = "Category is archived"
 
 
 def _register_user(client: TestClient):
@@ -261,6 +263,40 @@ def test_create_transaction_fails_when_account_is_archived():
         assert body["status"] == 409
 
 
+def test_create_transaction_fails_when_category_is_archived():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "acct-category-archived")
+        category_id = _create_category(client, auth_headers, "archived-income-create", "income")
+
+        archive = client.delete(
+            f"/api/categories/{category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archive.status_code == 204
+
+        response = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": category_id,
+                "amount_cents": 10000,
+                "date": "2026-02-10",
+                "merchant": "Acme",
+                "note": "archived-category-create",
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 409
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == CATEGORY_ARCHIVED_TYPE
+        assert body["title"] == CATEGORY_ARCHIVED_TITLE
+        assert body["status"] == 409
+
+
 def test_create_transaction_fails_when_category_type_mismatch():
     with TestClient(app) as client:
         user = _register_user(client)
@@ -329,6 +365,77 @@ def test_patch_transaction_fails_when_category_type_mismatch():
                 headers=auth_headers,
             )
             _assert_category_mismatch_problem(mismatch_patch)
+
+
+def test_patch_transaction_fails_when_category_is_archived():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "acct-category-archived-patch")
+
+        active_category_id = _create_category(client, auth_headers, "active-income", "income")
+        archived_category_id = _create_category(client, auth_headers, "archived-income-patch", "income")
+
+        status, created = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=active_category_id,
+            note="seed-tx",
+            date="2026-02-11",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        archive = client.delete(
+            f"/api/categories/{archived_category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archive.status_code == 204
+
+        change_to_archived = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"category_id": archived_category_id},
+            headers=auth_headers,
+        )
+        assert change_to_archived.status_code == 409
+        assert change_to_archived.headers["content-type"].startswith(PROBLEM)
+        body = change_to_archived.json()
+        assert body["type"] == CATEGORY_ARCHIVED_TYPE
+        assert body["title"] == CATEGORY_ARCHIVED_TITLE
+        assert body["status"] == 409
+
+        # Keep existing category while it became archived.
+        status2, created2 = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=active_category_id,
+            note="seed-tx-2",
+            date="2026-02-12",
+        )
+        assert status2 == 201
+        tx_id_2 = created2["id"]
+
+        archive_active = client.delete(
+            f"/api/categories/{active_category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archive_active.status_code == 204
+
+        keep_archived = client.patch(
+            f"/api/transactions/{tx_id_2}",
+            json={"note": "should-fail"},
+            headers=auth_headers,
+        )
+        assert keep_archived.status_code == 409
+        assert keep_archived.headers["content-type"].startswith(PROBLEM)
+        body2 = keep_archived.json()
+        assert body2["type"] == CATEGORY_ARCHIVED_TYPE
+        assert body2["title"] == CATEGORY_ARCHIVED_TITLE
+        assert body2["status"] == 409
 
 
 def test_transaction_validation_error_returns_problem_details():
