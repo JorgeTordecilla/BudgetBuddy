@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Vendor media type for successful payloads
 The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`.
@@ -48,12 +48,3 @@ The backend MUST validate `Accept` headers for endpoints in the contract and ret
 #### Scenario: Category restore with unsupported Accept header
 - **WHEN** a client calls `PATCH /categories/{category_id}` with `archived_at: null` and sends an unsupported `Accept` header
 - **THEN** the API SHALL return `406` with `application/problem+json`
-
-### Requirement: 204 responses have no response body
-The backend MUST return empty bodies for `204 No Content` responses.
-
-#### Scenario: Logout or archive returns no payload
-- **WHEN** `/auth/logout` or an archive endpoint succeeds with `204`
-- **THEN** the response SHALL contain no body and SHALL not include a JSON payload
-
-

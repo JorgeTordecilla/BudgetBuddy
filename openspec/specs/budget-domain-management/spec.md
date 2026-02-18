@@ -16,7 +16,7 @@ The backend MUST implement `/accounts` and `/accounts/{account_id}` with create,
 - **THEN** the API SHALL return `403` as `ProblemDetails`
 
 ### Requirement: Categories resource behavior
-The backend MUST implement `/categories` and `/categories/{category_id}` with list filters, CRUD/archive semantics, and type-aware uniqueness rules.
+The backend MUST implement `/categories` and `/categories/{category_id}` with list filters, CRUD/archive semantics, type-aware uniqueness rules, and restore semantics through patch updates.
 
 #### Scenario: List categories filtered by type
 - **WHEN** `GET /categories` is called with `type=income` or `type=expense`
@@ -25,6 +25,14 @@ The backend MUST implement `/categories` and `/categories/{category_id}` with li
 #### Scenario: Category uniqueness by type
 - **WHEN** a user creates or renames a category to an existing name of the same type
 - **THEN** the API SHALL return `409` as `ProblemDetails`
+
+#### Scenario: Archived category is restored via patch
+- **WHEN** a client archives a category and then calls `PATCH /categories/{category_id}` with `archived_at=null` using a valid owner token
+- **THEN** the API SHALL restore the category and return `200` with `Category` where `archived_at=null`
+
+#### Scenario: Restore is idempotent for already active category
+- **WHEN** `PATCH /categories/{category_id}` sets `archived_at=null` for a category that already has `archived_at=null`
+- **THEN** the API SHALL return `200` with the current `Category` payload and no business-rule conflict
 
 ### Requirement: Transactions resource behavior
 The backend MUST implement `/transactions` and `/transactions/{transaction_id}` with create, list, get, update, and archive semantics including all documented filters.
@@ -63,4 +71,9 @@ The backend MUST enforce authenticated user ownership for accounts, categories, 
 #### Scenario: Resource exists but is not accessible
 - **WHEN** a valid user token references a resource not owned by that user
 - **THEN** the API SHALL return `403` as `ProblemDetails`
+
+#### Scenario: Restoring other user's category is forbidden
+- **WHEN** `PATCH /categories/{category_id}` sets `archived_at=null` for a category owned by a different user
+- **THEN** the API SHALL return `403` as `ProblemDetails`
+
 

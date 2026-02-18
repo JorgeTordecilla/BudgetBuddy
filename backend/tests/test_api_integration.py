@@ -462,3 +462,86 @@ def test_list_transactions_filters_and_ordering():
         assert body["next_cursor"] is None
         assert len(body["items"]) == 2
         assert [item["id"] for item in body["items"]] == [tx_2_id, tx_1.json()["id"]]
+
+
+def test_restore_category_happy_path_and_idempotent():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        category_id = _create_category(client, auth_headers, "restore-me", "expense")
+
+        archive = client.delete(
+            f"/api/categories/{category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archive.status_code == 204
+
+        restore = client.patch(
+            f"/api/categories/{category_id}",
+            json={"archived_at": None},
+            headers=auth_headers,
+        )
+        assert restore.status_code == 200
+        assert restore.headers["content-type"].startswith(VENDOR)
+        assert restore.json()["archived_at"] is None
+
+        # Idempotent restore for already-active category.
+        restore_again = client.patch(
+            f"/api/categories/{category_id}",
+            json={"archived_at": None},
+            headers=auth_headers,
+        )
+        assert restore_again.status_code == 200
+        assert restore_again.headers["content-type"].startswith(VENDOR)
+        assert restore_again.json()["archived_at"] is None
+
+
+def test_restore_category_requires_auth():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        category_id = _create_category(client, auth_headers, "restore-auth", "income")
+
+        response = client.patch(
+            f"/api/categories/{category_id}",
+            json={"archived_at": None},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert response.status_code == 401
+        assert response.headers["content-type"].startswith(PROBLEM)
+
+
+def test_restore_category_forbidden_for_non_owner():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+        category_id = _create_category(client, owner_headers, "restore-foreign", "expense")
+
+        response = client.patch(
+            f"/api/categories/{category_id}",
+            json={"archived_at": None},
+            headers=other_headers,
+        )
+        assert response.status_code == 403
+        assert response.headers["content-type"].startswith(PROBLEM)
+
+
+def test_restore_category_rejects_unsupported_accept():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        category_id = _create_category(client, auth_headers, "restore-accept", "income")
+
+        response = client.patch(
+            f"/api/categories/{category_id}",
+            json={"archived_at": None},
+            headers={
+                "accept": "application/xml",
+                "content-type": VENDOR,
+                "authorization": f"Bearer {user['access']}",
+            },
+        )
+        assert response.status_code == 406
+        assert response.headers["content-type"].startswith(PROBLEM)
