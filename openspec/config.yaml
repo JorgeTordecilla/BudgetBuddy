@@ -1,20 +1,42 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: BudgetBuddy backend (contract-first).
+  Primary API contract source: backend/openapi.yaml.
+  Mirror contract for OpenSpec reference: openspec/specs/openapi.yaml.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Stack:
+  - Python 3.14
+  - FastAPI
+  - SQLAlchemy 2.x
+  - Postgres (Neon in production), SQLite in tests
+  - Pydantic v2
+
+  API contract rules:
+  - Success payload media type: application/vnd.budgetbuddy.v1+json
+  - Error payload media type: application/problem+json
+  - Errors follow ProblemDetails with required fields: type, title, status
+
+  Domain scope:
+  - Auth: register/login/refresh/logout
+  - Accounts, Categories, Transactions, Analytics
+  - Business rules include archived-account and category-type mismatch conflicts (409 ProblemDetails)
+
+  Quality gates:
+  - Keep implementation aligned with OpenAPI and OpenSpec specs
+  - Run tests from backend/.venv
+  - Coverage target: >= 90% for app package
+
+rules:
+  proposal:
+    - Reference impacted OpenAPI paths and components explicitly.
+    - Include backwards-compatibility and media-type impact.
+  design:
+    - Document error taxonomy and canonical ProblemDetails constants.
+    - Describe how changes preserve contract-first behavior.
+  specs:
+    - Use clear requirement names and scenario language (WHEN/THEN).
+    - Prefer incremental MODIFIED requirements over full rewrites.
+  tasks:
+    - Include implementation, tests, and verification steps.
+    - Mark coverage/test command to run from backend with .venv activated.
