@@ -10,6 +10,7 @@ from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
+from app.errors import forbidden_error
 from app.models import Category, User
 from app.schemas import CategoryCreate, CategoryOut, CategoryUpdate
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/categories", tags=["categories"])
 def _owned_category_or_403(db: Session, user_id: str, category_id: str) -> Category:
     category = db.scalar(select(Category).where(and_(Category.id == category_id, Category.user_id == user_id)))
     if not category:
-        raise APIError(status=403, title="Forbidden", detail="Not allowed")
+        raise forbidden_error("Not allowed")
     return category
 
 

@@ -8,6 +8,7 @@ from app.core.constants import API_PREFIX, PROBLEM_JSON, VENDOR_JSON
 from app.core.errors import APIError
 from app.core.security import decode_access_token
 from app.db import get_db
+from app.errors import not_acceptable_error, unauthorized_error
 from app.models import User
 
 
@@ -29,7 +30,7 @@ def enforce_accept_header(request: Request) -> None:
 
     accept = request.headers.get("accept", "*/*")
     if not _accepts_vendor_or_problem(accept):
-        raise APIError(status=406, title="Not Acceptable", detail="Unsupported Accept header")
+        raise not_acceptable_error("Unsupported Accept header")
 
 
 def enforce_content_type(request: Request) -> None:
@@ -48,21 +49,21 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     if not authorization.startswith("Bearer "):
-        raise APIError(status=401, title="Unauthorized", detail="Access token is invalid or expired")
+        raise unauthorized_error("Access token is invalid or expired")
 
     token = authorization.removeprefix("Bearer ").strip()
     try:
         payload = decode_access_token(token)
     except Exception as exc:
-        raise APIError(status=401, title="Unauthorized", detail="Access token is invalid or expired") from exc
+        raise unauthorized_error("Access token is invalid or expired") from exc
 
     user_id = payload.get("sub")
     if not user_id:
-        raise APIError(status=401, title="Unauthorized", detail="Access token is invalid or expired")
+        raise unauthorized_error("Access token is invalid or expired")
 
     user = db.scalar(select(User).where(User.id == user_id))
     if not user:
-        raise APIError(status=401, title="Unauthorized", detail="Access token is invalid or expired")
+        raise unauthorized_error("Access token is invalid or expired")
     return user
 
 

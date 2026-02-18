@@ -10,6 +10,7 @@ from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
+from app.errors import forbidden_error
 from app.models import Account, User
 from app.schemas import AccountCreate, AccountOut, AccountUpdate
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 def _owned_account_or_403(db: Session, user_id: str, account_id: str) -> Account:
     account = db.scalar(select(Account).where(and_(Account.id == account_id, Account.user_id == user_id)))
     if not account:
-        raise APIError(status=403, title="Forbidden", detail="Not allowed")
+        raise forbidden_error("Not allowed")
     return account
 
 

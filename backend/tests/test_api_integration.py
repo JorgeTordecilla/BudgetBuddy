@@ -8,6 +8,12 @@ VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
 MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/category-type-mismatch"
 MISMATCH_TITLE = "Category type mismatch"
+UNAUTHORIZED_TYPE = "https://api.budgetbuddy.dev/problems/unauthorized"
+UNAUTHORIZED_TITLE = "Unauthorized"
+FORBIDDEN_TYPE = "https://api.budgetbuddy.dev/problems/forbidden"
+FORBIDDEN_TITLE = "Forbidden"
+NOT_ACCEPTABLE_TYPE = "https://api.budgetbuddy.dev/problems/not-acceptable"
+NOT_ACCEPTABLE_TITLE = "Not Acceptable"
 
 
 def _register_user(client: TestClient):
@@ -509,6 +515,10 @@ def test_restore_category_requires_auth():
         )
         assert response.status_code == 401
         assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == UNAUTHORIZED_TYPE
+        assert body["title"] == UNAUTHORIZED_TITLE
+        assert body["status"] == 401
 
 
 def test_restore_category_forbidden_for_non_owner():
@@ -526,6 +536,10 @@ def test_restore_category_forbidden_for_non_owner():
         )
         assert response.status_code == 403
         assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == FORBIDDEN_TYPE
+        assert body["title"] == FORBIDDEN_TITLE
+        assert body["status"] == 403
 
 
 def test_restore_category_rejects_unsupported_accept():
@@ -545,3 +559,7 @@ def test_restore_category_rejects_unsupported_accept():
         )
         assert response.status_code == 406
         assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406

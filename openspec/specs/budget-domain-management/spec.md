@@ -66,14 +66,18 @@ The backend MUST enforce authenticated user ownership for accounts, categories, 
 
 #### Scenario: Unauthenticated resource access
 - **WHEN** a protected domain endpoint is called without valid access token
-- **THEN** the API SHALL return `401` as `ProblemDetails`
+- **THEN** the API SHALL return canonical `401` ProblemDetails
 
 #### Scenario: Resource exists but is not accessible
 - **WHEN** a valid user token references a resource not owned by that user
-- **THEN** the API SHALL return `403` as `ProblemDetails`
+- **THEN** the API SHALL return canonical `403` ProblemDetails
 
 #### Scenario: Restoring other user's category is forbidden
 - **WHEN** `PATCH /categories/{category_id}` sets `archived_at=null` for a category owned by a different user
 - **THEN** the API SHALL return `403` as `ProblemDetails`
+
+#### Scenario: Restore category matrix asserts canonical authz errors
+- **WHEN** restore category tests exercise unauthenticated and cross-user paths
+- **THEN** the API SHALL return exact canonical `type`, `title`, and `status` for `401` and `403`
 
 

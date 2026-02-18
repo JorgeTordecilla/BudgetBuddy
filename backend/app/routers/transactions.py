@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.errors import account_archived_error, category_type_mismatch_error
+from app.errors import account_archived_error, category_type_mismatch_error, forbidden_error
 from app.core.errors import APIError
 from app.core.pagination import decode_cursor, encode_cursor
 from app.core.responses import vendor_response
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 def _owned_transaction_or_403(db: Session, user_id: str, transaction_id: str) -> Transaction:
     row = db.scalar(select(Transaction).where(and_(Transaction.id == transaction_id, Transaction.user_id == user_id)))
     if not row:
-        raise APIError(status=403, title="Forbidden", detail="Not allowed")
+        raise forbidden_error("Not allowed")
     return row
 
 
