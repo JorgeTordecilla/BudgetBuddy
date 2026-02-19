@@ -14,6 +14,7 @@ from app.routers.accounts import router as accounts_router
 from app.routers.analytics import router as analytics_router
 from app.routers.audit import router as audit_router
 from app.routers.auth import router as auth_router
+from app.routers.auth import session_router as auth_session_router
 from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
@@ -68,6 +69,7 @@ register_exception_handlers(app)
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
+api_router.include_router(auth_session_router)
 api_router.include_router(accounts_router)
 api_router.include_router(categories_router)
 api_router.include_router(transactions_router)

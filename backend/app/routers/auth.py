@@ -22,6 +22,7 @@ from app.core.security import (
     verify_password,
 )
 from app.dependencies import utcnow
+from app.dependencies import get_current_user
 from app.db import get_db
 from app.errors import rate_limited_error, refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
 from app.models import RefreshToken, User
@@ -29,6 +30,7 @@ from app.repositories import SQLAlchemyRefreshTokenRepository, SQLAlchemyUserRep
 from app.schemas import AuthResponse, AuthSessionResponse, LoginRequest, RegisterRequest, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+session_router = APIRouter(tags=["auth"])
 _USER_LOCKS_GUARD = Lock()
 _USER_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
 _AUTH_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
@@ -291,3 +293,8 @@ def logout(
         response = Response(status_code=204)
         clear_refresh_cookie(response)
         return response
+
+
+@session_router.get("/me")
+def me(current_user: User = Depends(get_current_user)):
+    return vendor_response(UserOut.model_validate(current_user).model_dump(), status_code=200)

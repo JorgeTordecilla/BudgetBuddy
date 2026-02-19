@@ -204,6 +204,11 @@ def _analytics_flow(client: TestClient, access: str) -> None:
     _assert_contract(by_category, "/analytics/by-category", "get")
 
 
+def _me_flow(client: TestClient, access: str) -> None:
+    me = client.get("/api/me", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
+    _assert_contract(me, "/me", "get")
+
+
 def _transaction_import_export_flow(client: TestClient, access: str, account_id: str, category_id: str) -> None:
     imported = client.post(
         "/api/transactions/import",
@@ -420,6 +425,7 @@ def test_openapi_e2e_contract_flow():
         category_id = _category_flow(client, access)
         transaction_id = _transaction_flow(client, access, account_id, category_id)
         _transaction_import_export_flow(client, access, account_id, category_id)
+        _me_flow(client, access)
         list_audit = client.get("/api/audit?limit=20", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
         _assert_contract(list_audit, "/audit", "get")
         _analytics_flow(client, access)
@@ -429,3 +435,18 @@ def test_openapi_e2e_contract_flow():
         unauthorized = client.get("/api/accounts", headers={"accept": VENDOR})
         _assert_contract(unauthorized, "/accounts", "get")
         assert unauthorized.headers["content-type"].startswith(PROBLEM)
+
+
+def test_me_contract_mappings_exist():
+    me_get = SPEC["paths"]["/me"]["get"]
+    responses = me_get["responses"]
+
+    assert "200" in responses
+    assert "401" in responses
+    assert "406" in responses
+    assert "application/vnd.budgetbuddy.v1+json" in responses["200"]["content"]
+    assert "application/problem+json" in responses["401"]["content"]
+    assert "application/problem+json" in responses["406"]["content"]
+    assert "X-Request-Id" in responses["200"].get("headers", {})
+    assert "X-Request-Id" in responses["401"].get("headers", {})
+    assert "X-Request-Id" in responses["406"].get("headers", {})

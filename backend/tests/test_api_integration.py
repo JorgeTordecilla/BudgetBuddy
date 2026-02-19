@@ -509,6 +509,47 @@ def test_auth_lifecycle_and_204_logout():
         assert "Max-Age=0" in logout_cookie_header
 
 
+def test_me_returns_authenticated_user():
+    with TestClient(app) as client:
+        user = _register_user(client)
+
+        response = client.get(
+            "/api/me",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        _assert_request_id_header_present(response)
+        body = response.json()
+        assert body["username"] == user["username"]
+        assert body["currency_code"] == "USD"
+        assert isinstance(body["id"], str)
+        assert body["id"].strip() != ""
+
+
+def test_me_without_token_returns_canonical_401():
+    with TestClient(app) as client:
+        response = client.get("/api/me", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(response)
+        _assert_request_id_header_present(response)
+
+
+def test_me_not_acceptable_returns_canonical_406():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/me",
+            headers={"accept": "application/xml", "authorization": f"Bearer {user['access']}"},
+        )
+        assert response.status_code == 406
+        assert response.headers["content-type"].startswith(PROBLEM)
+        _assert_request_id_header_present(response)
+        body = response.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+
 def test_cors_preflight_auth_refresh_allows_credentials_for_dev_origin():
     with TestClient(app) as client:
         response = client.options(

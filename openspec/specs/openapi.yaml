@@ -256,6 +256,47 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem406'
+  /me:
+    get:
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+                username: demo_user
+                currency_code: USD
+        '401':
+          description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
   /accounts:
     get:
       summary: List accounts
