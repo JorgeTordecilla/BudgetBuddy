@@ -1,10 +1,13 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.audit import emit_audit_event
+from app.core.errors import APIError
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
@@ -53,11 +56,29 @@ def list_categories(
 
 
 @router.post("")
-def create_category(payload: CategoryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_category(
+    payload: CategoryCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     repo = SQLAlchemyCategoryRepository(db)
     row = Category(user_id=current_user.id, **payload.model_dump())
     repo.add(row)
-    commit_or_conflict(db, "Category name already exists for this type")
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise APIError(status=409, title="Conflict", detail="Category name already exists for this type") from exc
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="category",
+        resource_id=row.id,
+        action="category.create",
+    )
+    db.commit()
     db.refresh(row)
     return vendor_response(CategoryOut.model_validate(row).model_dump(mode="json"), status_code=201)
 
@@ -72,23 +93,48 @@ def get_category(category_id: UUID, current_user: User = Depends(get_current_use
 def patch_category(
     category_id: UUID,
     payload: CategoryUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     row = _owned_category_or_403(db, current_user.id, str(category_id))
+    previous_archived_at = row.archived_at
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(row, key, value)
     row.updated_at = utcnow()
+    action = "category.restore" if previous_archived_at is not None and row.archived_at is None else "category.update"
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="category",
+        resource_id=row.id,
+        action=action,
+    )
     commit_or_conflict(db, "Category name already exists for this type")
     db.refresh(row)
     return vendor_response(CategoryOut.model_validate(row).model_dump(mode="json"))
 
 
 @router.delete("/{category_id}", status_code=204)
-def delete_category(category_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_category(
+    category_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     row = _owned_category_or_403(db, current_user.id, str(category_id))
     now = utcnow()
     row.archived_at = now
     row.updated_at = now
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="category",
+        resource_id=row.id,
+        action="category.archive",
+        created_at=now,
+    )
     db.commit()
     return Response(status_code=204)

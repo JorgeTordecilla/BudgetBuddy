@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Protocol
 
-from app.models import Account, Budget, Category, RefreshToken, Transaction, User
+from app.models import Account, AuditEvent, Budget, Category, RefreshToken, Transaction, User
 
 
 class UserRepository(Protocol):
@@ -48,3 +48,14 @@ class BudgetRepository(Protocol):
     def get_owned(self, user_id: str, budget_id: str) -> Budget | None: ...
     def list_for_user_month_range(self, user_id: str, from_month: str, to_month: str) -> list[Budget]: ...
     def add(self, budget: Budget) -> None: ...
+
+
+class AuditEventRepository(Protocol):
+    def add(self, event: AuditEvent) -> None: ...
+    def list_for_user(
+        self,
+        user_id: str,
+        *,
+        from_created_at: datetime | None,
+        to_created_at: datetime | None,
+    ) -> list[AuditEvent]: ...

@@ -1,12 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.audit import emit_audit_event
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
+from app.core.errors import APIError
 from app.errors import forbidden_error
 from app.models import Account, User
 from app.repositories import SQLAlchemyAccountRepository
@@ -50,11 +53,29 @@ def list_accounts(
 
 
 @router.post("")
-def create_account(payload: AccountCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_account(
+    payload: AccountCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     repo = SQLAlchemyAccountRepository(db)
     row = Account(user_id=current_user.id, **payload.model_dump())
     repo.add(row)
-    commit_or_conflict(db, "Account name already exists")
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise APIError(status=409, title="Conflict", detail="Account name already exists") from exc
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="account",
+        resource_id=row.id,
+        action="account.create",
+    )
+    db.commit()
     db.refresh(row)
     return vendor_response(AccountOut.model_validate(row).model_dump(mode="json"), status_code=201)
 
@@ -69,6 +90,7 @@ def get_account(account_id: UUID, current_user: User = Depends(get_current_user)
 def patch_account(
     account_id: UUID,
     payload: AccountUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -76,16 +98,38 @@ def patch_account(
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, key, value)
     account.updated_at = utcnow()
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="account",
+        resource_id=account.id,
+        action="account.update",
+    )
     commit_or_conflict(db, "Account name already exists")
     db.refresh(account)
     return vendor_response(AccountOut.model_validate(account).model_dump(mode="json"))
 
 
 @router.delete("/{account_id}", status_code=204)
-def delete_account(account_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_account(
+    account_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     account = _owned_account_or_403(db, current_user.id, str(account_id))
     now = utcnow()
     account.archived_at = now
     account.updated_at = now
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="account",
+        resource_id=account.id,
+        action="account.archive",
+        created_at=now,
+    )
     db.commit()
     return Response(status_code=204)

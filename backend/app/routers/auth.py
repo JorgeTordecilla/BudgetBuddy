@@ -7,6 +7,7 @@ from sqlalchemy import and_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.audit import emit_audit_event
 from app.core.config import settings
 from app.core.errors import APIError
 from app.core.rate_limit import InMemoryRateLimiter, RateLimiter
@@ -83,9 +84,24 @@ def _is_expired(refresh_row: RefreshToken) -> bool:
     return _as_utc(refresh_row.expires_at) < utcnow()
 
 
-def _raise_revoked_or_reuse(refresh_repo: SQLAlchemyRefreshTokenRepository, refresh_row: RefreshToken) -> None:
+def _raise_revoked_or_reuse(
+    refresh_repo: SQLAlchemyRefreshTokenRepository,
+    refresh_row: RefreshToken,
+    *,
+    db: Session,
+    request: Request,
+) -> None:
     reused_after_rotation = refresh_repo.has_newer_token(refresh_row.user_id, refresh_row.created_at)
     if reused_after_rotation:
+        emit_audit_event(
+            db,
+            request=request,
+            user_id=refresh_row.user_id,
+            resource_type="auth_session",
+            resource_id=refresh_row.id,
+            action="auth.refresh_token_reuse_detected",
+        )
+        db.commit()
         raise refresh_reuse_detected_error("Refresh token was already used and rotated")
     raise refresh_revoked_error("Refresh token is revoked")
 
@@ -184,7 +200,7 @@ def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get
         if _is_expired(refresh_row):
             raise unauthorized_error("Refresh token is invalid or expired")
         if refresh_row.revoked_at is not None:
-            _raise_revoked_or_reuse(refresh_repo, refresh_row)
+            _raise_revoked_or_reuse(refresh_repo, refresh_row, db=db, request=request)
 
         user = user_repo.get_by_id(refresh_row.user_id)
         if not user:
@@ -195,7 +211,7 @@ def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get
             current_row = refresh_repo.get_by_hash(token_hash)
             if not current_row or _is_expired(current_row):
                 raise unauthorized_error("Refresh token is invalid or expired")
-            _raise_revoked_or_reuse(refresh_repo, current_row)
+            _raise_revoked_or_reuse(refresh_repo, current_row, db=db, request=request)
 
         new_refresh_token = generate_refresh_token()
         refresh_repo.add(
@@ -212,6 +228,7 @@ def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get
 @router.post("/logout", status_code=204)
 def logout(
     payload: RefreshRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -235,5 +252,14 @@ def logout(
             .execution_options(synchronize_session=False)
         )
         db.execute(stmt)
+        emit_audit_event(
+            db,
+            request=request,
+            user_id=current_user.id,
+            resource_type="auth_session",
+            resource_id=current_user.id,
+            action="auth.logout",
+            created_at=now,
+        )
         db.commit()
         return Response(status_code=204)

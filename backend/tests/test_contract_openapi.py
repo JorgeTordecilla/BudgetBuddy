@@ -275,6 +275,26 @@ def test_auth_rate_limit_contract_mappings_exist():
     assert rate_limited[0]["status"] == 429
 
 
+def test_audit_contract_mappings_exist():
+    audit_get = SPEC["paths"]["/audit"]["get"]
+    responses = audit_get["responses"]
+
+    assert "200" in responses
+    assert "400" in responses
+    assert "401" in responses
+    assert "403" in responses
+    assert "406" in responses
+    assert "application/vnd.budgetbuddy.v1+json" in responses["200"]["content"]
+    assert "application/problem+json" in responses["400"]["content"]
+    assert "application/problem+json" in responses["401"]["content"]
+    assert "application/problem+json" in responses["403"]["content"]
+    assert "application/problem+json" in responses["406"]["content"]
+
+    schemas = SPEC["components"]["schemas"]
+    assert "AuditEvent" in schemas
+    assert "AuditListResponse" in schemas
+
+
 def test_openapi_e2e_contract_flow():
     with TestClient(app) as client:
         username = f"u_{uuid.uuid4().hex[:8]}"
@@ -283,6 +303,8 @@ def test_openapi_e2e_contract_flow():
         category_id = _category_flow(client, access)
         transaction_id = _transaction_flow(client, access, account_id, category_id)
         _transaction_import_export_flow(client, access, account_id, category_id)
+        list_audit = client.get("/api/audit?limit=20", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
+        _assert_contract(list_audit, "/audit", "get")
         _analytics_flow(client, access)
         _budget_invalid_month_flow(client, access)
         _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id)

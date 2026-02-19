@@ -4,12 +4,13 @@ from datetime import date
 from typing import Iterator, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.audit import emit_audit_event
 from app.core.constants import CSV_TEXT
 from app.core.errors import APIError, sanitize_problem_detail
 from app.core.money import validate_amount_cents, validate_user_currency_for_money
@@ -243,13 +244,27 @@ def list_transactions(
 
 
 @router.post("")
-def create_transaction(payload: TransactionCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_transaction(
+    payload: TransactionCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     repo = SQLAlchemyTransactionRepository(db)
     data = payload.model_dump()
     data["amount_cents"] = _validate_money_rules(current_user, data["type"], data["amount_cents"])
     _validate_business_rules(db, current_user.id, data)
     row = Transaction(user_id=current_user.id, **data)
     repo.add(row)
+    db.flush()
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="transaction",
+        resource_id=row.id,
+        action="transaction.create",
+    )
     db.commit()
     db.refresh(row)
     return vendor_response(TransactionOut.model_validate(row).model_dump(mode="json"), status_code=201)
@@ -258,6 +273,7 @@ def create_transaction(payload: TransactionCreate, current_user: User = Depends(
 @router.post("/import")
 def import_transactions(
     payload: TransactionImportRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -282,6 +298,16 @@ def import_transactions(
     for row in rows_to_insert:
         db.add(row)
     if rows_to_insert:
+        db.flush()
+        for row in rows_to_insert:
+            emit_audit_event(
+                db,
+                request=request,
+                user_id=current_user.id,
+                resource_type="transaction",
+                resource_id=row.id,
+                action="transaction.create",
+            )
         db.commit()
 
     result = TransactionImportResult(
@@ -335,10 +361,12 @@ def get_transaction(transaction_id: UUID, current_user: User = Depends(get_curre
 def patch_transaction(
     transaction_id: UUID,
     payload: TransactionUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
+    previous_archived_at = row.archived_at
     data = payload.model_dump(exclude_unset=True)
     merged_type: Literal["income", "expense"] = data.get("type", row.type)
     merged_amount = data.get("amount_cents", row.amount_cents)
@@ -357,16 +385,39 @@ def patch_transaction(
     for key, value in data.items():
         setattr(row, key, value)
     row.updated_at = utcnow()
+    action = "transaction.restore" if previous_archived_at is not None and row.archived_at is None else "transaction.update"
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="transaction",
+        resource_id=row.id,
+        action=action,
+    )
     db.commit()
     db.refresh(row)
     return vendor_response(TransactionOut.model_validate(row).model_dump(mode="json"))
 
 
 @router.delete("/{transaction_id}", status_code=204)
-def delete_transaction(transaction_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_transaction(
+    transaction_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     now = utcnow()
     row.archived_at = now
     row.updated_at = now
+    emit_audit_event(
+        db,
+        request=request,
+        user_id=current_user.id,
+        resource_type="transaction",
+        resource_id=row.id,
+        action="transaction.archive",
+        created_at=now,
+    )
     db.commit()
     return Response(status_code=204)

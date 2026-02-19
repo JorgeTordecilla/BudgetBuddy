@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import Account, Budget, Category, RefreshToken, Transaction, User
+from app.models import Account, AuditEvent, Budget, Category, RefreshToken, Transaction, User
 
 
 class SQLAlchemyUserRepository:
@@ -131,3 +131,25 @@ class SQLAlchemyBudgetRepository:
 
     def add(self, budget: Budget) -> None:
         self.db.add(budget)
+
+
+class SQLAlchemyAuditEventRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def add(self, event: AuditEvent) -> None:
+        self.db.add(event)
+
+    def list_for_user(
+        self,
+        user_id: str,
+        *,
+        from_created_at: datetime | None,
+        to_created_at: datetime | None,
+    ) -> list[AuditEvent]:
+        stmt = select(AuditEvent).where(AuditEvent.user_id == user_id)
+        if from_created_at:
+            stmt = stmt.where(AuditEvent.created_at >= from_created_at)
+        if to_created_at:
+            stmt = stmt.where(AuditEvent.created_at <= to_created_at)
+        return list(self.db.scalars(stmt))

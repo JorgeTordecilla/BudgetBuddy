@@ -2373,3 +2373,161 @@ def test_transactions_import_export_auth_and_negotiation_matrix():
             },
         )
         _assert_invalid_request_problem(unsupported_import_content_type)
+
+
+def test_audit_events_created_for_key_actions():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+
+        account_id = _create_account(client, headers, "audit-account")
+        category_id = _create_category(client, headers, "audit-category", "income")
+        tx_status, tx_body = _create_transaction(
+            client,
+            headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="audit-create",
+            date="2026-11-01",
+        )
+        assert tx_status == 201
+        tx_id = tx_body["id"]
+
+        tx_patch = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"note": "audit-update"},
+            headers=headers,
+        )
+        assert tx_patch.status_code == 200
+
+        tx_archive = client.delete(
+            f"/api/transactions/{tx_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert tx_archive.status_code == 204
+
+        tx_restore = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers=headers,
+        )
+        assert tx_restore.status_code == 200
+
+        first_refresh = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first_refresh.status_code == 200
+        rotated_refresh = first_refresh.json()["refresh_token"]
+
+        reuse = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_refresh_reuse_detected_problem(reuse)
+
+        logout = client.post(
+            "/api/auth/logout",
+            json={"refresh_token": rotated_refresh},
+            headers={
+                "accept": VENDOR,
+                "content-type": VENDOR,
+                "authorization": f"Bearer {first_refresh.json()['access_token']}",
+            },
+        )
+        assert logout.status_code == 204
+
+        audit = client.get(
+            "/api/audit?limit=100",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert audit.status_code == 200
+        assert audit.headers["content-type"].startswith(VENDOR)
+        actions = {item["action"] for item in audit.json()["items"]}
+        assert "account.create" in actions
+        assert "category.create" in actions
+        assert "transaction.create" in actions
+        assert "transaction.update" in actions
+        assert "transaction.archive" in actions
+        assert "transaction.restore" in actions
+        assert "auth.refresh_token_reuse_detected" in actions
+        assert "auth.logout" in actions
+
+
+def test_audit_owner_only_pagination_and_sensitive_fields():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+
+        _create_account(client, owner_headers, "audit-p1")
+        _create_account(client, owner_headers, "audit-p2")
+        _create_account(client, owner_headers, "audit-p3")
+        _create_account(client, other_headers, "audit-other")
+
+        page_1 = client.get(
+            "/api/audit?limit=2",
+            headers={"accept": VENDOR, "authorization": f"Bearer {owner['access']}"},
+        )
+        assert page_1.status_code == 200
+        assert page_1.headers["content-type"].startswith(VENDOR)
+        page_1_body = page_1.json()
+        assert len(page_1_body["items"]) == 2
+        assert page_1_body["next_cursor"] is not None
+
+        page_2 = client.get(
+            f"/api/audit?limit=2&cursor={page_1_body['next_cursor']}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {owner['access']}"},
+        )
+        assert page_2.status_code == 200
+        page_2_body = page_2.json()
+
+        owner_ids = {item["id"] for item in page_1_body["items"]} | {item["id"] for item in page_2_body["items"]}
+        assert len(owner_ids) >= 3
+
+        other_page = client.get(
+            "/api/audit?limit=20",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        assert other_page.status_code == 200
+        assert len(other_page.json()["items"]) == 1
+        assert all(item["resource_id"] != owner["refresh"] for item in other_page.json()["items"])
+
+        serialized = json.dumps(page_1_body)
+        assert "Bearer " not in serialized
+        assert owner["refresh"] not in serialized
+
+
+def test_audit_endpoint_error_matrix_is_canonical():
+    with TestClient(app) as client:
+        user = _register_user(client)
+
+        unauthorized = client.get("/api/audit", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(unauthorized)
+
+        not_acceptable = client.get(
+            "/api/audit",
+            headers={"accept": "application/xml", "authorization": f"Bearer {user['access']}"},
+        )
+        assert not_acceptable.status_code == 406
+        assert not_acceptable.headers["content-type"].startswith(PROBLEM)
+        body = not_acceptable.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+        invalid_range = client.get(
+            "/api/audit?from=2026-11-02T00:00:00&to=2026-11-01T00:00:00",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_date_range_problem(invalid_range)
+
+        invalid_cursor = client.get(
+            "/api/audit?cursor=not-base64",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_cursor_problem(invalid_cursor)
