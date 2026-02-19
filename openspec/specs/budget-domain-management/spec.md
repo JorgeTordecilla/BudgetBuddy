@@ -129,7 +129,7 @@ The backend MUST implement register/login/refresh/logout behavior aligned to Ope
 
 #### Scenario: Refresh token replay is rejected
 - **WHEN** a previously rotated refresh token is reused
-- **THEN** the API SHALL reject with canonical `403` refresh-revoked ProblemDetails
+- **THEN** the API SHALL reject with canonical `403` refresh-reuse-detected ProblemDetails
 
 #### Scenario: Refresh token invalid or expired is rejected
 - **WHEN** refresh token is malformed, signature-invalid, or expired

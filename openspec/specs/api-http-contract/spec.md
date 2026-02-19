@@ -131,7 +131,7 @@ The backend MUST rotate refresh tokens on successful refresh and block reuse det
 
 #### Scenario: Refresh reuse is forbidden with canonical problem
 - **WHEN** a previously used (rotated) or revoked refresh token is presented to `POST /auth/refresh`
-- **THEN** the API SHALL return `403` `application/problem+json` with canonical `type=https://api.budgetbuddy.dev/problems/refresh-revoked`
+- **THEN** the API SHALL return `403` `application/problem+json` with canonical `type=https://api.budgetbuddy.dev/problems/refresh-reuse-detected`
 
 ### Requirement: Transaction restore idempotency
 Transaction restore through patch MUST be idempotent.

@@ -995,7 +995,7 @@ components:
   - type: https://api.budgetbuddy.dev/problems/refresh-revoked
     title: Refresh token revoked
     status: 403
-  - type: https://api.budgetbuddy.dev/problems/refresh-revoked
+  - type: https://api.budgetbuddy.dev/problems/refresh-reuse-detected
     title: Refresh token reuse detected
     status: 403
   - type: https://api.budgetbuddy.dev/problems/account-archived
