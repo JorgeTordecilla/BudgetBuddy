@@ -765,7 +765,7 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
 
     patch:
-      summary: Update transaction
+      summary: Update or restore transaction
       requestBody:
         required: true
         content:
@@ -774,7 +774,7 @@ paths:
               $ref: "#/components/schemas/TransactionUpdate"
       responses:
         "200":
-          description: OK
+          description: Updated (or restored when archived_at=null)
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:

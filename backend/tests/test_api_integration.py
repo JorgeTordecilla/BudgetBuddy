@@ -878,6 +878,113 @@ def test_transactions_non_owner_matrix_is_forbidden():
         _assert_forbidden_problem(delete_resp)
 
 
+def test_restore_transaction_happy_path_and_idempotent():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "restore-tx-account")
+        category_id = _create_category(client, auth_headers, "restore-tx-category", "income")
+        status, created = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="restore-tx-seed",
+            date="2026-02-16",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        archive = client.delete(
+            f"/api/transactions/{tx_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archive.status_code == 204
+
+        restore = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers=auth_headers,
+        )
+        assert restore.status_code == 200
+        assert restore.headers["content-type"].startswith(VENDOR)
+        assert restore.json()["archived_at"] is None
+
+        restore_again = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers=auth_headers,
+        )
+        assert restore_again.status_code == 200
+        assert restore_again.headers["content-type"].startswith(VENDOR)
+        assert restore_again.json()["archived_at"] is None
+
+
+def test_restore_transaction_forbidden_for_non_owner():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+
+        account_id = _create_account(client, owner_headers, "restore-tx-foreign-account")
+        category_id = _create_category(client, owner_headers, "restore-tx-foreign-category", "income")
+        status, created = _create_transaction(
+            client,
+            owner_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="restore-tx-foreign-seed",
+            date="2026-02-17",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        response = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers=other_headers,
+        )
+        _assert_forbidden_problem(response)
+
+
+def test_restore_transaction_rejects_unsupported_accept():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "restore-tx-accept-account")
+        category_id = _create_category(client, auth_headers, "restore-tx-accept-category", "income")
+        status, created = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="restore-tx-accept-seed",
+            date="2026-02-18",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        response = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers={
+                "accept": "application/xml",
+                "content-type": VENDOR,
+                "authorization": f"Bearer {user['access']}",
+            },
+        )
+        assert response.status_code == 406
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+
 def test_restore_category_rejects_unsupported_accept():
     with TestClient(app) as client:
         user = _register_user(client)
