@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -17,6 +18,22 @@ from app.core.security import (
     verify_password,
 )
 from app.dependencies import _accepts_vendor_or_problem, enforce_accept_header, enforce_content_type, get_current_user
+from app.db import SessionLocal
+from app.models import Account, Category, RefreshToken, Transaction, User
+from app.repositories import (
+    SQLAlchemyAccountRepository,
+    SQLAlchemyCategoryRepository,
+    SQLAlchemyRefreshTokenRepository,
+    SQLAlchemyTransactionRepository,
+    SQLAlchemyUserRepository,
+)
+from app.repositories.interfaces import (
+    AccountRepository,
+    CategoryRepository,
+    RefreshTokenRepository,
+    TransactionRepository,
+    UserRepository,
+)
 
 
 def _request(path: str, method: str = "GET", headers: dict[str, str] | None = None) -> Request:
@@ -160,3 +177,139 @@ def test_api_error_logging_includes_structured_operational_fields(caplog):
     assert any("path=/boom" in message for message in messages)
     assert any("status=401" in message for message in messages)
     assert any("problem_type=https://api.budgetbuddy.dev/problems/unauthorized" in message for message in messages)
+
+
+def test_repository_protocol_shapes_are_implemented():
+    # Ensure protocol contracts are imported/exercised and concrete repos expose required methods.
+    protocol_to_impl = [
+        (UserRepository, SQLAlchemyUserRepository, ["get_by_id", "get_by_username", "add"]),
+        (RefreshTokenRepository, SQLAlchemyRefreshTokenRepository, ["get_by_hash", "add", "has_newer_token", "list_active_by_user"]),
+        (AccountRepository, SQLAlchemyAccountRepository, ["get_owned", "list_for_user", "add"]),
+        (CategoryRepository, SQLAlchemyCategoryRepository, ["get_owned", "list_for_user", "add"]),
+        (TransactionRepository, SQLAlchemyTransactionRepository, ["get_owned", "list_for_user", "add"]),
+    ]
+
+    for protocol, impl, methods in protocol_to_impl:
+        assert protocol is not None
+        assert impl is not None
+        for method in methods:
+            assert hasattr(impl, method)
+
+
+def test_sqlalchemy_repositories_cover_list_filter_branches():
+    db = SessionLocal()
+    try:
+        user = User(username="repo_user_a", password_hash="hash", currency_code="USD")
+        other_user = User(username="repo_user_b", password_hash="hash", currency_code="USD")
+        db.add_all([user, other_user])
+        db.flush()
+
+        account_repo = SQLAlchemyAccountRepository(db)
+        category_repo = SQLAlchemyCategoryRepository(db)
+        tx_repo = SQLAlchemyTransactionRepository(db)
+        refresh_repo = SQLAlchemyRefreshTokenRepository(db)
+
+        acc_active = Account(user_id=user.id, name="acc-active", type="cash", initial_balance_cents=100)
+        acc_archived = Account(
+            user_id=user.id,
+            name="acc-archived",
+            type="cash",
+            initial_balance_cents=200,
+            archived_at=datetime.now(tz=UTC),
+        )
+        acc_other = Account(user_id=other_user.id, name="acc-other", type="cash", initial_balance_cents=300)
+        db.add_all([acc_active, acc_archived, acc_other])
+
+        cat_income = Category(user_id=user.id, name="cat-income", type="income")
+        cat_exp_archived = Category(
+            user_id=user.id,
+            name="cat-exp-archived",
+            type="expense",
+            archived_at=datetime.now(tz=UTC),
+        )
+        cat_other = Category(user_id=other_user.id, name="cat-other", type="income")
+        db.add_all([cat_income, cat_exp_archived, cat_other])
+        db.flush()
+
+        tx_visible = Transaction(
+            user_id=user.id,
+            type="income",
+            account_id=acc_active.id,
+            category_id=cat_income.id,
+            amount_cents=1000,
+            date=date(2026, 2, 1),
+        )
+        tx_archived = Transaction(
+            user_id=user.id,
+            type="expense",
+            account_id=acc_archived.id,
+            category_id=cat_exp_archived.id,
+            amount_cents=500,
+            date=date(2026, 2, 2),
+            archived_at=datetime.now(tz=UTC),
+        )
+        tx_other = Transaction(
+            user_id=other_user.id,
+            type="income",
+            account_id=acc_other.id,
+            category_id=cat_other.id,
+            amount_cents=1500,
+            date=date(2026, 2, 3),
+        )
+        db.add_all([tx_visible, tx_archived, tx_other])
+
+        token_old = RefreshToken(
+            user_id=user.id,
+            token_hash="token-old",
+            expires_at=datetime.now(tz=UTC) + timedelta(days=1),
+            created_at=datetime.now(tz=UTC) - timedelta(minutes=10),
+            revoked_at=datetime.now(tz=UTC),
+        )
+        token_new_active = RefreshToken(
+            user_id=user.id,
+            token_hash="token-new",
+            expires_at=datetime.now(tz=UTC) + timedelta(days=1),
+            created_at=datetime.now(tz=UTC),
+        )
+        db.add_all([token_old, token_new_active])
+        db.commit()
+
+        # Account repository: include_archived branch + ownership branch.
+        assert [a.id for a in account_repo.list_for_user(user.id, include_archived=False)] == [acc_active.id]
+        assert set(a.id for a in account_repo.list_for_user(user.id, include_archived=True)) == {acc_active.id, acc_archived.id}
+        assert account_repo.get_owned(user.id, acc_active.id) is not None
+        assert account_repo.get_owned(user.id, acc_other.id) is None
+
+        # Category repository: type filter + include_archived branch + ownership branch.
+        only_income = category_repo.list_for_user(user.id, include_archived=False, category_type="income")
+        assert [c.id for c in only_income] == [cat_income.id]
+        with_archived = category_repo.list_for_user(user.id, include_archived=True, category_type=None)
+        assert set(c.id for c in with_archived) == {cat_income.id, cat_exp_archived.id}
+        assert category_repo.get_owned(user.id, cat_income.id) is not None
+        assert category_repo.get_owned(user.id, cat_other.id) is None
+
+        # Transaction repository: all optional filters branches.
+        listed_default = tx_repo.list_for_user(user.id, False, None, None, None, None, None)
+        assert [t.id for t in listed_default] == [tx_visible.id]
+        listed_filtered = tx_repo.list_for_user(
+            user.id,
+            True,
+            "income",
+            acc_active.id,
+            cat_income.id,
+            date(2026, 2, 1),
+            date(2026, 2, 1),
+        )
+        assert [t.id for t in listed_filtered] == [tx_visible.id]
+        assert tx_repo.get_owned(user.id, tx_visible.id) is not None
+        assert tx_repo.get_owned(user.id, tx_other.id) is None
+
+        # Refresh token repository: hash lookup + active filtering + newer-token detection.
+        assert refresh_repo.get_by_hash("token-new") is not None
+        assert refresh_repo.get_by_hash("missing") is None
+        active = refresh_repo.list_active_by_user(user.id)
+        assert [row.token_hash for row in active] == ["token-new"]
+        assert refresh_repo.has_newer_token(user.id, token_old.created_at) is True
+        assert refresh_repo.has_newer_token(user.id, token_new_active.created_at + timedelta(seconds=1)) is False
+    finally:
+        db.close()

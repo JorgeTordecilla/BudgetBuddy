@@ -1,0 +1,44 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  tests-and-migrations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: sqlite:///./ci_test.db
+        run: |
+          python -m pytest tests -q -s --cov=app --cov-report=term-missing:skip-covered
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: sqlite:///./ci_migrate.db
+        run: |
+          alembic upgrade head

@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Response
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,6 +12,7 @@ from app.dependencies import get_current_user, utcnow
 from app.db import get_db
 from app.errors import refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
 from app.models import RefreshToken, User
+from app.repositories import SQLAlchemyRefreshTokenRepository, SQLAlchemyUserRepository
 from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,7 +35,7 @@ def _create_auth_payload(user: User, refresh_token: str) -> dict:
 
 def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToken:
     token_hash = hash_refresh_token(refresh_token)
-    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    refresh_row = SQLAlchemyRefreshTokenRepository(db).get_by_hash(token_hash)
     if not refresh_row or _as_utc(refresh_row.expires_at) < utcnow():
         raise unauthorized_error("Refresh token is invalid or expired")
     return refresh_row
@@ -43,8 +43,10 @@ def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToke
 
 @router.post("/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    user_repo = SQLAlchemyUserRepository(db)
+    refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     user = User(username=payload.username, password_hash=hash_password(payload.password), currency_code=payload.currency_code)
-    db.add(user)
+    user_repo.add(user)
     try:
         db.flush()
     except IntegrityError as exc:
@@ -57,14 +59,16 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         token_hash=hash_refresh_token(refresh_token),
         expires_at=utcnow() + timedelta(days=settings.refresh_token_expires_days),
     )
-    db.add(refresh)
+    refresh_repo.add(refresh)
     db.commit()
     return vendor_response(_create_auth_payload(user, refresh_token), status_code=201)
 
 
 @router.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.username == payload.username))
+    user_repo = SQLAlchemyUserRepository(db)
+    refresh_repo = SQLAlchemyRefreshTokenRepository(db)
+    user = user_repo.get_by_username(payload.username)
     if not user or not verify_password(payload.password, user.password_hash):
         raise unauthorized_error("User or password invalid")
 
@@ -74,18 +78,20 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         token_hash=hash_refresh_token(refresh_token),
         expires_at=utcnow() + timedelta(days=settings.refresh_token_expires_days),
     )
-    db.add(refresh)
+    refresh_repo.add(refresh)
     db.commit()
     return vendor_response(_create_auth_payload(user, refresh_token), status_code=200)
 
 
 @router.post("/refresh")
 def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    user_repo = SQLAlchemyUserRepository(db)
+    refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     if not payload.refresh_token.strip():
         raise unauthorized_error("Refresh token is invalid or expired")
 
     token_hash = hash_refresh_token(payload.refresh_token)
-    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    refresh_row = refresh_repo.get_by_hash(token_hash)
     if not refresh_row:
         raise unauthorized_error("Refresh token is invalid or expired")
 
@@ -93,22 +99,18 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
         raise unauthorized_error("Refresh token is invalid or expired")
 
     if refresh_row.revoked_at is not None:
-        reused_after_rotation = db.scalar(
-            select(RefreshToken.id)
-            .where(RefreshToken.user_id == refresh_row.user_id, RefreshToken.created_at > refresh_row.created_at)
-            .limit(1)
-        )
+        reused_after_rotation = refresh_repo.has_newer_token(refresh_row.user_id, refresh_row.created_at)
         if reused_after_rotation:
             raise refresh_reuse_detected_error("Refresh token was already used and rotated")
         raise refresh_revoked_error("Refresh token is revoked")
 
-    user = db.scalar(select(User).where(User.id == refresh_row.user_id))
+    user = user_repo.get_by_id(refresh_row.user_id)
     if not user:
         raise unauthorized_error("Refresh token is invalid or expired")
 
     refresh_row.revoked_at = utcnow()
     new_refresh_token = generate_refresh_token()
-    db.add(
+    refresh_repo.add(
         RefreshToken(
             user_id=user.id,
             token_hash=hash_refresh_token(new_refresh_token),
@@ -125,6 +127,7 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     refresh_row = _active_refresh_token_or_401(db, payload.refresh_token)
     if refresh_row.user_id != current_user.id:
         raise refresh_revoked_error("Refresh token is not valid for current user")
@@ -132,9 +135,7 @@ def logout(
         raise refresh_revoked_error("Refresh token is revoked")
 
     now = utcnow()
-    active_rows = db.scalars(
-        select(RefreshToken).where(RefreshToken.user_id == current_user.id, RefreshToken.revoked_at.is_(None))
-    ).all()
+    active_rows = refresh_repo.list_active_by_user(current_user.id)
     for row in active_rows:
         row.revoked_at = now
 

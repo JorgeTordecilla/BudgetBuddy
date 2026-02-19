@@ -12,13 +12,14 @@ from app.db import get_db
 from app.dependencies import get_current_user, utcnow
 from app.errors import forbidden_error, invalid_cursor_error
 from app.models import Account, User
+from app.repositories import SQLAlchemyAccountRepository
 from app.schemas import AccountCreate, AccountOut, AccountUpdate
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
 def _owned_account_or_403(db: Session, user_id: str, account_id: str) -> Account:
-    account = db.scalar(select(Account).where(and_(Account.id == account_id, Account.user_id == user_id)))
+    account = SQLAlchemyAccountRepository(db).get_owned(user_id, account_id)
     if not account:
         raise forbidden_error("Not allowed")
     return account
@@ -63,8 +64,9 @@ def list_accounts(
 
 @router.post("")
 def create_account(payload: AccountCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    repo = SQLAlchemyAccountRepository(db)
     row = Account(user_id=current_user.id, **payload.model_dump())
-    db.add(row)
+    repo.add(row)
     try:
         db.commit()
     except IntegrityError as exc:

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -19,6 +19,9 @@ class User(Base):
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
+    __table_args__ = (
+        Index("idx_refresh_tokens_user_created", "user_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -32,7 +35,10 @@ class RefreshToken(Base):
 
 class Account(Base):
     __tablename__ = "accounts"
-    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_accounts_user_name"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_accounts_user_name"),
+        Index("idx_accounts_user_created", "user_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -47,7 +53,10 @@ class Account(Base):
 
 class Category(Base):
     __tablename__ = "categories"
-    __table_args__ = (UniqueConstraint("user_id", "name", "type", name="uq_categories_user_name_type"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", "type", name="uq_categories_user_name_type"),
+        Index("idx_categories_user_created", "user_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -61,6 +70,10 @@ class Category(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        Index("idx_transactions_user_date_created", "user_id", "date", "created_at"),
+        Index("idx_transactions_user_category_date", "user_id", "category_id", "date"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

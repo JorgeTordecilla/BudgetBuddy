@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 from fastapi import Depends, Header, Request
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.constants import API_PREFIX, PROBLEM_JSON, VENDOR_JSON
@@ -10,6 +9,7 @@ from app.core.security import decode_access_token
 from app.db import get_db
 from app.errors import not_acceptable_error, unauthorized_error
 from app.models import User
+from app.repositories import SQLAlchemyUserRepository
 
 
 _BODY_METHODS = {"POST", "PATCH", "PUT"}
@@ -61,7 +61,7 @@ def get_current_user(
     if not user_id:
         raise unauthorized_error("Access token is invalid or expired")
 
-    user = db.scalar(select(User).where(User.id == user_id))
+    user = SQLAlchemyUserRepository(db).get_by_id(user_id)
     if not user:
         raise unauthorized_error("Access token is invalid or expired")
     return user

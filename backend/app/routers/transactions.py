@@ -18,20 +18,21 @@ from app.errors import (
     invalid_date_range_error,
 )
 from app.models import Account, Category, Transaction, User
+from app.repositories import SQLAlchemyAccountRepository, SQLAlchemyCategoryRepository, SQLAlchemyTransactionRepository
 from app.schemas import TransactionCreate, TransactionOut, TransactionUpdate
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
 def _owned_transaction_or_403(db: Session, user_id: str, transaction_id: str) -> Transaction:
-    row = db.scalar(select(Transaction).where(and_(Transaction.id == transaction_id, Transaction.user_id == user_id)))
+    row = SQLAlchemyTransactionRepository(db).get_owned(user_id, transaction_id)
     if not row:
         raise forbidden_error("Not allowed")
     return row
 
 
 def _owned_account_or_conflict(db: Session, user_id: str, account_id: str) -> Account:
-    account = db.scalar(select(Account).where(and_(Account.id == account_id, Account.user_id == user_id)))
+    account = SQLAlchemyAccountRepository(db).get_owned(user_id, account_id)
     if not account:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
     if account.archived_at is not None:
@@ -40,7 +41,7 @@ def _owned_account_or_conflict(db: Session, user_id: str, account_id: str) -> Ac
 
 
 def _owned_category_or_conflict(db: Session, user_id: str, category_id: str) -> Category:
-    category = db.scalar(select(Category).where(and_(Category.id == category_id, Category.user_id == user_id)))
+    category = SQLAlchemyCategoryRepository(db).get_owned(user_id, category_id)
     if not category:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
     if category.archived_at is not None:
@@ -135,10 +136,11 @@ def list_transactions(
 
 @router.post("")
 def create_transaction(payload: TransactionCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    repo = SQLAlchemyTransactionRepository(db)
     data = payload.model_dump()
     _validate_business_rules(db, current_user.id, data)
     row = Transaction(user_id=current_user.id, **data)
-    db.add(row)
+    repo.add(row)
     db.commit()
     db.refresh(row)
     return vendor_response(TransactionOut.model_validate(row).model_dump(mode="json"), status_code=201)

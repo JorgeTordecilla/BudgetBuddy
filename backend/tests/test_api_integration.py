@@ -416,6 +416,36 @@ def test_domain_and_analytics_flow():
         assert forbidden.headers["content-type"].startswith(PROBLEM)
 
 
+def test_persistence_survives_app_restart_for_user_data():
+    user_payload: dict[str, str] = {}
+    account_id: str | None = None
+
+    with TestClient(app) as first_client:
+        user = _register_user(first_client)
+        user_payload = user
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(first_client, auth_headers, "restart-persistence-account")
+        assert account_id
+
+    with TestClient(app) as second_client:
+        login = second_client.post(
+            "/api/auth/login",
+            json={"username": user_payload["username"], "password": user_payload["password"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert login.status_code == 200
+        access = login.json()["access_token"]
+
+        listed = second_client.get(
+            "/api/accounts",
+            headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+        )
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+        ids = [item["id"] for item in listed.json()["items"]]
+        assert account_id in ids
+
+
 def test_create_transaction_fails_when_account_is_archived():
     with TestClient(app) as client:
         user = _register_user(client)

@@ -12,13 +12,14 @@ from app.db import get_db
 from app.dependencies import get_current_user, utcnow
 from app.errors import forbidden_error, invalid_cursor_error
 from app.models import Category, User
+from app.repositories import SQLAlchemyCategoryRepository
 from app.schemas import CategoryCreate, CategoryOut, CategoryUpdate
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
 def _owned_category_or_403(db: Session, user_id: str, category_id: str) -> Category:
-    category = db.scalar(select(Category).where(and_(Category.id == category_id, Category.user_id == user_id)))
+    category = SQLAlchemyCategoryRepository(db).get_owned(user_id, category_id)
     if not category:
         raise forbidden_error("Not allowed")
     return category
@@ -65,8 +66,9 @@ def list_categories(
 
 @router.post("")
 def create_category(payload: CategoryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    repo = SQLAlchemyCategoryRepository(db)
     row = Category(user_id=current_user.id, **payload.model_dump())
-    db.add(row)
+    repo.add(row)
     try:
         db.commit()
     except IntegrityError as exc:
