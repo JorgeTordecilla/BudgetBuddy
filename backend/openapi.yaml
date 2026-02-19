@@ -81,6 +81,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
         "406":
           description: Not Acceptable
           content:
@@ -118,6 +127,15 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "403":
           description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
           content:
             application/problem+json:
               schema:
@@ -862,6 +880,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
         "406":
           description: Not Acceptable
           content:
@@ -1018,6 +1045,15 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "401":
           description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "429":
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/Retry-After"
           content:
             application/problem+json:
               schema:
@@ -1278,6 +1314,11 @@ components:
       description: Correlation id for tracing requests. Propagated when provided by client, generated otherwise.
       schema:
         type: string
+    Retry-After:
+      description: Seconds to wait before retrying after rate limiting.
+      schema:
+        type: integer
+        minimum: 1
   x-problem-details-catalog:
   - type: https://api.budgetbuddy.dev/problems/unauthorized
     title: Unauthorized
@@ -1333,6 +1374,9 @@ components:
   - type: https://api.budgetbuddy.dev/problems/import-batch-limit-exceeded
     title: Import batch limit exceeded
     status: 400
+  - type: https://api.budgetbuddy.dev/problems/rate-limited
+    title: Too Many Requests
+    status: 429
   schemas:
     ProblemDetails:
       type: object

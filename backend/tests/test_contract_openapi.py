@@ -12,6 +12,8 @@ VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
 BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
+RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
+RATE_LIMITED_TITLE = "Too Many Requests"
 
 
 def _resolve_schema(schema: dict) -> dict:
@@ -253,6 +255,24 @@ def test_openapi_route_coverage():
     app_routes = {(method.upper(), route.path) for route in app.routes for method in route.methods}
     missing = [route for route in spec_routes if route not in app_routes]
     assert not missing
+
+
+def test_auth_rate_limit_contract_mappings_exist():
+    login_responses = SPEC["paths"]["/auth/login"]["post"]["responses"]
+    refresh_responses = SPEC["paths"]["/auth/refresh"]["post"]["responses"]
+
+    assert "429" in login_responses
+    assert "429" in refresh_responses
+    assert "application/problem+json" in login_responses["429"]["content"]
+    assert "application/problem+json" in refresh_responses["429"]["content"]
+    assert "Retry-After" in login_responses["429"].get("headers", {})
+    assert "Retry-After" in refresh_responses["429"].get("headers", {})
+
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+    rate_limited = [item for item in catalog if item["type"] == RATE_LIMITED_TYPE]
+    assert len(rate_limited) == 1
+    assert rate_limited[0]["title"] == RATE_LIMITED_TITLE
+    assert rate_limited[0]["status"] == 429
 
 
 def test_openapi_e2e_contract_flow():

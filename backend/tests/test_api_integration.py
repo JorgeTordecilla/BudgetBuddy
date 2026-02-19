@@ -11,6 +11,7 @@ from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 from fastapi.testclient import TestClient
 
 import app.routers.auth as auth_router
+from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
@@ -43,6 +44,8 @@ MONEY_CURRENCY_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/money-curre
 MONEY_CURRENCY_MISMATCH_TITLE = "Money currency mismatch"
 IMPORT_BATCH_LIMIT_EXCEEDED_TYPE = "https://api.budgetbuddy.dev/problems/import-batch-limit-exceeded"
 IMPORT_BATCH_LIMIT_EXCEEDED_TITLE = "Import batch limit exceeded"
+RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
+RATE_LIMITED_TITLE = "Too Many Requests"
 BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate"
 BUDGET_DUPLICATE_TITLE = "Budget already exists"
 CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned"
@@ -172,6 +175,15 @@ def _assert_invalid_request_problem(response):
     body = response.json()
     assert body["title"] == "Invalid request"
     assert body["status"] == 400
+
+
+def _assert_rate_limited_problem(response):
+    assert response.status_code == 429
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == RATE_LIMITED_TYPE
+    assert body["title"] == RATE_LIMITED_TITLE
+    assert body["status"] == 429
 
 
 def _assert_money_problem(response, expected_type: str, expected_title: str):
@@ -704,6 +716,134 @@ def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
             assert responses[0].headers["content-type"].startswith(VENDOR)
 
         assert _active_refresh_count(user_id) == 0
+
+
+def _configure_auth_rate_limit_for_test(
+    monkeypatch,
+    *,
+    login_limit: int,
+    refresh_limit: int,
+    window_seconds: int,
+    lock_enabled: bool = False,
+    lock_seconds: int = 0,
+    now_fn=None,
+):
+    monkeypatch.setattr(auth_router.settings, "auth_login_rate_limit_per_minute", login_limit)
+    monkeypatch.setattr(auth_router.settings, "auth_refresh_rate_limit_per_minute", refresh_limit)
+    monkeypatch.setattr(auth_router.settings, "auth_rate_limit_window_seconds", window_seconds)
+    monkeypatch.setattr(auth_router.settings, "auth_rate_limit_lock_enabled", lock_enabled)
+    monkeypatch.setattr(auth_router.settings, "auth_rate_limit_lock_seconds", lock_seconds)
+    monkeypatch.setattr(auth_router, "_AUTH_RATE_LIMITER", InMemoryRateLimiter(now_fn=now_fn))
+
+
+def test_auth_login_rate_limit_exceeded_returns_canonical_429(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=1, refresh_limit=30, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        first = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first.status_code == 401
+
+        second = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_refresh_rate_limit_exceeded_returns_canonical_429(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=10, refresh_limit=1, window_seconds=60)
+
+    with TestClient(app) as client:
+        _register_user(client)
+        first = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": "invalid-refresh-token"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first.status_code == 401
+
+        second = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": "invalid-refresh-token"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_login_refresh_behavior_unchanged_under_limit(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=10, refresh_limit=10, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        login = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": user["password"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert login.status_code == 200
+        assert login.headers["content-type"].startswith(VENDOR)
+
+        refresh = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": login.json()["refresh_token"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert refresh.status_code == 200
+        assert refresh.headers["content-type"].startswith(VENDOR)
+
+
+def test_auth_login_lock_window_is_deterministic(monkeypatch):
+    clock = {"now": 1_000.0}
+    _configure_auth_rate_limit_for_test(
+        monkeypatch,
+        login_limit=1,
+        refresh_limit=30,
+        window_seconds=60,
+        lock_enabled=True,
+        lock_seconds=120,
+        now_fn=lambda: clock["now"],
+    )
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        first = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first.status_code == 401
+
+        second = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) == 120
+
+        clock["now"] = 1_060.0
+        third = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(third)
+
+        clock["now"] = 1_121.0
+        after_lock = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert after_lock.status_code == 401
 
 
 def test_domain_and_analytics_flow():

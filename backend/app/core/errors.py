@@ -9,11 +9,19 @@ from app.core.constants import PROBLEM_JSON
 
 
 class APIError(Exception):
-    def __init__(self, status: int, title: str, detail: str | None = None, type_: str | None = None):
+    def __init__(
+        self,
+        status: int,
+        title: str,
+        detail: str | None = None,
+        type_: str | None = None,
+        headers: dict[str, str] | None = None,
+    ):
         self.status = status
         self.title = title
         self.detail = detail
         self.type_ = type_ or "about:blank"
+        self.headers = headers or {}
         super().__init__(title)
 
 
@@ -60,7 +68,14 @@ def _is_amount_cents_validation_error(exc: RequestValidationError) -> bool:
     return False
 
 
-def _problem_response(status: int, title: str, detail: str | None, request: Request, type_: str = "about:blank") -> JSONResponse:
+def _problem_response(
+    status: int,
+    title: str,
+    detail: str | None,
+    request: Request,
+    type_: str = "about:blank",
+    extra_headers: dict[str, str] | None = None,
+) -> JSONResponse:
     body = ProblemDetails.payload(
         status=status,
         title=title,
@@ -72,6 +87,8 @@ def _problem_response(status: int, title: str, detail: str | None, request: Requ
     request_id = getattr(request.state, "request_id", None)
     if request_id:
         headers["X-Request-Id"] = request_id
+    if extra_headers:
+        headers.update(extra_headers)
     return JSONResponse(status_code=status, content=body, media_type=PROBLEM_JSON, headers=headers)
 
 
@@ -86,7 +103,7 @@ def register_exception_handlers(app) -> None:
             exc.status,
             exc.type_,
         )
-        return _problem_response(exc.status, exc.title, exc.detail, request, exc.type_)
+        return _problem_response(exc.status, exc.title, exc.detail, request, exc.type_, extra_headers=exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError):

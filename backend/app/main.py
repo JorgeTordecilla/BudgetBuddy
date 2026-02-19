@@ -41,11 +41,13 @@ async def contract_guards(request: Request, call_next):
             type_=exc.type_,
             instance=str(request.url),
         )
+        headers = {REQUEST_ID_HEADER: request_id}
+        headers.update(exc.headers)
         return JSONResponse(
             status_code=exc.status,
             content=body,
             media_type=PROBLEM_JSON,
-            headers={REQUEST_ID_HEADER: request_id},
+            headers=headers,
         )
     response = await call_next(request)
     response.headers[REQUEST_ID_HEADER] = request_id

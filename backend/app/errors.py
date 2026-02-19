@@ -71,6 +71,10 @@ IMPORT_BATCH_LIMIT_EXCEEDED_TYPE = "https://api.budgetbuddy.dev/problems/import-
 IMPORT_BATCH_LIMIT_EXCEEDED_TITLE = "Import batch limit exceeded"
 IMPORT_BATCH_LIMIT_EXCEEDED_STATUS = 400
 
+RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
+RATE_LIMITED_TITLE = "Too Many Requests"
+RATE_LIMITED_STATUS = 429
+
 
 def unauthorized_error(detail: str | None = None) -> APIError:
     return APIError(
@@ -231,4 +235,15 @@ def import_batch_limit_exceeded_error(detail: str | None = None) -> APIError:
         title=IMPORT_BATCH_LIMIT_EXCEEDED_TITLE,
         detail=detail,
         type_=IMPORT_BATCH_LIMIT_EXCEEDED_TYPE,
+    )
+
+
+def rate_limited_error(detail: str | None = None, retry_after: int | None = None) -> APIError:
+    headers = {"Retry-After": str(retry_after)} if retry_after is not None else None
+    return APIError(
+        status=RATE_LIMITED_STATUS,
+        title=RATE_LIMITED_TITLE,
+        detail=detail,
+        type_=RATE_LIMITED_TYPE,
+        headers=headers,
     )

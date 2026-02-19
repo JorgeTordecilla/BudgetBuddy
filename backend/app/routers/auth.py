@@ -2,18 +2,19 @@ from datetime import UTC, datetime, timedelta
 from threading import Lock
 from weakref import WeakValueDictionary
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import and_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import APIError
+from app.core.rate_limit import InMemoryRateLimiter, RateLimiter
 from app.core.responses import vendor_response
 from app.core.security import create_access_token, generate_refresh_token, hash_password, hash_refresh_token, verify_password
 from app.dependencies import get_current_user, utcnow
 from app.db import get_db
-from app.errors import refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
+from app.errors import rate_limited_error, refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
 from app.models import RefreshToken, User
 from app.repositories import SQLAlchemyRefreshTokenRepository, SQLAlchemyUserRepository
 from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserOut
@@ -21,6 +22,7 @@ from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequ
 router = APIRouter(prefix="/auth", tags=["auth"])
 _USER_LOCKS_GUARD = Lock()
 _USER_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
+_AUTH_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
 
 
 def _user_lock(user_id: str) -> Lock:
@@ -36,6 +38,36 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded:
+        first = forwarded.split(",", 1)[0].strip()
+        if first:
+            return first
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
+    window_seconds = max(1, settings.auth_rate_limit_window_seconds)
+    if endpoint == "login":
+        limit = max(1, settings.auth_login_rate_limit_per_minute)
+    else:
+        limit = max(1, settings.auth_refresh_rate_limit_per_minute)
+
+    lock_seconds = settings.auth_rate_limit_lock_seconds if settings.auth_rate_limit_lock_enabled else 0
+    key = f"{endpoint}:{identity}"
+    allowed, retry_after = _AUTH_RATE_LIMITER.check(
+        key,
+        limit=limit,
+        window_seconds=window_seconds,
+        lock_seconds=max(0, lock_seconds),
+    )
+    if not allowed:
+        raise rate_limited_error("Too many requests, retry later", retry_after=retry_after)
 
 
 def _create_auth_payload(user: User, refresh_token: str) -> dict:
@@ -108,7 +140,10 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    username_key = payload.username.strip().lower() if payload.username.strip() else "unknown-username"
+    _auth_rate_limit_or_429(request, endpoint="login", identity=f"{username_key}:{_client_ip(request)}")
+
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     user = user_repo.get_by_username(payload.username)
@@ -127,7 +162,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh")
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)):
+    token_key = hash_refresh_token(payload.refresh_token.strip()) if payload.refresh_token.strip() else "empty-token"
+    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{_client_ip(request)}")
+
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     if not payload.refresh_token.strip():
