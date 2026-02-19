@@ -1,19 +1,4 @@
-## ADDED Requirements
-
-### Requirement: Vendor media type for successful payloads
-The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`.
-
-#### Scenario: Successful endpoint response uses vendor media type
-- **WHEN** a client calls a successful endpoint that returns a JSON body
-- **THEN** the response status SHALL match the OpenAPI status code and the `Content-Type` header SHALL be `application/vnd.budgetbuddy.v1+json`
-
-#### Scenario: Category restore success uses vendor media type
-- **WHEN** `PATCH /categories/{category_id}` sets `archived_at` to `null` for a category owned by the authenticated user
-- **THEN** the API SHALL return `200` with `Content-Type: application/vnd.budgetbuddy.v1+json` and a `Category` payload with `archived_at=null`
-
-#### Scenario: Transaction restore success uses vendor media type
-- **WHEN** `PATCH /transactions/{transaction_id}` sets `archived_at` to `null` for an owned transaction
-- **THEN** the API SHALL return `200` with `Content-Type: application/vnd.budgetbuddy.v1+json` and `Transaction` payload
+## MODIFIED Requirements
 
 ### Requirement: ProblemDetails for error payloads
 The backend MUST return all error payloads as `application/problem+json` and include required `ProblemDetails` fields: `type`, `title`, and `status`.
@@ -62,18 +47,6 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** `PATCH /categories/{category_id}` sets `archived_at` to `null` for a category not owned by the authenticated user
 - **THEN** the API SHALL return `403` with `application/problem+json` and required `ProblemDetails` fields
 
-#### Scenario: Transaction restore without token is unauthorized
-- **WHEN** `PATCH /transactions/{transaction_id}` with `archived_at=null` is called without valid bearer token
-- **THEN** the API SHALL return canonical `401` ProblemDetails
-
-#### Scenario: Transaction restore for non-owner is forbidden
-- **WHEN** `PATCH /transactions/{transaction_id}` with `archived_at=null` targets another user's transaction
-- **THEN** the API SHALL return canonical `403` ProblemDetails
-
-#### Scenario: Transaction restore with unsupported accept is not acceptable
-- **WHEN** `PATCH /transactions/{transaction_id}` with `archived_at=null` is called with unsupported `Accept`
-- **THEN** the API SHALL return canonical `406` ProblemDetails
-
 #### Scenario: Catalog values are exact and stable
 - **WHEN** canonical ProblemDetails are emitted for `400/401/403/406/409`
 - **THEN** runtime responses SHALL use exact `type`, `title`, and `status` values documented in the contract catalog
@@ -89,28 +62,6 @@ The backend MUST enforce a single deterministic ownership policy for scoped doma
 - **WHEN** OpenAPI is reviewed for ownership violations on domain endpoints
 - **THEN** `403` descriptions SHALL use the canonical wording `Forbidden (resource is not owned by authenticated user)`
 
-### Requirement: Accept header negotiation
-The backend MUST validate `Accept` headers for endpoints in the contract and return `406` with `ProblemDetails` when the expected media type is not acceptable.
-
-#### Scenario: Unsupported Accept header
-- **WHEN** a client sends `Accept` that does not allow `application/vnd.budgetbuddy.v1+json` or `application/problem+json` as required
-- **THEN** the API SHALL return `406` with canonical Not Acceptable ProblemDetails
-
-#### Scenario: Category restore with unsupported Accept header
-- **WHEN** a client calls `PATCH /categories/{category_id}` with `archived_at: null` and sends an unsupported `Accept` header
-- **THEN** the API SHALL return `406` with `application/problem+json`
-
-#### Scenario: OpenAPI not acceptable descriptions are normalized
-- **WHEN** OpenAPI is reviewed for endpoints that negotiate media types
-- **THEN** `406` descriptions SHALL use canonical Not Acceptable wording consistently
-
-### Requirement: OpenAPI response mapping for transaction conflicts
-Transaction write endpoints MUST expose conflict responses in OpenAPI with `application/problem+json`.
-
-#### Scenario: OpenAPI includes category archived conflict on transaction create and patch
-- **WHEN** contract files are reviewed for `POST /transactions` and `PATCH /transactions/{transaction_id}`
-- **THEN** both endpoints SHALL include `409` response mapping with `application/problem+json`
-
 ### Requirement: OpenAPI response mapping for paginated list errors
 Paginated list endpoints MUST document invalid cursor errors with `application/problem+json`.
 
@@ -122,33 +73,13 @@ Paginated list endpoints MUST document invalid cursor errors with `application/p
 - **WHEN** OpenAPI is reviewed for paginated list endpoints
 - **THEN** invalid cursor `400` descriptions SHALL be consistent and use canonical invalid cursor language
 
-### Requirement: Refresh token rotation and replay protection
-The backend MUST rotate refresh tokens on successful refresh and block reuse deterministically.
+### Requirement: Accept header negotiation
+The backend MUST validate `Accept` headers for endpoints in the contract and return `406` with `ProblemDetails` when the expected media type is not acceptable.
 
-#### Scenario: Refresh rotates and invalidates previous token
-- **WHEN** `POST /auth/refresh` succeeds
-- **THEN** response SHALL include a new `refresh_token` and the previous refresh token SHALL become unusable immediately
+#### Scenario: Unsupported Accept header
+- **WHEN** a client sends `Accept` that does not allow `application/vnd.budgetbuddy.v1+json` or `application/problem+json` as required
+- **THEN** the API SHALL return `406` with canonical Not Acceptable ProblemDetails
 
-#### Scenario: Refresh reuse is forbidden with canonical problem
-- **WHEN** a previously used (rotated) or revoked refresh token is presented to `POST /auth/refresh`
-- **THEN** the API SHALL return `403` `application/problem+json` with canonical `type=https://api.budgetbuddy.dev/problems/refresh-revoked`
-
-### Requirement: Transaction restore idempotency
-Transaction restore through patch MUST be idempotent.
-
-#### Scenario: Restore archived transaction
-- **WHEN** transaction is archived and client sends `PATCH /transactions/{transaction_id}` with `archived_at=null`
-- **THEN** `archived_at` SHALL become `null` and response SHALL be `200`
-
-#### Scenario: Restore already-active transaction
-- **WHEN** transaction already has `archived_at=null` and client sends same restore patch
-- **THEN** API SHALL return `200` with unchanged active state
-
-### Requirement: 204 responses have no response body
-The backend MUST return empty bodies for `204 No Content` responses.
-
-#### Scenario: Logout or archive returns no payload
-- **WHEN** `/auth/logout` or an archive endpoint succeeds with `204`
-- **THEN** the response SHALL contain no body and SHALL not include a JSON payload
-
-
+#### Scenario: OpenAPI not acceptable descriptions are normalized
+- **WHEN** OpenAPI is reviewed for endpoints that negotiate media types
+- **THEN** `406` descriptions SHALL use canonical Not Acceptable wording consistently

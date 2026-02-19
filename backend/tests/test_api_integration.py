@@ -128,6 +128,15 @@ def _assert_forbidden_problem(response):
     assert body["status"] == 403
 
 
+def _assert_unauthorized_problem(response):
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == UNAUTHORIZED_TYPE
+    assert body["title"] == UNAUTHORIZED_TITLE
+    assert body["status"] == 401
+
+
 def _assert_refresh_revoked_problem(response, title: str):
     assert response.status_code == 403
     assert response.headers["content-type"].startswith(PROBLEM)
@@ -147,8 +156,9 @@ def test_problem_details_on_invalid_accept():
         assert r.status_code == 406
         assert r.headers["content-type"].startswith(PROBLEM)
         body = r.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
         assert body["status"] == 406
-        assert body["title"] == "Not Acceptable"
 
 
 def test_auth_lifecycle_and_204_logout():
@@ -272,7 +282,7 @@ def test_domain_and_analytics_flow():
         }
 
         unauth = client.get("/api/accounts", headers={"accept": VENDOR})
-        assert unauth.status_code == 401
+        _assert_unauthorized_problem(unauth)
 
         acc = client.post(
             "/api/accounts",
