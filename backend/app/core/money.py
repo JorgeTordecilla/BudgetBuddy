@@ -32,3 +32,13 @@ def validate_amount_cents(amount_cents: object, tx_type: TransactionType) -> int
         raise money_amount_out_of_range_error("amount_cents exceeds safe bounds")
 
     return amount_cents
+
+
+def validate_limit_cents(limit_cents: object) -> int:
+    if not isinstance(limit_cents, int) or isinstance(limit_cents, bool):
+        raise money_amount_not_integer_error("limit_cents must be an integer")
+    if limit_cents <= 0:
+        raise money_amount_sign_invalid_error("limit_cents must be positive")
+    if limit_cents > MAX_ABSOLUTE_AMOUNT_CENTS:
+        raise money_amount_out_of_range_error("limit_cents exceeds safe bounds")
+    return limit_cents

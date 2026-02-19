@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import Account, Category, RefreshToken, Transaction, User
+from app.models import Account, Budget, Category, RefreshToken, Transaction, User
 
 
 class SQLAlchemyUserRepository:
@@ -109,3 +109,25 @@ class SQLAlchemyTransactionRepository:
 
     def add(self, transaction: Transaction) -> None:
         self.db.add(transaction)
+
+
+class SQLAlchemyBudgetRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get_owned(self, user_id: str, budget_id: str) -> Budget | None:
+        return self.db.scalar(select(Budget).where(and_(Budget.id == budget_id, Budget.user_id == user_id)))
+
+    def list_for_user_month_range(self, user_id: str, from_month: str, to_month: str) -> list[Budget]:
+        stmt = (
+            select(Budget)
+            .where(Budget.user_id == user_id)
+            .where(Budget.archived_at.is_(None))
+            .where(Budget.month >= from_month)
+            .where(Budget.month <= to_month)
+            .order_by(Budget.month.asc(), Budget.created_at.desc(), Budget.id.desc())
+        )
+        return list(self.db.scalars(stmt))
+
+    def add(self, budget: Budget) -> None:
+        self.db.add(budget)

@@ -10,6 +10,8 @@ SPEC = yaml.safe_load(Path("openapi.yaml").read_text(encoding="utf-8"))
 COMPONENTS = SPEC.get("components", {}).get("schemas", {})
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
+BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
+BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 
 
 def _resolve_schema(schema: dict) -> dict:
@@ -182,6 +184,19 @@ def _analytics_flow(client: TestClient, access: str) -> None:
     _assert_contract(by_category, "/analytics/by-category", "get")
 
 
+def _budget_invalid_month_flow(client: TestClient, access: str) -> None:
+    response = client.get(
+        "/api/budgets?from=2026-13&to=2026-12",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(response, "/budgets", "get")
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == BUDGET_MONTH_INVALID_TYPE
+    assert body["title"] == BUDGET_MONTH_INVALID_TITLE
+    assert body["status"] == 400
+
+
 def _teardown_flow(client: TestClient, access: str, refresh_token: str, account_id: str, category_id: str, transaction_id: str) -> None:
     delete_tx = client.delete(f"/api/transactions/{transaction_id}", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
     _assert_contract(delete_tx, "/transactions/{transaction_id}", "delete")
@@ -220,6 +235,7 @@ def test_openapi_e2e_contract_flow():
         category_id = _category_flow(client, access)
         transaction_id = _transaction_flow(client, access, account_id, category_id)
         _analytics_flow(client, access)
+        _budget_invalid_month_flow(client, access)
         _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id)
 
         unauthorized = client.get("/api/accounts", headers={"accept": VENDOR})

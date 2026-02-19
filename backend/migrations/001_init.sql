@@ -57,7 +57,20 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS budgets (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  month VARCHAR(7) NOT NULL,
+  limit_cents INTEGER NOT NULL,
+  archived_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_accounts_user_archived_created ON accounts (user_id, archived_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_categories_user_type_archived_created ON categories (user_id, type, archived_at, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions (user_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_category_date ON transactions (user_id, category_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON budgets (user_id, month);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_budgets_user_month_category_active ON budgets (user_id, month, category_id) WHERE archived_at IS NULL;

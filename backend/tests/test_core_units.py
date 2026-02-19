@@ -19,9 +19,10 @@ from app.core.security import (
 )
 from app.dependencies import _accepts_vendor_or_problem, enforce_accept_header, enforce_content_type, get_current_user
 from app.db import SessionLocal
-from app.models import Account, Category, RefreshToken, Transaction, User
+from app.models import Account, Budget, Category, RefreshToken, Transaction, User
 from app.repositories import (
     SQLAlchemyAccountRepository,
+    SQLAlchemyBudgetRepository,
     SQLAlchemyCategoryRepository,
     SQLAlchemyRefreshTokenRepository,
     SQLAlchemyTransactionRepository,
@@ -29,6 +30,7 @@ from app.repositories import (
 )
 from app.repositories.interfaces import (
     AccountRepository,
+    BudgetRepository,
     CategoryRepository,
     RefreshTokenRepository,
     TransactionRepository,
@@ -186,6 +188,7 @@ def test_repository_protocol_shapes_are_implemented():
         (UserRepository, SQLAlchemyUserRepository, ["get_by_id", "get_by_username", "add"]),
         (RefreshTokenRepository, SQLAlchemyRefreshTokenRepository, ["get_by_hash", "add", "has_newer_token", "list_active_by_user"]),
         (AccountRepository, SQLAlchemyAccountRepository, ["get_owned", "list_for_user", "add"]),
+        (BudgetRepository, SQLAlchemyBudgetRepository, ["get_owned", "list_for_user_month_range", "add"]),
         (CategoryRepository, SQLAlchemyCategoryRepository, ["get_owned", "list_for_user", "add"]),
         (TransactionRepository, SQLAlchemyTransactionRepository, ["get_owned", "list_for_user", "add"]),
     ]
@@ -282,6 +285,22 @@ def _seed_refresh_tokens(db, user: User):
     return token_old, token_new_active
 
 
+def _seed_budgets(db, user: User, other_user: User, cat_income: Category, cat_other: Category):
+    budget_a = Budget(user_id=user.id, category_id=cat_income.id, month="2026-01", limit_cents=10000)
+    budget_b = Budget(user_id=user.id, category_id=cat_income.id, month="2026-02", limit_cents=12000)
+    budget_archived = Budget(
+        user_id=user.id,
+        category_id=cat_income.id,
+        month="2026-03",
+        limit_cents=15000,
+        archived_at=datetime.now(tz=UTC),
+    )
+    budget_other = Budget(user_id=other_user.id, category_id=cat_other.id, month="2026-01", limit_cents=9000)
+    db.add_all([budget_a, budget_b, budget_archived, budget_other])
+    db.commit()
+    return budget_a, budget_b, budget_archived, budget_other
+
+
 def _assert_account_repo(account_repo: SQLAlchemyAccountRepository, user: User, acc_active: Account, acc_archived: Account, acc_other: Account):
     assert [a.id for a in account_repo.list_for_user(user.id, include_archived=False)] == [acc_active.id]
     assert set(a.id for a in account_repo.list_for_user(user.id, include_archived=True)) == {acc_active.id, acc_archived.id}
@@ -324,11 +343,19 @@ def _assert_refresh_repo(refresh_repo: SQLAlchemyRefreshTokenRepository, user: U
     assert refresh_repo.has_newer_token(user.id, token_new_active.created_at + timedelta(seconds=1)) is False
 
 
+def _assert_budget_repo(budget_repo: SQLAlchemyBudgetRepository, user: User, budget_a: Budget, budget_b: Budget, budget_other: Budget):
+    rows = budget_repo.list_for_user_month_range(user.id, "2026-01", "2026-02")
+    assert [row.id for row in rows] == [budget_a.id, budget_b.id]
+    assert budget_repo.get_owned(user.id, budget_a.id) is not None
+    assert budget_repo.get_owned(user.id, budget_other.id) is None
+
+
 def test_sqlalchemy_repositories_cover_list_filter_branches():
     db = SessionLocal()
     try:
         user, other_user = _seed_repo_users(db)
         account_repo = SQLAlchemyAccountRepository(db)
+        budget_repo = SQLAlchemyBudgetRepository(db)
         category_repo = SQLAlchemyCategoryRepository(db)
         tx_repo = SQLAlchemyTransactionRepository(db)
         refresh_repo = SQLAlchemyRefreshTokenRepository(db)
@@ -338,10 +365,12 @@ def test_sqlalchemy_repositories_cover_list_filter_branches():
             db, user, other_user, acc_active, acc_archived, acc_other, cat_income, cat_exp_archived, cat_other
         )
         token_old, token_new_active = _seed_refresh_tokens(db, user)
+        budget_a, budget_b, _budget_archived, budget_other = _seed_budgets(db, user, other_user, cat_income, cat_other)
 
         _assert_account_repo(account_repo, user, acc_active, acc_archived, acc_other)
         _assert_category_repo(category_repo, user, cat_income, cat_exp_archived, cat_other)
         _assert_transaction_repo(tx_repo, user, tx_visible, tx_other, acc_active, cat_income)
         _assert_refresh_repo(refresh_repo, user, token_old, token_new_active)
+        _assert_budget_repo(budget_repo, user, budget_a, budget_b, budget_other)
     finally:
         db.close()

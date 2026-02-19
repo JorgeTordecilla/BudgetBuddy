@@ -11,6 +11,7 @@ from app.dependencies import enforce_accept_header, enforce_content_type
 from app.routers.accounts import router as accounts_router
 from app.routers.analytics import router as analytics_router
 from app.routers.auth import router as auth_router
+from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
 
@@ -57,6 +58,7 @@ api_router.include_router(auth_router)
 api_router.include_router(accounts_router)
 api_router.include_router(categories_router)
 api_router.include_router(transactions_router)
+api_router.include_router(budgets_router)
 api_router.include_router(analytics_router)
 app.include_router(api_router, prefix=API_PREFIX)
 

@@ -39,6 +39,18 @@ CATEGORY_TYPE_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/category-typ
 CATEGORY_TYPE_MISMATCH_TITLE = "Category type mismatch"
 CATEGORY_TYPE_MISMATCH_STATUS = 409
 
+BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate"
+BUDGET_DUPLICATE_TITLE = "Budget already exists"
+BUDGET_DUPLICATE_STATUS = 409
+
+CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned"
+CATEGORY_NOT_OWNED_TITLE = "Category is not owned by authenticated user"
+CATEGORY_NOT_OWNED_STATUS = 409
+
+BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
+BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
+BUDGET_MONTH_INVALID_STATUS = 400
+
 MONEY_AMOUNT_NOT_INTEGER_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-not-integer"
 MONEY_AMOUNT_NOT_INTEGER_TITLE = "Money amount must be an integer"
 MONEY_AMOUNT_NOT_INTEGER_STATUS = 400
@@ -143,6 +155,33 @@ def category_type_mismatch_error(detail: str | None = None) -> APIError:
         title=CATEGORY_TYPE_MISMATCH_TITLE,
         detail=detail,
         type_=CATEGORY_TYPE_MISMATCH_TYPE,
+    )
+
+
+def budget_duplicate_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=BUDGET_DUPLICATE_STATUS,
+        title=BUDGET_DUPLICATE_TITLE,
+        detail=detail,
+        type_=BUDGET_DUPLICATE_TYPE,
+    )
+
+
+def category_not_owned_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=CATEGORY_NOT_OWNED_STATUS,
+        title=CATEGORY_NOT_OWNED_TITLE,
+        detail=detail,
+        type_=CATEGORY_NOT_OWNED_TYPE,
+    )
+
+
+def budget_month_invalid_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=BUDGET_MONTH_INVALID_STATUS,
+        title=BUDGET_MONTH_INVALID_TITLE,
+        detail=detail,
+        type_=BUDGET_MONTH_INVALID_TYPE,
     )
 
 

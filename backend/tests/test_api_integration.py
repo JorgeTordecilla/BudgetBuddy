@@ -41,6 +41,12 @@ MONEY_AMOUNT_SIGN_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/money-amo
 MONEY_AMOUNT_SIGN_INVALID_TITLE = "Money amount sign is invalid"
 MONEY_CURRENCY_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/money-currency-mismatch"
 MONEY_CURRENCY_MISMATCH_TITLE = "Money currency mismatch"
+BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate"
+BUDGET_DUPLICATE_TITLE = "Budget already exists"
+CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned"
+CATEGORY_NOT_OWNED_TITLE = "Category is not owned by authenticated user"
+BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
+BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
@@ -93,6 +99,16 @@ def _create_category(client: TestClient, headers: dict[str, str], name: str, typ
     )
     assert response.status_code == 201
     return response.json()["id"]
+
+
+def _create_budget(client: TestClient, headers: dict[str, str], *, month: str, category_id: str, limit_cents: int) -> tuple[int, dict]:
+    response = client.post(
+        "/api/budgets",
+        json={"month": month, "category_id": category_id, "limit_cents": limit_cents},
+        headers=headers,
+    )
+    body = response.json() if response.headers["content-type"].startswith(("application/problem+json", VENDOR)) else {}
+    return response.status_code, body
 
 
 def _create_transaction(
@@ -212,6 +228,15 @@ def _assert_category_archived_problem(response):
     body = response.json()
     assert body["type"] == CATEGORY_ARCHIVED_TYPE
     assert body["title"] == CATEGORY_ARCHIVED_TITLE
+    assert body["status"] == 409
+
+
+def _assert_budget_conflict_problem(response, expected_type: str, expected_title: str):
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == expected_type
+    assert body["title"] == expected_title
     assert body["status"] == 409
 
 
@@ -1685,3 +1710,265 @@ def test_list_transactions_invalid_date_range_returns_problem_details():
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
         )
         _assert_invalid_date_range_problem(response)
+
+
+def test_budgets_happy_path_create_list_get_patch_archive():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        category_id = _create_category(client, headers, "budget-expense", "expense")
+
+        create = client.post(
+            "/api/budgets",
+            json={"month": "2026-02", "category_id": category_id, "limit_cents": 250000},
+            headers=headers,
+        )
+        assert create.status_code == 201
+        assert create.headers["content-type"].startswith(VENDOR)
+        budget_id = create.json()["id"]
+
+        listed = client.get(
+            "/api/budgets?from=2026-01&to=2026-12",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+        assert len(listed.json()["items"]) == 1
+        assert listed.json()["items"][0]["id"] == budget_id
+
+        fetched = client.get(
+            f"/api/budgets/{budget_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert fetched.status_code == 200
+        assert fetched.headers["content-type"].startswith(VENDOR)
+        assert fetched.json()["limit_cents"] == 250000
+
+        patched = client.patch(
+            f"/api/budgets/{budget_id}",
+            json={"limit_cents": 275000},
+            headers=headers,
+        )
+        assert patched.status_code == 200
+        assert patched.headers["content-type"].startswith(VENDOR)
+        assert patched.json()["limit_cents"] == 275000
+
+        archived = client.delete(
+            f"/api/budgets/{budget_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archived.status_code == 204
+        assert archived.text == ""
+
+
+def test_budgets_recreate_after_archive_allows_same_month_category():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        category_id = _create_category(client, headers, "budget-recreate", "expense")
+
+        first = client.post(
+            "/api/budgets",
+            json={"month": "2026-02", "category_id": category_id, "limit_cents": 150000},
+            headers=headers,
+        )
+        assert first.status_code == 201
+        first_id = first.json()["id"]
+
+        archived = client.delete(
+            f"/api/budgets/{first_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert archived.status_code == 204
+
+        second = client.post(
+            "/api/budgets",
+            json={"month": "2026-02", "category_id": category_id, "limit_cents": 175000},
+            headers=headers,
+        )
+        assert second.status_code == 201
+        assert second.json()["id"] != first_id
+
+
+def test_budgets_auth_ownership_and_accept_matrix():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+        category_id = _create_category(client, owner_headers, "budget-owner", "expense")
+
+        created = client.post(
+            "/api/budgets",
+            json={"month": "2026-03", "category_id": category_id, "limit_cents": 100000},
+            headers=owner_headers,
+        )
+        assert created.status_code == 201
+        budget_id = created.json()["id"]
+
+        unauthorized_get = client.get(f"/api/budgets/{budget_id}", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(unauthorized_get)
+
+        forbidden_get = client.get(
+            f"/api/budgets/{budget_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(forbidden_get)
+
+        forbidden_patch = client.patch(
+            f"/api/budgets/{budget_id}",
+            json={"limit_cents": 111111},
+            headers=other_headers,
+        )
+        _assert_forbidden_problem(forbidden_patch)
+
+        forbidden_delete = client.delete(
+            f"/api/budgets/{budget_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(forbidden_delete)
+
+        not_acceptable = client.get(
+            "/api/budgets?from=2026-01&to=2026-12",
+            headers={"accept": "application/xml", "authorization": f"Bearer {owner['access']}"},
+        )
+        assert not_acceptable.status_code == 406
+        assert not_acceptable.headers["content-type"].startswith(PROBLEM)
+        body = not_acceptable.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+
+def test_budgets_conflict_matrix_is_canonical():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+
+        owner_category = _create_category(client, owner_headers, "budget-dup", "expense")
+        other_category = _create_category(client, other_headers, "budget-other", "expense")
+
+        first = client.post(
+            "/api/budgets",
+            json={"month": "2026-04", "category_id": owner_category, "limit_cents": 50000},
+            headers=owner_headers,
+        )
+        assert first.status_code == 201
+
+        duplicate = client.post(
+            "/api/budgets",
+            json={"month": "2026-04", "category_id": owner_category, "limit_cents": 70000},
+            headers=owner_headers,
+        )
+        _assert_budget_conflict_problem(duplicate, BUDGET_DUPLICATE_TYPE, BUDGET_DUPLICATE_TITLE)
+
+        not_owned = client.post(
+            "/api/budgets",
+            json={"month": "2026-04", "category_id": other_category, "limit_cents": 70000},
+            headers=owner_headers,
+        )
+        _assert_budget_conflict_problem(not_owned, CATEGORY_NOT_OWNED_TYPE, CATEGORY_NOT_OWNED_TITLE)
+
+        archived_category = _create_category(client, owner_headers, "budget-archived", "expense")
+        _archive_category_and_assert(client, owner["access"], archived_category)
+        archived_conflict = client.post(
+            "/api/budgets",
+            json={"month": "2026-04", "category_id": archived_category, "limit_cents": 70000},
+            headers=owner_headers,
+        )
+        _assert_budget_conflict_problem(archived_conflict, CATEGORY_ARCHIVED_TYPE, CATEGORY_ARCHIVED_TITLE)
+
+
+def test_budget_validation_failures_return_canonical_400():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        category_id = _create_category(client, headers, "budget-validation", "expense")
+
+        invalid_month = client.get(
+            "/api/budgets?from=2026-13&to=2026-12",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert invalid_month.status_code == 400
+        assert invalid_month.headers["content-type"].startswith(PROBLEM)
+        body = invalid_month.json()
+        assert body["type"] == BUDGET_MONTH_INVALID_TYPE
+        assert body["title"] == BUDGET_MONTH_INVALID_TITLE
+        assert body["status"] == 400
+
+        zero_limit = client.post(
+            "/api/budgets",
+            json={"month": "2026-05", "category_id": category_id, "limit_cents": 0},
+            headers=headers,
+        )
+        _assert_money_problem(zero_limit, MONEY_AMOUNT_SIGN_INVALID_TYPE, MONEY_AMOUNT_SIGN_INVALID_TITLE)
+
+        negative_limit = client.post(
+            "/api/budgets",
+            json={"month": "2026-05", "category_id": category_id, "limit_cents": -1},
+            headers=headers,
+        )
+        _assert_money_problem(negative_limit, MONEY_AMOUNT_SIGN_INVALID_TYPE, MONEY_AMOUNT_SIGN_INVALID_TITLE)
+
+        too_large_limit = client.post(
+            "/api/budgets",
+            json={"month": "2026-05", "category_id": category_id, "limit_cents": 10_000_000_000_000},
+            headers=headers,
+        )
+        _assert_money_problem(too_large_limit, MONEY_AMOUNT_OUT_OF_RANGE_TYPE, MONEY_AMOUNT_OUT_OF_RANGE_TITLE)
+
+
+def test_analytics_include_budget_spent_vs_limit_integer_fields():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "budget-analytics-account")
+        category_id = _create_category(client, headers, "budget-analytics-category", "expense")
+
+        create_budget = client.post(
+            "/api/budgets",
+            json={"month": "2026-06", "category_id": category_id, "limit_cents": 10000},
+            headers=headers,
+        )
+        assert create_budget.status_code == 201
+
+        tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": category_id,
+                "amount_cents": 3000,
+                "date": "2026-06-15",
+                "merchant": "Store",
+                "note": "groceries",
+            },
+            headers=headers,
+        )
+        assert tx.status_code == 201
+
+        by_month = client.get(
+            "/api/analytics/by-month?from=2026-06-01&to=2026-06-30",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert by_month.status_code == 200
+        assert by_month.headers["content-type"].startswith(VENDOR)
+        month_item = by_month.json()["items"][0]
+        assert month_item["budget_spent_cents"] == 3000
+        assert month_item["budget_limit_cents"] == 10000
+        assert isinstance(month_item["budget_spent_cents"], int)
+        assert isinstance(month_item["budget_limit_cents"], int)
+
+        by_category = client.get(
+            "/api/analytics/by-category?from=2026-06-01&to=2026-06-30",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert by_category.status_code == 200
+        assert by_category.headers["content-type"].startswith(VENDOR)
+        category_item = by_category.json()["items"][0]
+        assert category_item["budget_spent_cents"] == 3000
+        assert category_item["budget_limit_cents"] == 10000
+        assert isinstance(category_item["budget_spent_cents"], int)
+        assert isinstance(category_item["budget_limit_cents"], int)

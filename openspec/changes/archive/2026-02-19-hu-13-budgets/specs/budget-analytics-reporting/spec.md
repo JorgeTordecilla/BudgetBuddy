@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Monthly analytics aggregation
 The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return totals grouped by `YYYY-MM`, computed deterministically using integer cents only, with budget comparison fields when a matching monthly category budget exists.
@@ -41,14 +41,3 @@ The backend MUST implement `GET /analytics/by-category` with required `from` and
 #### Scenario: Category analytics include spent versus limit values
 - **WHEN** matching budgets exist for category-month periods included in the requested date range
 - **THEN** the API SHALL expose deterministic integer-cents spent-versus-limit context without introducing non-integer rounding behavior
-
-### Requirement: Analytics security and media-type compliance
-Analytics endpoints MUST require valid access tokens and follow shared HTTP contract behavior.
-
-#### Scenario: Analytics unauthorized request
-- **WHEN** analytics endpoints are called with missing or invalid access token
-- **THEN** the API SHALL return `401` as `ProblemDetails`
-
-#### Scenario: Analytics not acceptable media type
-- **WHEN** analytics endpoints receive an unsupported `Accept` header
-- **THEN** the API SHALL return `406` as `ProblemDetails`

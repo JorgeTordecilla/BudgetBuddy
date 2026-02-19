@@ -1,5 +1,6 @@
 from app.repositories.sqlalchemy import (
     SQLAlchemyAccountRepository,
+    SQLAlchemyBudgetRepository,
     SQLAlchemyCategoryRepository,
     SQLAlchemyRefreshTokenRepository,
     SQLAlchemyTransactionRepository,
@@ -10,6 +11,7 @@ __all__ = [
     "SQLAlchemyUserRepository",
     "SQLAlchemyRefreshTokenRepository",
     "SQLAlchemyAccountRepository",
+    "SQLAlchemyBudgetRepository",
     "SQLAlchemyCategoryRepository",
     "SQLAlchemyTransactionRepository",
 ]

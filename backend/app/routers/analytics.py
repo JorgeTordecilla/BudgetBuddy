@@ -8,7 +8,7 @@ from app.core.responses import vendor_response
 from app.core.money import validate_user_currency_for_money
 from app.db import get_db
 from app.dependencies import get_current_user
-from app.models import Category, Transaction, User
+from app.models import Budget, Category, Transaction, User
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -31,14 +31,45 @@ def analytics_by_month(
     month_expr = _month_expr(db)
     income_expr = func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount_cents), else_=0)), 0)
     expense_expr = func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount_cents), else_=0)), 0)
+    from_month = f"{from_.year:04d}-{from_.month:02d}"
+    to_month = f"{to.year:04d}-{to.month:02d}"
 
-    stmt = (
-        select(month_expr.label("month"), income_expr.label("income_total_cents"), expense_expr.label("expense_total_cents"))
+    tx_stmt = (
+        select(
+            month_expr.label("month"),
+            income_expr.label("income_total_cents"),
+            expense_expr.label("expense_total_cents"),
+        )
         .where(Transaction.user_id == current_user.id)
         .where(Transaction.date >= from_)
         .where(Transaction.date <= to)
         .group_by(month_expr)
-        .order_by(month_expr)
+    )
+    tx_subq = tx_stmt.subquery()
+
+    budget_stmt = (
+        select(
+            Budget.month.label("month"),
+            func.coalesce(func.sum(Budget.limit_cents), 0).label("budget_limit_cents"),
+        )
+        .where(Budget.user_id == current_user.id)
+        .where(Budget.archived_at.is_(None))
+        .where(Budget.month >= from_month)
+        .where(Budget.month <= to_month)
+        .group_by(Budget.month)
+    )
+    budget_subq = budget_stmt.subquery()
+
+    stmt = (
+        select(
+            tx_subq.c.month,
+            tx_subq.c.income_total_cents,
+            tx_subq.c.expense_total_cents,
+            func.coalesce(budget_subq.c.budget_limit_cents, 0).label("budget_limit_cents"),
+        )
+        .select_from(tx_subq)
+        .outerjoin(budget_subq, budget_subq.c.month == tx_subq.c.month)
+        .order_by(tx_subq.c.month)
     )
 
     items = [
@@ -46,6 +77,8 @@ def analytics_by_month(
             "month": row.month,
             "income_total_cents": int(row.income_total_cents),
             "expense_total_cents": int(row.expense_total_cents),
+            "budget_spent_cents": int(row.expense_total_cents),
+            "budget_limit_cents": int(row.budget_limit_cents),
         }
         for row in db.execute(stmt)
     ]
@@ -62,8 +95,10 @@ def analytics_by_category(
     validate_user_currency_for_money(current_user.currency_code)
     income_expr = func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount_cents), else_=0)), 0)
     expense_expr = func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount_cents), else_=0)), 0)
+    from_month = f"{from_.year:04d}-{from_.month:02d}"
+    to_month = f"{to.year:04d}-{to.month:02d}"
 
-    stmt = (
+    tx_stmt = (
         select(
             Category.id.label("category_id"),
             Category.name.label("category_name"),
@@ -75,7 +110,33 @@ def analytics_by_category(
         .where(Transaction.date >= from_)
         .where(Transaction.date <= to)
         .group_by(Category.id, Category.name)
-        .order_by(Category.name)
+    )
+    tx_subq = tx_stmt.subquery()
+
+    budget_stmt = (
+        select(
+            Budget.category_id.label("category_id"),
+            func.coalesce(func.sum(Budget.limit_cents), 0).label("budget_limit_cents"),
+        )
+        .where(Budget.user_id == current_user.id)
+        .where(Budget.archived_at.is_(None))
+        .where(Budget.month >= from_month)
+        .where(Budget.month <= to_month)
+        .group_by(Budget.category_id)
+    )
+    budget_subq = budget_stmt.subquery()
+
+    stmt = (
+        select(
+            tx_subq.c.category_id,
+            tx_subq.c.category_name,
+            tx_subq.c.income_total_cents,
+            tx_subq.c.expense_total_cents,
+            func.coalesce(budget_subq.c.budget_limit_cents, 0).label("budget_limit_cents"),
+        )
+        .select_from(tx_subq)
+        .outerjoin(budget_subq, budget_subq.c.category_id == tx_subq.c.category_id)
+        .order_by(tx_subq.c.category_name)
     )
 
     items = [
@@ -84,6 +145,8 @@ def analytics_by_category(
             "category_name": row.category_name,
             "income_total_cents": int(row.income_total_cents),
             "expense_total_cents": int(row.expense_total_cents),
+            "budget_spent_cents": int(row.expense_total_cents),
+            "budget_limit_cents": int(row.budget_limit_cents),
         }
         for row in db.execute(stmt)
     ]

@@ -886,6 +886,207 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
+  /budgets:
+    get:
+      summary: List budgets by month range
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: "#/components/schemas/BudgetListResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "406":
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    post:
+      summary: Create budget
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: "#/components/schemas/BudgetCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "409":
+          description: Business rule conflict (duplicate budget, category is archived, or category is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "406":
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /budgets/{budget_id}:
+    parameters:
+    - name: budget_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: Get budget
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "406":
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    patch:
+      summary: Update budget
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: "#/components/schemas/BudgetUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "409":
+          description: Business rule conflict (duplicate budget, category is archived, or category is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "406":
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+    delete:
+      summary: Archive budget
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "401":
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "406":
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
   /analytics/by-month:
     get:
       summary: Analytics totals by month (income and expense)
@@ -1007,6 +1208,15 @@ components:
   - type: https://api.budgetbuddy.dev/problems/category-type-mismatch
     title: Category type mismatch
     status: 409
+  - type: https://api.budgetbuddy.dev/problems/budget-duplicate
+    title: Budget already exists
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/category-not-owned
+    title: Category is not owned by authenticated user
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/budget-month-invalid
+    title: Budget month format is invalid
+    status: 400
   - type: https://api.budgetbuddy.dev/problems/money-amount-not-integer
     title: Money amount must be an integer
     status: 400
@@ -1273,6 +1483,70 @@ components:
         archived_at:
           type: [ string, "null" ]
           format: date-time
+    Budget:
+      type: object
+      required: [ id, month, category_id, limit_cents, archived_at, created_at, updated_at ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        category_id:
+          type: string
+          format: uuid
+        limit_cents:
+          type: integer
+          minimum: 1
+          maximum: 999999999999
+        archived_at:
+          type: [ string, "null" ]
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BudgetCreate:
+      type: object
+      required: [ month, category_id, limit_cents ]
+      properties:
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        category_id:
+          type: string
+          format: uuid
+        limit_cents:
+          type: integer
+          minimum: 1
+          maximum: 999999999999
+    BudgetUpdate:
+      type: object
+      properties:
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        category_id:
+          type: string
+          format: uuid
+        limit_cents:
+          type: integer
+          minimum: 1
+          maximum: 999999999999
+        archived_at:
+          type: [ string, "null" ]
+          format: date-time
+    BudgetListResponse:
+      type: object
+      required: [ items ]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Budget"
     AnalyticsByMonthItem:
       type: object
       required: [ month, income_total_cents, expense_total_cents ]
@@ -1283,6 +1557,10 @@ components:
         income_total_cents:
           type: integer
         expense_total_cents:
+          type: integer
+        budget_spent_cents:
+          type: integer
+        budget_limit_cents:
           type: integer
 
     AnalyticsByMonthResponse:
@@ -1306,6 +1584,10 @@ components:
         income_total_cents:
           type: integer
         expense_total_cents:
+          type: integer
+        budget_spent_cents:
+          type: integer
+        budget_limit_cents:
           type: integer
 
     AnalyticsByCategoryResponse:
