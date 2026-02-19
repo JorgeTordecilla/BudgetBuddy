@@ -11,6 +11,7 @@ from app.core.responses import vendor_response
 from app.core.security import create_access_token, generate_refresh_token, hash_password, hash_refresh_token, verify_password
 from app.dependencies import get_current_user, utcnow
 from app.db import get_db
+from app.errors import refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
 from app.models import RefreshToken, User
 from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserOut
 
@@ -30,6 +31,14 @@ def _create_auth_payload(user: User, refresh_token: str) -> dict:
         refresh_token=refresh_token,
         access_token_expires_in=settings.access_token_expires_in,
     ).model_dump()
+
+
+def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToken:
+    token_hash = hash_refresh_token(refresh_token)
+    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
+    if not refresh_row or _as_utc(refresh_row.expires_at) < utcnow():
+        raise unauthorized_error("Refresh token is invalid or expired")
+    return refresh_row
 
 
 @router.post("/register")
@@ -57,7 +66,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == payload.username))
     if not user or not verify_password(payload.password, user.password_hash):
-        raise APIError(status=401, title="Unauthorized", detail="User or password invalid")
+        raise unauthorized_error("User or password invalid")
 
     refresh_token = generate_refresh_token()
     refresh = RefreshToken(
@@ -72,16 +81,30 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/refresh")
 def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    if not payload.refresh_token.strip():
+        raise unauthorized_error("Refresh token is invalid or expired")
+
     token_hash = hash_refresh_token(payload.refresh_token)
     refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
-    if not refresh_row or _as_utc(refresh_row.expires_at) < utcnow():
-        raise APIError(status=401, title="Unauthorized", detail="Refresh token is invalid or expired")
+    if not refresh_row:
+        raise unauthorized_error("Refresh token is invalid or expired")
+
+    if _as_utc(refresh_row.expires_at) < utcnow():
+        raise unauthorized_error("Refresh token is invalid or expired")
+
     if refresh_row.revoked_at is not None:
-        raise APIError(status=403, title="Forbidden", detail="Refresh token is revoked or not allowed")
+        reused_after_rotation = db.scalar(
+            select(RefreshToken.id)
+            .where(RefreshToken.user_id == refresh_row.user_id, RefreshToken.created_at > refresh_row.created_at)
+            .limit(1)
+        )
+        if reused_after_rotation:
+            raise refresh_reuse_detected_error("Refresh token was already used and rotated")
+        raise refresh_revoked_error("Refresh token is revoked")
 
     user = db.scalar(select(User).where(User.id == refresh_row.user_id))
     if not user:
-        raise APIError(status=401, title="Unauthorized", detail="Refresh token is invalid or expired")
+        raise unauthorized_error("Refresh token is invalid or expired")
 
     refresh_row.revoked_at = utcnow()
     new_refresh_token = generate_refresh_token()
@@ -99,14 +122,21 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 @router.post("/logout", status_code=204)
 def logout(
     payload: RefreshRequest,
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    token_hash = hash_refresh_token(payload.refresh_token)
-    refresh_row = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
-    if not refresh_row or refresh_row.revoked_at is not None:
-        raise APIError(status=403, title="Forbidden", detail="Refresh token revoked or not allowed")
+    refresh_row = _active_refresh_token_or_401(db, payload.refresh_token)
+    if refresh_row.user_id != current_user.id:
+        raise refresh_revoked_error("Refresh token is not valid for current user")
+    if refresh_row.revoked_at is not None:
+        raise refresh_revoked_error("Refresh token is revoked")
 
-    refresh_row.revoked_at = utcnow()
+    now = utcnow()
+    active_rows = db.scalars(
+        select(RefreshToken).where(RefreshToken.user_id == current_user.id, RefreshToken.revoked_at.is_(None))
+    ).all()
+    for row in active_rows:
+        row.revoked_at = now
+
     db.commit()
     return Response(status_code=204)

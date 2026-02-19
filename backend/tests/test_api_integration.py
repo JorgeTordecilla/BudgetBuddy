@@ -1,8 +1,13 @@
 import uuid
+from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.security import hash_refresh_token
+from app.db import SessionLocal
+from app.dependencies import utcnow
+from app.models import RefreshToken
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
@@ -18,6 +23,9 @@ CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived
 CATEGORY_ARCHIVED_TITLE = "Category is archived"
 INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
 INVALID_CURSOR_TITLE = "Invalid cursor"
+REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
+REFRESH_REVOKED_TITLE = "Refresh token revoked"
+REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 
 
 def _register_user(client: TestClient):
@@ -120,6 +128,15 @@ def _assert_forbidden_problem(response):
     assert body["status"] == 403
 
 
+def _assert_refresh_revoked_problem(response, title: str):
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == REFRESH_REVOKED_TYPE
+    assert body["title"] == title
+    assert body["status"] == 403
+
+
 def test_problem_details_on_invalid_accept():
     with TestClient(app) as client:
         r = client.post(
@@ -172,6 +189,77 @@ def test_auth_lifecycle_and_204_logout():
         )
         assert logout.status_code == 204
         assert logout.text == ""
+
+
+def test_refresh_token_rotation_blocks_reuse():
+    with TestClient(app) as client:
+        user = _register_user(client)
+
+        first_refresh = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first_refresh.status_code == 200
+        assert first_refresh.headers["content-type"].startswith(VENDOR)
+        new_refresh_token = first_refresh.json()["refresh_token"]
+        assert new_refresh_token != user["refresh"]
+
+        second_refresh_same_token = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_refresh_revoked_problem(second_refresh_same_token, REFRESH_REUSE_DETECTED_TITLE)
+
+
+def test_refresh_with_expired_token_returns_401():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        refresh_hash = hash_refresh_token(user["refresh"])
+
+        db = SessionLocal()
+        try:
+            row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+            row.expires_at = utcnow() - timedelta(minutes=1)
+            db.commit()
+        finally:
+            db.close()
+
+        refresh = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert refresh.status_code == 401
+        assert refresh.headers["content-type"].startswith(PROBLEM)
+        body = refresh.json()
+        assert body["type"] == UNAUTHORIZED_TYPE
+        assert body["title"] == UNAUTHORIZED_TITLE
+        assert body["status"] == 401
+
+
+def test_logout_revokes_active_refresh_tokens():
+    with TestClient(app) as client:
+        user = _register_user(client)
+
+        logout = client.post(
+            "/api/auth/logout",
+            json={"refresh_token": user["refresh"]},
+            headers={
+                "accept": VENDOR,
+                "content-type": VENDOR,
+                "authorization": f"Bearer {user['access']}",
+            },
+        )
+        assert logout.status_code == 204
+
+        refresh_after_logout = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_refresh_revoked_problem(refresh_after_logout, REFRESH_REVOKED_TITLE)
 
 
 def test_domain_and_analytics_flow():

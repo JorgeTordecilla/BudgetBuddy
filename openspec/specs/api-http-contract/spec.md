@@ -90,6 +90,17 @@ Paginated list endpoints MUST document invalid cursor errors with `application/p
 - **WHEN** contract files are reviewed for `GET /accounts`, `GET /categories`, and `GET /transactions`
 - **THEN** each endpoint SHALL include `400` response mapping with `application/problem+json` for invalid cursor cases
 
+### Requirement: Refresh token rotation and replay protection
+The backend MUST rotate refresh tokens on successful refresh and block reuse deterministically.
+
+#### Scenario: Refresh rotates and invalidates previous token
+- **WHEN** `POST /auth/refresh` succeeds
+- **THEN** response SHALL include a new `refresh_token` and the previous refresh token SHALL become unusable immediately
+
+#### Scenario: Refresh reuse is forbidden with canonical problem
+- **WHEN** a previously used (rotated) or revoked refresh token is presented to `POST /auth/refresh`
+- **THEN** the API SHALL return `403` `application/problem+json` with canonical `type=https://api.budgetbuddy.dev/problems/refresh-revoked`
+
 ### Requirement: 204 responses have no response body
 The backend MUST return empty bodies for `204 No Content` responses.
 

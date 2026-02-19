@@ -102,13 +102,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "401":
-          description: Refresh token is invalid or expired
+          description: Refresh token is malformed, expired, or invalid
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "403":
-          description: Refresh token is revoked or not allowed
+          description: Refresh token is revoked or reuse detected
           content:
             application/problem+json:
               schema:
@@ -144,7 +144,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "403":
-          description: Refresh token revoked or not allowed
+          description: Refresh token revoked
           content:
             application/problem+json:
               schema:

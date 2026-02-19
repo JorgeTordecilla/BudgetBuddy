@@ -16,6 +16,12 @@ INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
 INVALID_CURSOR_TITLE = "Invalid cursor"
 INVALID_CURSOR_STATUS = 400
 
+REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
+REFRESH_REVOKED_TITLE = "Refresh token revoked"
+REFRESH_REVOKED_STATUS = 403
+
+REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
+
 ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-archived"
 ACCOUNT_ARCHIVED_TITLE = "Account is archived"
 ACCOUNT_ARCHIVED_STATUS = 409
@@ -62,6 +68,24 @@ def invalid_cursor_error(detail: str | None = None) -> APIError:
         title=INVALID_CURSOR_TITLE,
         detail=detail,
         type_=INVALID_CURSOR_TYPE,
+    )
+
+
+def refresh_revoked_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=REFRESH_REVOKED_STATUS,
+        title=REFRESH_REVOKED_TITLE,
+        detail=detail,
+        type_=REFRESH_REVOKED_TYPE,
+    )
+
+
+def refresh_reuse_detected_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=REFRESH_REVOKED_STATUS,
+        title=REFRESH_REUSE_DETECTED_TITLE,
+        detail=detail,
+        type_=REFRESH_REVOKED_TYPE,
     )
 
 
