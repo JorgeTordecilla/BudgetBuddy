@@ -19,6 +19,10 @@ The backend MUST implement `/accounts` and `/accounts/{account_id}` with create,
 - **WHEN** a user requests an account not owned by that user
 - **THEN** the API SHALL return `403` as `ProblemDetails`
 
+#### Scenario: Non-owned account access is forbidden
+- **WHEN** an authenticated user calls `GET`, `PATCH`, or `DELETE` on `/accounts/{account_id}` for another user's resource
+- **THEN** the API SHALL return canonical `403` ProblemDetails
+
 ### Requirement: Categories resource behavior
 The backend MUST implement `/categories` and `/categories/{category_id}` with list filters, CRUD/archive semantics, type-aware uniqueness rules, and restore semantics through patch updates.
 
@@ -41,6 +45,10 @@ The backend MUST implement `/categories` and `/categories/{category_id}` with li
 #### Scenario: Restore is idempotent for already active category
 - **WHEN** `PATCH /categories/{category_id}` sets `archived_at=null` for a category that already has `archived_at=null`
 - **THEN** the API SHALL return `200` with the current `Category` payload and no business-rule conflict
+
+#### Scenario: Non-owned category access is forbidden
+- **WHEN** an authenticated user calls `GET`, `PATCH`, or `DELETE` on `/categories/{category_id}` for another user's resource
+- **THEN** the API SHALL return canonical `403` ProblemDetails
 
 ### Requirement: Transactions resource behavior
 The backend MUST implement `/transactions` and `/transactions/{transaction_id}` with create, list, get, update, and archive semantics including all documented filters.
@@ -80,6 +88,10 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 #### Scenario: Expense transaction with income category is rejected
 - **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` uses `type=expense` and `category.type=income`
 - **THEN** the API SHALL reject with `409` mismatch ProblemDetails
+
+#### Scenario: Non-owned transaction access is forbidden
+- **WHEN** an authenticated user calls `GET`, `PATCH`, or `DELETE` on `/transactions/{transaction_id}` for another user's resource
+- **THEN** the API SHALL return canonical `403` ProblemDetails
 
 ### Requirement: Ownership and access control across domain resources
 The backend MUST enforce authenticated user ownership for accounts, categories, and transactions.

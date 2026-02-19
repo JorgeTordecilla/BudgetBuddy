@@ -111,6 +111,15 @@ def _assert_invalid_cursor_problem(response):
     assert body["status"] == 400
 
 
+def _assert_forbidden_problem(response):
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == FORBIDDEN_TYPE
+    assert body["title"] == FORBIDDEN_TITLE
+    assert body["status"] == 403
+
+
 def test_problem_details_on_invalid_accept():
     with TestClient(app) as client:
         r = client.post(
@@ -682,12 +691,103 @@ def test_restore_category_forbidden_for_non_owner():
             json={"archived_at": None},
             headers=other_headers,
         )
-        assert response.status_code == 403
-        assert response.headers["content-type"].startswith(PROBLEM)
-        body = response.json()
-        assert body["type"] == FORBIDDEN_TYPE
-        assert body["title"] == FORBIDDEN_TITLE
-        assert body["status"] == 403
+        _assert_forbidden_problem(response)
+
+
+def test_accounts_non_owner_matrix_is_forbidden():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+        account_id = _create_account(client, owner_headers, "owner-account-only")
+
+        get_resp = client.get(
+            f"/api/accounts/{account_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(get_resp)
+
+        patch_resp = client.patch(
+            f"/api/accounts/{account_id}",
+            json={"note": "forbidden"},
+            headers=other_headers,
+        )
+        _assert_forbidden_problem(patch_resp)
+
+        delete_resp = client.delete(
+            f"/api/accounts/{account_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(delete_resp)
+
+
+def test_categories_non_owner_matrix_is_forbidden():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+        category_id = _create_category(client, owner_headers, "owner-category-only", "expense")
+
+        get_resp = client.get(
+            f"/api/categories/{category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(get_resp)
+
+        patch_resp = client.patch(
+            f"/api/categories/{category_id}",
+            json={"note": "forbidden"},
+            headers=other_headers,
+        )
+        _assert_forbidden_problem(patch_resp)
+
+        delete_resp = client.delete(
+            f"/api/categories/{category_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(delete_resp)
+
+
+def test_transactions_non_owner_matrix_is_forbidden():
+    with TestClient(app) as client:
+        owner = _register_user(client)
+        other = _register_user(client)
+        owner_headers = _auth_headers(owner["access"])
+        other_headers = _auth_headers(other["access"])
+        owner_account_id = _create_account(client, owner_headers, "owner-tx-account")
+        owner_category_id = _create_category(client, owner_headers, "owner-tx-category", "income")
+        status, created = _create_transaction(
+            client,
+            owner_headers,
+            type_="income",
+            account_id=owner_account_id,
+            category_id=owner_category_id,
+            note="owner-only-tx",
+            date="2026-02-15",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        get_resp = client.get(
+            f"/api/transactions/{tx_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(get_resp)
+
+        patch_resp = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"note": "forbidden"},
+            headers=other_headers,
+        )
+        _assert_forbidden_problem(patch_resp)
+
+        delete_resp = client.delete(
+            f"/api/transactions/{tx_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {other['access']}"},
+        )
+        _assert_forbidden_problem(delete_resp)
 
 
 def test_restore_category_rejects_unsupported_accept():

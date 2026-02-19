@@ -58,6 +58,13 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** `PATCH /categories/{category_id}` sets `archived_at` to `null` for a category not owned by the authenticated user
 - **THEN** the API SHALL return `403` with `application/problem+json` and required `ProblemDetails` fields
 
+### Requirement: Cross-user ownership policy
+The backend MUST enforce a single deterministic ownership policy for scoped domain resources.
+
+#### Scenario: Non-owned resources always return forbidden
+- **WHEN** an authenticated user accesses another user's account, category, or transaction using `GET`, `PATCH`, or `DELETE`
+- **THEN** the API SHALL return `403` with canonical forbidden ProblemDetails (`type/title/status`) and SHALL NOT switch to `404`
+
 ### Requirement: Accept header negotiation
 The backend MUST validate `Accept` headers for endpoints in the contract and return `406` with `ProblemDetails` when the expected media type is not acceptable.
 
