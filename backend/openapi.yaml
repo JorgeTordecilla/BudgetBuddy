@@ -828,7 +828,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetails"
         "403":
-          description: Not allowed (or not found)
+          description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
