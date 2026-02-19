@@ -67,10 +67,13 @@ def get_current_user(
         payload = decode_access_token(token)
     except Exception as exc:
         raise unauthorized_error("Access token is invalid or expired") from exc
+    if not isinstance(payload, dict):
+        raise unauthorized_error("Access token is invalid or expired")
 
     user_id = payload.get("sub")
-    if not user_id:
+    if not isinstance(user_id, str) or not user_id.strip():
         raise unauthorized_error("Access token is invalid or expired")
+    user_id = user_id.strip()
 
     user = SQLAlchemyUserRepository(db).get_by_id(user_id)
     if not user:

@@ -1,6 +1,12 @@
+import base64
+import hashlib
+import hmac
+import json
+import os
+import time
 import uuid
 from datetime import timedelta
-from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, current_thread
+from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
 from fastapi.testclient import TestClient
 
@@ -28,6 +34,7 @@ INVALID_CURSOR_TITLE = "Invalid cursor"
 INVALID_DATE_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/invalid-date-range"
 INVALID_DATE_RANGE_TITLE = "Invalid date range"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
+REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 REQUEST_ID_HEADER = "x-request-id"
@@ -160,9 +167,66 @@ def _assert_refresh_revoked_problem(response, title: str):
     assert body["status"] == 403
 
 
+def _assert_refresh_reuse_detected_problem(response):
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == REFRESH_REUSE_DETECTED_TYPE
+    assert body["title"] == REFRESH_REUSE_DETECTED_TITLE
+    assert body["status"] == 403
+
+
 def _assert_request_id_header_present(response):
     assert REQUEST_ID_HEADER in response.headers
     assert response.headers[REQUEST_ID_HEADER].strip() != ""
+
+
+def _assert_category_archived_problem(response):
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == CATEGORY_ARCHIVED_TYPE
+    assert body["title"] == CATEGORY_ARCHIVED_TITLE
+    assert body["status"] == 409
+
+
+def _create_income_tx_and_assert(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    *,
+    account_id: str,
+    category_id: str,
+    note: str,
+    date: str,
+) -> str:
+    status, body = _create_transaction(
+        client,
+        auth_headers,
+        type_="income",
+        account_id=account_id,
+        category_id=category_id,
+        note=note,
+        date=date,
+    )
+    assert status == 201
+    return body["id"]
+
+
+def _archive_category_and_assert(client: TestClient, user_access: str, category_id: str) -> None:
+    archive = client.delete(
+        f"/api/categories/{category_id}",
+        headers={"accept": VENDOR, "authorization": f"Bearer {user_access}"},
+    )
+    assert archive.status_code == 204
+
+
+def _make_access_token(sub) -> str:
+    payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
+    payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
+    secret = os.environ["JWT_SECRET"].encode("utf-8")
+    sig = hmac.new(secret, payload_part.encode("ascii"), hashlib.sha256).digest()
+    sig_part = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
+    return f"{payload_part}.{sig_part}"
 
 
 def _collect_paginated_ids(client: TestClient, path: str, access_token: str, *, limit: int = 10) -> tuple[list[str], list[int]]:
@@ -259,6 +323,16 @@ def test_error_response_includes_request_id_header():
         _assert_request_id_header_present(response)
 
 
+def test_access_token_with_non_string_subject_returns_401():
+    with TestClient(app) as client:
+        token = _make_access_token({"x": 1})
+        response = client.get(
+            "/api/accounts",
+            headers={"accept": VENDOR, "authorization": f"Bearer {token}"},
+        )
+        _assert_unauthorized_problem(response)
+
+
 def test_problem_detail_sanitizes_token_like_content():
     with TestClient(app) as client:
         response = client.post(
@@ -338,7 +412,7 @@ def test_refresh_token_rotation_blocks_reuse():
             json={"refresh_token": user["refresh"]},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
-        _assert_refresh_revoked_problem(second_refresh_same_token, REFRESH_REUSE_DETECTED_TITLE)
+        _assert_refresh_reuse_detected_problem(second_refresh_same_token)
 
 
 def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
@@ -386,7 +460,7 @@ def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
     success = responses[0] if responses[0].status_code == 200 else responses[1]
     failure = responses[0] if responses[0].status_code == 403 else responses[1]
     assert success.headers["content-type"].startswith(VENDOR)
-    _assert_refresh_revoked_problem(failure, REFRESH_REUSE_DETECTED_TITLE)
+    _assert_refresh_reuse_detected_problem(failure)
 
 
 def test_refresh_with_expired_token_returns_401():
@@ -475,41 +549,60 @@ def test_logout_revokes_active_refresh_tokens():
         _assert_refresh_revoked_problem(refresh_after_logout, REFRESH_REVOKED_TITLE)
 
 
+def _user_id_from_refresh_token(refresh_hash: str) -> str:
+    db = SessionLocal()
+    try:
+        token_row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+        return token_row.user_id
+    finally:
+        db.close()
+
+
+def _active_refresh_count(user_id: str) -> int:
+    db = SessionLocal()
+    try:
+        return (
+            db.query(RefreshToken)
+            .filter(RefreshToken.user_id == user_id)
+            .filter(RefreshToken.revoked_at.is_(None))
+            .count()
+        )
+    finally:
+        db.close()
+
+
+def _refresh_during_logout(client: TestClient, user: dict[str, str], refresh_hash: str, monkeypatch):
+    refresh_ready = Event()
+    continue_refresh = Event()
+    original_get_by_hash = auth_router.SQLAlchemyRefreshTokenRepository.get_by_hash
+    block_once_lock = Lock()
+    block_once_state = {"blocked": False}
+
+    def synchronized_get_by_hash(self, token_hash: str):
+        row = original_get_by_hash(self, token_hash)
+        if token_hash != refresh_hash:
+            return row
+        should_block = False
+        with block_once_lock:
+            if not block_once_state["blocked"]:
+                block_once_state["blocked"] = True
+                should_block = True
+        if should_block:
+            refresh_ready.set()
+            continue_refresh.wait(timeout=5)
+        return row
+
+    monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", synchronized_get_by_hash)
+    responses: list = [None, None]
+    return refresh_ready, continue_refresh, responses
+
+
 def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
     with TestClient(app) as client:
         user = _register_user(client)
         refresh_hash = hash_refresh_token(user["refresh"])
-
-        db = SessionLocal()
-        try:
-            token_row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
-            user_id = token_row.user_id
-        finally:
-            db.close()
-
-        refresh_ready = Event()
-        continue_refresh = Event()
-        original_get_by_hash = auth_router.SQLAlchemyRefreshTokenRepository.get_by_hash
-
-        block_once_lock = Lock()
-        block_once_state = {"blocked": False}
-
-        def synchronized_get_by_hash(self, token_hash: str):
-            row = original_get_by_hash(self, token_hash)
-            if token_hash == refresh_hash:
-                should_block = False
-                with block_once_lock:
-                    if not block_once_state["blocked"]:
-                        block_once_state["blocked"] = True
-                        should_block = True
-                if should_block:
-                    refresh_ready.set()
-                    continue_refresh.wait(timeout=5)
-            return row
-
-        monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", synchronized_get_by_hash)
-
-        responses: list = [None, None]
+        user_id = _user_id_from_refresh_token(refresh_hash)
+        refresh_ready, continue_refresh, responses = _refresh_during_logout(client, user, refresh_hash, monkeypatch)
 
         def do_refresh():
             with TestClient(app) as refresh_client:
@@ -543,61 +636,29 @@ def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
         else:
             assert responses[0].headers["content-type"].startswith(VENDOR)
 
-        db = SessionLocal()
-        try:
-            active_count = (
-                db.query(RefreshToken)
-                .filter(RefreshToken.user_id == user_id)
-                .filter(RefreshToken.revoked_at.is_(None))
-                .count()
-            )
-            assert active_count == 0
-        finally:
-            db.close()
+        assert _active_refresh_count(user_id) == 0
 
 
 def test_domain_and_analytics_flow():
     with TestClient(app) as client:
         user = _register_user(client)
-        auth_headers = {
-            "accept": VENDOR,
-            "content-type": VENDOR,
-            "authorization": f"Bearer {user['access']}",
-        }
+        auth_headers = _auth_headers(user["access"])
 
         unauth = client.get("/api/accounts", headers={"accept": VENDOR})
         _assert_unauthorized_problem(unauth)
 
-        acc = client.post(
-            "/api/accounts",
-            json={"name": "wallet", "type": "cash", "initial_balance_cents": 10000, "note": "main"},
-            headers=auth_headers,
+        account_id = _create_account(client, auth_headers, "wallet")
+        category_id = _create_category(client, auth_headers, "salary", "income")
+        status, _ = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="salary",
+            date="2026-01-15",
         )
-        assert acc.status_code == 201
-        account_id = acc.json()["id"]
-
-        cat = client.post(
-            "/api/categories",
-            json={"name": "salary", "type": "income", "note": "monthly"},
-            headers=auth_headers,
-        )
-        assert cat.status_code == 201
-        category_id = cat.json()["id"]
-
-        tx = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_id,
-                "category_id": category_id,
-                "amount_cents": 500000,
-                "date": "2026-01-15",
-                "merchant": "Acme",
-                "note": "salary",
-            },
-            headers=auth_headers,
-        )
-        assert tx.status_code == 201
+        assert status == 201
 
         by_month = client.get("/api/analytics/by-month?from=2026-01-01&to=2026-12-31", headers=auth_headers)
         assert by_month.status_code == 200
@@ -807,67 +868,39 @@ def test_patch_transaction_fails_when_category_is_archived():
 
         active_category_id = _create_category(client, auth_headers, "active-income", "income")
         archived_category_id = _create_category(client, auth_headers, "archived-income-patch", "income")
-
-        status, created = _create_transaction(
+        tx_id = _create_income_tx_and_assert(
             client,
             auth_headers,
-            type_="income",
             account_id=account_id,
             category_id=active_category_id,
             note="seed-tx",
             date="2026-02-11",
         )
-        assert status == 201
-        tx_id = created["id"]
-
-        archive = client.delete(
-            f"/api/categories/{archived_category_id}",
-            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
-        )
-        assert archive.status_code == 204
+        _archive_category_and_assert(client, user["access"], archived_category_id)
 
         change_to_archived = client.patch(
             f"/api/transactions/{tx_id}",
             json={"category_id": archived_category_id},
             headers=auth_headers,
         )
-        assert change_to_archived.status_code == 409
-        assert change_to_archived.headers["content-type"].startswith(PROBLEM)
-        body = change_to_archived.json()
-        assert body["type"] == CATEGORY_ARCHIVED_TYPE
-        assert body["title"] == CATEGORY_ARCHIVED_TITLE
-        assert body["status"] == 409
+        _assert_category_archived_problem(change_to_archived)
 
-        # Keep existing category while it became archived.
-        status2, created2 = _create_transaction(
+        tx_id_2 = _create_income_tx_and_assert(
             client,
             auth_headers,
-            type_="income",
             account_id=account_id,
             category_id=active_category_id,
             note="seed-tx-2",
             date="2026-02-12",
         )
-        assert status2 == 201
-        tx_id_2 = created2["id"]
-
-        archive_active = client.delete(
-            f"/api/categories/{active_category_id}",
-            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
-        )
-        assert archive_active.status_code == 204
+        _archive_category_and_assert(client, user["access"], active_category_id)
 
         keep_archived = client.patch(
             f"/api/transactions/{tx_id_2}",
             json={"note": "should-fail"},
             headers=auth_headers,
         )
-        assert keep_archived.status_code == 409
-        assert keep_archived.headers["content-type"].startswith(PROBLEM)
-        body2 = keep_archived.json()
-        assert body2["type"] == CATEGORY_ARCHIVED_TYPE
-        assert body2["title"] == CATEGORY_ARCHIVED_TITLE
-        assert body2["status"] == 409
+        _assert_category_archived_problem(keep_archived)
 
 
 def test_transaction_validation_error_returns_problem_details():
@@ -894,107 +927,77 @@ def test_transaction_validation_error_returns_problem_details():
         assert "type" in body
 
 
+def _seed_filter_domain_data(client: TestClient, auth_headers: dict[str, str]) -> tuple[str, str, str, str]:
+    account_1_id = _create_account(client, auth_headers, "wallet-main")
+    account_2_id = _create_account(client, auth_headers, "wallet-secondary")
+    income_category_id = _create_category(client, auth_headers, "salary-filter", "income")
+    expense_category_id = _create_category(client, auth_headers, "food-filter", "expense")
+    return account_1_id, account_2_id, income_category_id, expense_category_id
+
+
+def _seed_filter_transactions(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    *,
+    account_1_id: str,
+    account_2_id: str,
+    income_category_id: str,
+    expense_category_id: str,
+) -> tuple[str, str]:
+    tx_1_id = _create_income_tx_and_assert(
+        client,
+        auth_headers,
+        account_id=account_1_id,
+        category_id=income_category_id,
+        note="tx1",
+        date="2026-01-10",
+    )
+    tx_2_id = _create_income_tx_and_assert(
+        client,
+        auth_headers,
+        account_id=account_1_id,
+        category_id=income_category_id,
+        note="tx2",
+        date="2026-01-12",
+    )
+
+    status_3, _ = _create_transaction(
+        client,
+        auth_headers,
+        type_="expense",
+        account_id=account_1_id,
+        category_id=expense_category_id,
+        note="tx3",
+        date="2026-01-11",
+    )
+    assert status_3 == 201
+
+    status_4, _ = _create_transaction(
+        client,
+        auth_headers,
+        type_="income",
+        account_id=account_2_id,
+        category_id=income_category_id,
+        note="tx4",
+        date="2026-01-13",
+    )
+    assert status_4 == 201
+    return tx_1_id, tx_2_id
+
+
 def test_list_transactions_filters_and_ordering():
     with TestClient(app) as client:
         user = _register_user(client)
-        auth_headers = {
-            "accept": VENDOR,
-            "content-type": VENDOR,
-            "authorization": f"Bearer {user['access']}",
-        }
-
-        account_1 = client.post(
-            "/api/accounts",
-            json={"name": "wallet-main", "type": "cash", "initial_balance_cents": 10000, "note": "main"},
-            headers=auth_headers,
+        auth_headers = _auth_headers(user["access"])
+        account_1_id, account_2_id, income_category_id, expense_category_id = _seed_filter_domain_data(client, auth_headers)
+        tx_1_id, tx_2_id = _seed_filter_transactions(
+            client,
+            auth_headers,
+            account_1_id=account_1_id,
+            account_2_id=account_2_id,
+            income_category_id=income_category_id,
+            expense_category_id=expense_category_id,
         )
-        assert account_1.status_code == 201
-        account_1_id = account_1.json()["id"]
-
-        account_2 = client.post(
-            "/api/accounts",
-            json={"name": "wallet-secondary", "type": "cash", "initial_balance_cents": 10000, "note": "secondary"},
-            headers=auth_headers,
-        )
-        assert account_2.status_code == 201
-        account_2_id = account_2.json()["id"]
-
-        income_category = client.post(
-            "/api/categories",
-            json={"name": "salary-filter", "type": "income", "note": "income"},
-            headers=auth_headers,
-        )
-        assert income_category.status_code == 201
-        income_category_id = income_category.json()["id"]
-
-        expense_category = client.post(
-            "/api/categories",
-            json={"name": "food-filter", "type": "expense", "note": "expense"},
-            headers=auth_headers,
-        )
-        assert expense_category.status_code == 201
-        expense_category_id = expense_category.json()["id"]
-
-        tx_1 = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_1_id,
-                "category_id": income_category_id,
-                "amount_cents": 10000,
-                "date": "2026-01-10",
-                "merchant": "Acme",
-                "note": "tx1",
-            },
-            headers=auth_headers,
-        )
-        assert tx_1.status_code == 201
-
-        tx_2 = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_1_id,
-                "category_id": income_category_id,
-                "amount_cents": 12000,
-                "date": "2026-01-12",
-                "merchant": "Acme",
-                "note": "tx2",
-            },
-            headers=auth_headers,
-        )
-        assert tx_2.status_code == 201
-        tx_2_id = tx_2.json()["id"]
-
-        tx_3 = client.post(
-            "/api/transactions",
-            json={
-                "type": "expense",
-                "account_id": account_1_id,
-                "category_id": expense_category_id,
-                "amount_cents": 5000,
-                "date": "2026-01-11",
-                "merchant": "Store",
-                "note": "tx3",
-            },
-            headers=auth_headers,
-        )
-        assert tx_3.status_code == 201
-
-        tx_4 = client.post(
-            "/api/transactions",
-            json={
-                "type": "income",
-                "account_id": account_2_id,
-                "category_id": income_category_id,
-                "amount_cents": 13000,
-                "date": "2026-01-13",
-                "merchant": "Acme",
-                "note": "tx4",
-            },
-            headers=auth_headers,
-        )
-        assert tx_4.status_code == 201
 
         filtered = client.get(
             "/api/transactions?type=income&account_id="
@@ -1006,7 +1009,7 @@ def test_list_transactions_filters_and_ordering():
         body = filtered.json()
         assert body["next_cursor"] is None
         assert len(body["items"]) == 2
-        assert [item["id"] for item in body["items"]] == [tx_2_id, tx_1.json()["id"]]
+        assert [item["id"] for item in body["items"]] == [tx_2_id, tx_1_id]
 
 
 def test_list_accounts_invalid_cursor_returns_problem_details():

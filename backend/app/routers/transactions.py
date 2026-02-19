@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
@@ -207,7 +207,8 @@ def patch_transaction(transaction_id: str, payload: TransactionUpdate, current_u
 @router.delete("/{transaction_id}", status_code=204)
 def delete_transaction(transaction_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = _owned_transaction_or_403(db, current_user.id, transaction_id)
-    row.archived_at = datetime.now(row.created_at.tzinfo)
-    row.updated_at = utcnow()
+    now = utcnow()
+    row.archived_at = now
+    row.updated_at = now
     db.commit()
     return Response(status_code=204)

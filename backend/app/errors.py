@@ -24,6 +24,7 @@ REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REVOKED_STATUS = 403
 
+REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 
 ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-archived"
@@ -98,7 +99,7 @@ def refresh_reuse_detected_error(detail: str | None = None) -> APIError:
         status=REFRESH_REVOKED_STATUS,
         title=REFRESH_REUSE_DETECTED_TITLE,
         detail=detail,
-        type_=REFRESH_REVOKED_TYPE,
+        type_=REFRESH_REUSE_DETECTED_TYPE,
     )
 
 

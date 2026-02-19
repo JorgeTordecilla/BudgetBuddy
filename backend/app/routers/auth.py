@@ -47,10 +47,39 @@ def _create_auth_payload(user: User, refresh_token: str) -> dict:
     ).model_dump()
 
 
+def _is_expired(refresh_row: RefreshToken) -> bool:
+    return _as_utc(refresh_row.expires_at) < utcnow()
+
+
+def _raise_revoked_or_reuse(refresh_repo: SQLAlchemyRefreshTokenRepository, refresh_row: RefreshToken) -> None:
+    reused_after_rotation = refresh_repo.has_newer_token(refresh_row.user_id, refresh_row.created_at)
+    if reused_after_rotation:
+        raise refresh_reuse_detected_error("Refresh token was already used and rotated")
+    raise refresh_revoked_error("Refresh token is revoked")
+
+
+def _revoke_refresh_token(db: Session, refresh_row: RefreshToken) -> tuple[datetime, bool]:
+    now = utcnow()
+    stmt = (
+        update(RefreshToken)
+        .where(
+            and_(
+                RefreshToken.id == refresh_row.id,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at >= now,
+            )
+        )
+        .values(revoked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    result = db.execute(stmt)
+    return now, result.rowcount == 1
+
+
 def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToken:
     token_hash = hash_refresh_token(refresh_token)
     refresh_row = SQLAlchemyRefreshTokenRepository(db).get_by_hash(token_hash)
-    if not refresh_row or _as_utc(refresh_row.expires_at) < utcnow():
+    if not refresh_row or _is_expired(refresh_row):
         raise unauthorized_error("Refresh token is invalid or expired")
     return refresh_row
 
@@ -114,42 +143,21 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
         refresh_row = refresh_repo.get_by_hash(token_hash)
         if not refresh_row:
             raise unauthorized_error("Refresh token is invalid or expired")
-
-        if _as_utc(refresh_row.expires_at) < utcnow():
+        if _is_expired(refresh_row):
             raise unauthorized_error("Refresh token is invalid or expired")
-
         if refresh_row.revoked_at is not None:
-            reused_after_rotation = refresh_repo.has_newer_token(refresh_row.user_id, refresh_row.created_at)
-            if reused_after_rotation:
-                raise refresh_reuse_detected_error("Refresh token was already used and rotated")
-            raise refresh_revoked_error("Refresh token is revoked")
+            _raise_revoked_or_reuse(refresh_repo, refresh_row)
 
         user = user_repo.get_by_id(refresh_row.user_id)
         if not user:
             raise unauthorized_error("Refresh token is invalid or expired")
 
-        now = utcnow()
-        stmt = (
-            update(RefreshToken)
-            .where(
-                and_(
-                    RefreshToken.id == refresh_row.id,
-                    RefreshToken.revoked_at.is_(None),
-                    RefreshToken.expires_at >= now,
-                )
-            )
-            .values(revoked_at=now)
-            .execution_options(synchronize_session=False)
-        )
-        result = db.execute(stmt)
-        if result.rowcount != 1:
+        _, revoked = _revoke_refresh_token(db, refresh_row)
+        if not revoked:
             current_row = refresh_repo.get_by_hash(token_hash)
-            if not current_row or _as_utc(current_row.expires_at) < utcnow():
+            if not current_row or _is_expired(current_row):
                 raise unauthorized_error("Refresh token is invalid or expired")
-            reused_after_rotation = refresh_repo.has_newer_token(current_row.user_id, current_row.created_at)
-            if reused_after_rotation:
-                raise refresh_reuse_detected_error("Refresh token was already used and rotated")
-            raise refresh_revoked_error("Refresh token is revoked")
+            _raise_revoked_or_reuse(refresh_repo, current_row)
 
         new_refresh_token = generate_refresh_token()
         refresh_repo.add(

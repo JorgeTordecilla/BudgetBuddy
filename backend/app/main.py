@@ -1,5 +1,4 @@
 from pathlib import Path
-from contextlib import asynccontextmanager
 import uuid
 
 import yaml
@@ -8,7 +7,6 @@ from fastapi.responses import JSONResponse
 
 from app.core.constants import API_PREFIX, PROBLEM_JSON
 from app.core.errors import APIError, ProblemDetails, register_exception_handlers
-from app.db import Base, engine
 from app.dependencies import enforce_accept_header, enforce_content_type
 from app.routers.accounts import router as accounts_router
 from app.routers.analytics import router as analytics_router
@@ -16,14 +14,7 @@ from app.routers.auth import router as auth_router
 from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
 
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
-
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 REQUEST_ID_HEADER = "X-Request-Id"
