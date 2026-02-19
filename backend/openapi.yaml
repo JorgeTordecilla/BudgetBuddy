@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
   title: BudgetBuddy API
-  version: "1"
-  description: |
-    Operational header behavior: responses include `X-Request-Id`.
+  version: '1'
+  description: 'Operational header behavior: responses include `X-Request-Id`.
+
     If request provides `X-Request-Id`, the API echoes it; otherwise it generates one.
+
+    '
 servers:
 - url: /api
 security:
 - BearerAuth: []
-
 paths:
   /auth/register:
     post:
@@ -20,38 +21,61 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/RegisterRequest"
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
-        "201":
+        '201':
           description: Created
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
-        "400":
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+                  username: demo_user
+                  currency_code: USD
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                access_token_expires_in: 900
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '409':
           description: Username already exists
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /auth/login:
     post:
       security: []
@@ -61,41 +85,69 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/LoginRequest"
+              $ref: '#/components/schemas/LoginRequest'
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
-        "400":
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+                  username: demo_user
+                  currency_code: USD
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                access_token_expires_in: 900
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "429":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '429':
           description: Too Many Requests
           headers:
             Retry-After:
-              $ref: "#/components/headers/Retry-After"
+              $ref: '#/components/headers/Retry-After'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/rate-limited
+                title: Too Many Requests
+                status: 429
+                detail: Too many requests. Retry after the interval in Retry-After.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /auth/refresh:
     post:
       security: []
@@ -105,47 +157,80 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/RefreshRequest"
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
-        "400":
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+                  username: demo_user
+                  currency_code: USD
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+                access_token_expires_in: 900
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "429":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '429':
           description: Too Many Requests
           headers:
             Retry-After:
-              $ref: "#/components/headers/Retry-After"
+              $ref: '#/components/headers/Retry-After'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/rate-limited
+                title: Too Many Requests
+                status: 429
+                detail: Too many requests. Retry after the interval in Retry-After.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /auth/logout:
     post:
       summary: Logout (revoke refresh token)
@@ -154,42 +239,66 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/RefreshRequest"
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
-        "204":
+        '204':
           description: No Content
-        "400":
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /accounts:
     get:
       summary: List accounts
-      description: |
-        Cursor pagination uses an opaque `base64url(JSON)` token.
+      description: 'Cursor pagination uses an opaque `base64url(JSON)` token.
+
         Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
+
         For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+
         Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
+
+        '
       parameters:
       - name: include_archived
         in: query
@@ -212,45 +321,73 @@ paths:
           minimum: 1
           maximum: 100
       responses:
-        "200":
+        '200':
           description: OK
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
                 type: object
-                required: [ items, next_cursor ]
+                required:
+                - items
+                - next_cursor
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Account"
+                      $ref: '#/components/schemas/Account'
                   next_cursor:
-                    type: [ string, "null" ]
-        "400":
+                    type:
+                    - string
+                    - 'null'
+              example:
+                items:
+                - &id001
+                  id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                  name: Main Wallet
+                  type: cash
+                  initial_balance_cents: 150000
+                  note: Daily spending
+                  archived_at: null
+                next_cursor: null
+        '400':
           description: Invalid cursor
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     post:
       summary: Create account
       requestBody:
@@ -258,38 +395,65 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/AccountCreate"
+              $ref: '#/components/schemas/AccountCreate'
       responses:
-        "201":
+        '201':
           description: Created
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Account"
-        "400":
+                $ref: '#/components/schemas/Account'
+              example:
+                id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                name: Main Wallet
+                type: cash
+                initial_balance_cents: 150000
+                note: Daily spending
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '409':
           description: Account name already exists
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /accounts/{account_id}:
     parameters:
     - name: account_id
@@ -301,36 +465,63 @@ paths:
     get:
       summary: Get account
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Account"
-        "400":
+                $ref: '#/components/schemas/Account'
+              example:
+                id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                name: Main Wallet
+                type: cash
+                initial_balance_cents: 150000
+                note: Daily spending
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     patch:
       summary: Update account
       requestBody:
@@ -338,81 +529,137 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/AccountUpdate"
+              $ref: '#/components/schemas/AccountUpdate'
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Account"
-        "400":
+                $ref: '#/components/schemas/Account'
+              example:
+                id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                name: Main Wallet
+                type: cash
+                initial_balance_cents: 150000
+                note: Daily spending
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Account name already exists
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     delete:
       summary: Archive account
       responses:
-        "204":
+        '204':
           description: No Content
-        "400":
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /categories:
     get:
       summary: List categories
-      description: |
-        Cursor pagination uses an opaque `base64url(JSON)` token.
+      description: 'Cursor pagination uses an opaque `base64url(JSON)` token.
+
         Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
+
         For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+
         Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
+
+        '
       parameters:
       - name: include_archived
         in: query
@@ -425,7 +672,9 @@ paths:
         required: false
         schema:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
       - name: cursor
         in: query
         required: false
@@ -441,45 +690,72 @@ paths:
           minimum: 1
           maximum: 100
       responses:
-        "200":
+        '200':
           description: OK
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
                 type: object
-                required: [ items, next_cursor ]
+                required:
+                - items
+                - next_cursor
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Category"
+                      $ref: '#/components/schemas/Category'
                   next_cursor:
-                    type: [ string, "null" ]
-        "400":
+                    type:
+                    - string
+                    - 'null'
+              example:
+                items:
+                - &id002
+                  id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                  name: Groceries
+                  type: expense
+                  note: Supermarket and food
+                  archived_at: null
+                next_cursor: null
+        '400':
           description: Invalid cursor
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     post:
       summary: Create category
       requestBody:
@@ -487,39 +763,64 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/CategoryCreate"
+              $ref: '#/components/schemas/CategoryCreate'
       responses:
-        "201":
+        '201':
           description: Created
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Category"
-        "400":
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                name: Groceries
+                type: expense
+                note: Supermarket and food
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '409':
           description: Category name already exists for this type
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /categories/{category_id}:
     parameters:
     - name: category_id
@@ -528,41 +829,65 @@ paths:
       schema:
         type: string
         format: uuid
-
     get:
       summary: Get category
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Category"
-        "400":
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                name: Groceries
+                type: expense
+                note: Supermarket and food
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     patch:
       summary: Update category
       requestBody:
@@ -570,84 +895,140 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/CategoryUpdate"
+              $ref: '#/components/schemas/CategoryUpdate'
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Category"
-        "400":
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                name: Groceries
+                type: expense
+                note: Supermarket and food
+                archived_at: null
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Category name already exists for this type
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     delete:
       summary: Archive category
       responses:
-        "204":
+        '204':
           description: No Content
-        "400":
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /transactions:
     get:
       summary: List transactions (ordered by date desc, then created_at desc)
-      description: |
-        Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates.
+      description: 'Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates.
+
         Cursor pagination uses an opaque `base64url(JSON)` token and deterministic ordering by `date DESC, created_at DESC, id DESC`.
+
         For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+
         Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
+
         Compatibility policy: `GET /transactions` accepts legacy cursors containing only `date` and `id` (without `created_at`) for backward compatibility in API v1.
+
         `GET /accounts` and `GET /categories` require current cursor fields only; malformed or unsupported cursor shapes return canonical `400 Invalid cursor`.
+
+        '
       parameters:
       - name: include_archived
         in: query
@@ -660,7 +1041,9 @@ paths:
         required: false
         schema:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
       - name: account_id
         in: query
         required: false
@@ -700,46 +1083,78 @@ paths:
           minimum: 1
           maximum: 100
       responses:
-        "200":
+        '200':
           description: OK
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
                 type: object
-                required: [ items, next_cursor ]
+                required:
+                - items
+                - next_cursor
                 properties:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Transaction"
+                      $ref: '#/components/schemas/Transaction'
                   next_cursor:
-                    type: [ string, "null" ]
-
-        "400":
+                    type:
+                    - string
+                    - 'null'
+              example:
+                items:
+                - &id003
+                  id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                  type: expense
+                  account_id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                  category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                  amount_cents: 4599
+                  date: '2026-02-18'
+                  merchant: Corner Market
+                  note: Weekly groceries
+                  archived_at: null
+                  created_at: '2026-02-18T10:20:30Z'
+                  updated_at: '2026-02-18T10:20:30Z'
+                next_cursor: null
+        '400':
           description: Invalid cursor or invalid date range (from must be <= to)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           headers:
             X-Request-Id:
-              $ref: "#/components/headers/X-Request-Id"
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     post:
       summary: Create transaction
       requestBody:
@@ -747,44 +1162,81 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/TransactionCreate"
+              $ref: '#/components/schemas/TransactionCreate'
       responses:
-        "201":
+        '201':
           description: Created
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Transaction"
-        "400":
+                $ref: '#/components/schemas/Transaction'
+              example:
+                id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                type: expense
+                account_id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                amount_cents: 4599
+                date: '2026-02-18'
+                merchant: Corner Market
+                note: Weekly groceries
+                archived_at: null
+                created_at: '2026-02-18T10:20:30Z'
+                updated_at: '2026-02-18T10:20:30Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Business rule conflict (e.g. account archived, category archived, type mismatch)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /transactions/import:
     post:
       summary: Import transactions in bulk
@@ -793,39 +1245,68 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/TransactionImportRequest"
+              $ref: '#/components/schemas/TransactionImportRequest'
       responses:
-        "200":
+        '200':
           description: Import result
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/TransactionImportResult"
-        "400":
+                $ref: '#/components/schemas/TransactionImportResult'
+              example:
+                created_count: 2
+                failed_count: 1
+                failures:
+                - index: 1
+                  message: category does not belong to authenticated user
+                  problem:
+                    type: https://api.budgetbuddy.dev/problems/forbidden
+                    title: Forbidden
+                    status: 403
+        '400':
           description: Invalid request (payload validation or import batch limit exceeded)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /transactions/export:
     get:
       summary: Export transactions as CSV
@@ -835,7 +1316,9 @@ paths:
         required: false
         schema:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
       - name: account_id
         in: query
         required: false
@@ -861,41 +1344,65 @@ paths:
           type: string
           format: date
       responses:
-        "200":
+        '200':
           description: CSV export stream
           content:
             text/csv:
               schema:
                 type: string
                 format: binary
-        "400":
+              example: 'id,type,account_id,category_id,amount_cents,date,merchant,note
+
+                9d9ae8f4-090c-4f65-82d4-2f6e10985ef7,expense,c4187039-d6c3-4f6b-9f87-ac2f59aa31ab,0dab8db1-dcb8-44a2-bccd-d2efce11c7c9,4599,2026-02-18,Corner Market,Weekly groceries
+
+                '
+        '400':
           description: Invalid request (for example invalid date range)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "429":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '429':
           description: Too Many Requests
           headers:
             Retry-After:
-              $ref: "#/components/headers/Retry-After"
+              $ref: '#/components/headers/Retry-After'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/rate-limited
+                title: Too Many Requests
+                status: 429
+                detail: Too many requests. Retry after the interval in Retry-After.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /transactions/{transaction_id}:
     parameters:
     - name: transaction_id
@@ -904,41 +1411,71 @@ paths:
       schema:
         type: string
         format: uuid
-
     get:
       summary: Get transaction
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Transaction"
-        "400":
+                $ref: '#/components/schemas/Transaction'
+              example:
+                id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                type: expense
+                account_id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                amount_cents: 4599
+                date: '2026-02-18'
+                merchant: Corner Market
+                note: Weekly groceries
+                archived_at: null
+                created_at: '2026-02-18T10:20:30Z'
+                updated_at: '2026-02-18T10:20:30Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     patch:
       summary: Update or restore transaction
       requestBody:
@@ -946,74 +1483,130 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/TransactionUpdate"
+              $ref: '#/components/schemas/TransactionUpdate'
       responses:
-        "200":
+        '200':
           description: Updated (or restored when archived_at=null)
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Transaction"
-        "400":
+                $ref: '#/components/schemas/Transaction'
+              example:
+                id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                type: expense
+                account_id: c4187039-d6c3-4f6b-9f87-ac2f59aa31ab
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                amount_cents: 4599
+                date: '2026-02-18'
+                merchant: Corner Market
+                note: Weekly groceries
+                archived_at: null
+                created_at: '2026-02-18T10:20:30Z'
+                updated_at: '2026-02-18T10:20:30Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Business rule conflict (e.g. account archived, category archived, type mismatch)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     delete:
       summary: Archive transaction
       responses:
-        "204":
+        '204':
           description: No Content
-        "400":
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /budgets:
     get:
       summary: List budgets by month range
@@ -1023,47 +1616,76 @@ paths:
         required: true
         schema:
           type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
       - name: to
         in: query
         required: true
         schema:
           type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/BudgetListResponse"
-        "400":
+                $ref: '#/components/schemas/BudgetListResponse'
+              example:
+                items:
+                - id: 5a71639c-31df-4221-b7ca-87e27b347307
+                  month: 2026-02
+                  category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                  limit_cents: 250000
+                  archived_at: null
+                  created_at: '2026-02-01T00:00:00Z'
+                  updated_at: '2026-02-01T00:00:00Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "429":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '429':
           description: Too Many Requests
           headers:
             Retry-After:
-              $ref: "#/components/headers/Retry-After"
+              $ref: '#/components/headers/Retry-After'
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/rate-limited
+                title: Too Many Requests
+                status: 429
+                detail: Too many requests. Retry after the interval in Retry-After.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     post:
       summary: Create budget
       requestBody:
@@ -1071,44 +1693,77 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/BudgetCreate"
+              $ref: '#/components/schemas/BudgetCreate'
       responses:
-        "201":
+        '201':
           description: Created
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Budget"
-        "400":
+                $ref: '#/components/schemas/Budget'
+              example:
+                id: 5a71639c-31df-4221-b7ca-87e27b347307
+                month: 2026-02
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                limit_cents: 250000
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Business rule conflict (duplicate budget, category is archived, or category is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /budgets/{budget_id}:
     parameters:
     - name: budget_id
@@ -1120,36 +1775,64 @@ paths:
     get:
       summary: Get budget
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Budget"
-        "400":
+                $ref: '#/components/schemas/Budget'
+              example:
+                id: 5a71639c-31df-4221-b7ca-87e27b347307
+                month: 2026-02
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                limit_cents: 250000
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     patch:
       summary: Update budget
       requestBody:
@@ -1157,79 +1840,134 @@ paths:
         content:
           application/vnd.budgetbuddy.v1+json:
             schema:
-              $ref: "#/components/schemas/BudgetUpdate"
+              $ref: '#/components/schemas/BudgetUpdate'
       responses:
-        "200":
+        '200':
           description: Updated
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/Budget"
-        "400":
+                $ref: '#/components/schemas/Budget'
+              example:
+                id: 5a71639c-31df-4221-b7ca-87e27b347307
+                month: 2026-02
+                category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                limit_cents: 250000
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "409":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '409':
           description: Business rule conflict (duplicate budget, category is archived, or category is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/account-archived
+                title: Account is archived
+                status: 409
+                detail: Transactions cannot be created on archived accounts.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
     delete:
       summary: Archive budget
       responses:
-        "204":
+        '204':
           description: No Content
-        "400":
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /audit:
     get:
       summary: List audit events for current user
-      description: |
-        Cursor pagination uses an opaque `base64url(JSON)` token.
+      description: 'Cursor pagination uses an opaque `base64url(JSON)` token.
+
         Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
+
+        '
       parameters:
       - name: from
         in: query
@@ -1258,36 +1996,66 @@ paths:
           minimum: 1
           maximum: 100
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AuditListResponse"
-        "400":
+                $ref: '#/components/schemas/AuditListResponse'
+              example:
+                items:
+                - id: 515a1511-69e8-48ed-85bb-afd3035dc889
+                  request_id: req_01HRYJAR2DN84Q4M4E5B12A1XQ
+                  user_id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+                  resource_type: transaction
+                  resource_id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                  action: transaction.create
+                  created_at: '2026-02-18T10:20:30Z'
+                next_cursor: eyJjcmVhdGVkX2F0IjoiMjAyNi0wMi0xOFQxMDoyMDozMFoiLCJpZCI6IjUxNWExNTExLTY5ZTgtNDhlZC04NWJiLWFmZDMwMzVkYzg4OSJ9
+        '400':
           description: Invalid cursor or date range
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "403":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '403':
           description: Forbidden (resource is not owned by authenticated user)
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/forbidden
+                title: Forbidden
+                status: 403
+                detail: Resource is not owned by authenticated user.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /analytics/by-month:
     get:
       summary: Analytics totals by month (income and expense)
@@ -1305,31 +2073,52 @@ paths:
           type: string
           format: date
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AnalyticsByMonthResponse"
-        "400":
+                $ref: '#/components/schemas/AnalyticsByMonthResponse'
+              example:
+                items:
+                - month: 2026-01
+                  income_total_cents: 520000
+                  expense_total_cents: 300000
+                  budget_spent_cents: 300000
+                  budget_limit_cents: 350000
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
   /analytics/by-category:
     get:
       summary: Analytics totals by category (income and expense)
@@ -1347,31 +2136,53 @@ paths:
           type: string
           format: date
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: "#/components/schemas/AnalyticsByCategoryResponse"
-        "400":
+                $ref: '#/components/schemas/AnalyticsByCategoryResponse'
+              example:
+                items:
+                - category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+                  category_name: Groceries
+                  income_total_cents: 0
+                  expense_total_cents: 120000
+                  budget_spent_cents: 120000
+                  budget_limit_cents: 250000
+        '400':
           description: Invalid request
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "401":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/invalid-date-range
+                title: Invalid date range
+                status: 400
+                detail: '`from` must be less than or equal to `to`.'
+        '401':
           description: Unauthorized
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-        "406":
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/unauthorized
+                title: Unauthorized
+                status: 401
+                detail: Missing or invalid bearer token.
+        '406':
           description: Not Acceptable
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetails"
-
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://api.budgetbuddy.dev/problems/not-acceptable
+                title: Not Acceptable
+                status: 406
+                detail: Accept header must allow a supported media type.
 components:
   headers:
     X-Request-Id:
@@ -1444,7 +2255,10 @@ components:
   schemas:
     ProblemDetails:
       type: object
-      required: [ type, title, status ]
+      required:
+      - type
+      - title
+      - status
       properties:
         type:
           type: string
@@ -1458,38 +2272,81 @@ components:
         instance:
           type: string
           format: uri
+      examples:
+      - type: https://api.budgetbuddy.dev/problems/invalid-date-range
+        title: Invalid date range
+        status: 400
+        detail: '`from` must be less than or equal to `to`.'
+      - type: https://api.budgetbuddy.dev/problems/unauthorized
+        title: Unauthorized
+        status: 401
+        detail: Missing or invalid bearer token.
+      - type: https://api.budgetbuddy.dev/problems/forbidden
+        title: Forbidden
+        status: 403
+        detail: Resource is not owned by authenticated user.
+      - type: https://api.budgetbuddy.dev/problems/not-acceptable
+        title: Not Acceptable
+        status: 406
+        detail: Accept header must allow a supported media type.
+      - type: https://api.budgetbuddy.dev/problems/account-archived
+        title: Account is archived
+        status: 409
+        detail: Transactions cannot be created on archived accounts.
+      - type: https://api.budgetbuddy.dev/problems/rate-limited
+        title: Too Many Requests
+        status: 429
+        detail: Too many requests. Retry after the interval in Retry-After.
     User:
       type: object
-      required: [ id, username, currency_code ]
+      required:
+      - id
+      - username
+      - currency_code
       properties:
         id:
           type: string
           format: uuid
         username:
           type: string
-          pattern: '^[a-zA-Z0-9_]{3,20}$'
+          pattern: ^[a-zA-Z0-9_]{3,20}$
         currency_code:
           type: string
-          enum: [ USD, COP, EUR, MXN ]
+          enum:
+          - USD
+          - COP
+          - EUR
+          - MXN
     RegisterRequest:
       type: object
-      required: [ username, password, currency_code ]
+      required:
+      - username
+      - password
+      - currency_code
       properties:
         username:
           type: string
-          pattern: '^[a-zA-Z0-9_]{3,20}$'
+          pattern: ^[a-zA-Z0-9_]{3,20}$
         password:
           type: string
           minLength: 12
         currency_code:
           type: string
-          enum: [ USD, COP, EUR, MXN ]
+          enum:
+          - USD
+          - COP
+          - EUR
+          - MXN
     AuthResponse:
       type: object
-      required: [ user, access_token, refresh_token, access_token_expires_in ]
+      required:
+      - user
+      - access_token
+      - refresh_token
+      - access_token_expires_in
       properties:
         user:
-          $ref: "#/components/schemas/User"
+          $ref: '#/components/schemas/User'
         access_token:
           type: string
         refresh_token:
@@ -1497,25 +2354,41 @@ components:
         access_token_expires_in:
           type: integer
           description: Seconds until access token expiration
+      example:
+        user:
+          id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+          username: demo_user
+          currency_code: USD
+        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+        refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
+        access_token_expires_in: 900
     LoginRequest:
       type: object
-      required: [ username, password ]
+      required:
+      - username
+      - password
       properties:
         username:
           type: string
-          pattern: '^[a-zA-Z0-9_]{3,20}$'
+          pattern: ^[a-zA-Z0-9_]{3,20}$
         password:
           type: string
           minLength: 12
     RefreshRequest:
       type: object
-      required: [ refresh_token ]
+      required:
+      - refresh_token
       properties:
         refresh_token:
           type: string
     Account:
       type: object
-      required: [ id, name, type, initial_balance_cents, archived_at ]
+      required:
+      - id
+      - name
+      - type
+      - initial_balance_cents
+      - archived_at
       properties:
         id:
           type: string
@@ -1525,25 +2398,39 @@ components:
           minLength: 1
         type:
           type: string
-          enum: [ cash, debit, credit, bank ]
+          enum:
+          - cash
+          - debit
+          - credit
+          - bank
         initial_balance_cents:
           type: integer
           description: Signed integer amount in cents
         note:
           type: string
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
+      example: *id001
     AccountCreate:
       type: object
-      required: [ name, type, initial_balance_cents ]
+      required:
+      - name
+      - type
+      - initial_balance_cents
       properties:
         name:
           type: string
           minLength: 1
         type:
           type: string
-          enum: [ cash, debit, credit, bank ]
+          enum:
+          - cash
+          - debit
+          - credit
+          - bank
         initial_balance_cents:
           type: integer
           description: Signed integer amount in cents
@@ -1557,18 +2444,28 @@ components:
           minLength: 1
         type:
           type: string
-          enum: [ cash, debit, credit, bank ]
+          enum:
+          - cash
+          - debit
+          - credit
+          - bank
         initial_balance_cents:
           type: integer
           description: Signed integer amount in cents
         note:
           type: string
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
     Category:
       type: object
-      required: [ id, name, type, archived_at ]
+      required:
+      - id
+      - name
+      - type
+      - archived_at
       properties:
         id:
           type: string
@@ -1578,22 +2475,31 @@ components:
           minLength: 1
         type:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
         note:
           type: string
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
+      example: *id002
     CategoryCreate:
       type: object
-      required: [ name, type ]
+      required:
+      - name
+      - type
       properties:
         name:
           type: string
           minLength: 1
         type:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
         note:
           type: string
     CategoryUpdate:
@@ -1605,18 +2511,31 @@ components:
         note:
           type: string
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
     Transaction:
       type: object
-      required: [ id, type, account_id, category_id, amount_cents, date, archived_at, created_at, updated_at ]
+      required:
+      - id
+      - type
+      - account_id
+      - category_id
+      - amount_cents
+      - date
+      - archived_at
+      - created_at
+      - updated_at
       properties:
         id:
           type: string
           format: uuid
         type:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
         account_id:
           type: string
           format: uuid
@@ -1631,11 +2550,17 @@ components:
           type: string
           format: date
         merchant:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
         note:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
         created_at:
           type: string
@@ -1643,14 +2568,21 @@ components:
         updated_at:
           type: string
           format: date-time
-
+      example: *id003
     TransactionCreate:
       type: object
-      required: [ type, account_id, category_id, amount_cents, date ]
+      required:
+      - type
+      - account_id
+      - category_id
+      - amount_cents
+      - date
       properties:
         type:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
         account_id:
           type: string
           format: uuid
@@ -1668,13 +2600,14 @@ components:
           type: string
         note:
           type: string
-
     TransactionUpdate:
       type: object
       properties:
         type:
           type: string
-          enum: [ income, expense ]
+          enum:
+          - income
+          - expense
         account_id:
           type: string
           format: uuid
@@ -1689,16 +2622,23 @@ components:
           type: string
           format: date
         merchant:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
         note:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
-
     TransactionImportFailure:
       type: object
-      required: [ index, message ]
+      required:
+      - index
+      - message
       properties:
         index:
           type: integer
@@ -1706,11 +2646,13 @@ components:
         message:
           type: string
         problem:
-          $ref: "#/components/schemas/ProblemDetails"
-
+          $ref: '#/components/schemas/ProblemDetails'
     TransactionImportResult:
       type: object
-      required: [ created_count, failed_count, failures ]
+      required:
+      - created_count
+      - failed_count
+      - failures
       properties:
         created_count:
           type: integer
@@ -1721,32 +2663,51 @@ components:
         failures:
           type: array
           items:
-            $ref: "#/components/schemas/TransactionImportFailure"
-
+            $ref: '#/components/schemas/TransactionImportFailure'
+      example:
+        created_count: 2
+        failed_count: 1
+        failures:
+        - index: 1
+          message: category does not belong to authenticated user
+          problem:
+            type: https://api.budgetbuddy.dev/problems/forbidden
+            title: Forbidden
+            status: 403
     TransactionImportRequest:
       type: object
-      required: [ mode, items ]
+      required:
+      - mode
+      - items
       properties:
         mode:
           type: string
-          enum: [ all_or_nothing, partial ]
+          enum:
+          - all_or_nothing
+          - partial
           default: partial
         items:
           type: array
           minItems: 1
           items:
-            $ref: "#/components/schemas/TransactionCreate"
-
+            $ref: '#/components/schemas/TransactionCreate'
     Budget:
       type: object
-      required: [ id, month, category_id, limit_cents, archived_at, created_at, updated_at ]
+      required:
+      - id
+      - month
+      - category_id
+      - limit_cents
+      - archived_at
+      - created_at
+      - updated_at
       properties:
         id:
           type: string
           format: uuid
         month:
           type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
         category_id:
           type: string
           format: uuid
@@ -1755,7 +2716,9 @@ components:
           minimum: 1
           maximum: 999999999999
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
         created_at:
           type: string
@@ -1763,13 +2726,24 @@ components:
         updated_at:
           type: string
           format: date-time
+      example:
+        id: 5a71639c-31df-4221-b7ca-87e27b347307
+        month: 2026-02
+        category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+        limit_cents: 250000
+        archived_at: null
+        created_at: '2026-02-01T00:00:00Z'
+        updated_at: '2026-02-01T00:00:00Z'
     BudgetCreate:
       type: object
-      required: [ month, category_id, limit_cents ]
+      required:
+      - month
+      - category_id
+      - limit_cents
       properties:
         month:
           type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
         category_id:
           type: string
           format: uuid
@@ -1782,7 +2756,7 @@ components:
       properties:
         month:
           type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
         category_id:
           type: string
           format: uuid
@@ -1791,19 +2765,37 @@ components:
           minimum: 1
           maximum: 999999999999
         archived_at:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
           format: date-time
     BudgetListResponse:
       type: object
-      required: [ items ]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/Budget"
+            $ref: '#/components/schemas/Budget'
+      example:
+        items:
+        - id: 5a71639c-31df-4221-b7ca-87e27b347307
+          month: 2026-02
+          category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+          limit_cents: 250000
+          archived_at: null
+          created_at: '2026-02-01T00:00:00Z'
+          updated_at: '2026-02-01T00:00:00Z'
     AuditEvent:
       type: object
-      required: [ id, request_id, user_id, resource_type, action, created_at ]
+      required:
+      - id
+      - request_id
+      - user_id
+      - resource_type
+      - action
+      - created_at
       properties:
         id:
           type: string
@@ -1816,29 +2808,56 @@ components:
         resource_type:
           type: string
         resource_id:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
         action:
           type: string
         created_at:
           type: string
           format: date-time
+      example:
+        id: 515a1511-69e8-48ed-85bb-afd3035dc889
+        request_id: req_01HRYJAR2DN84Q4M4E5B12A1XQ
+        user_id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+        resource_type: transaction
+        resource_id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+        action: transaction.create
+        created_at: '2026-02-18T10:20:30Z'
     AuditListResponse:
       type: object
-      required: [ items, next_cursor ]
+      required:
+      - items
+      - next_cursor
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AuditEvent"
+            $ref: '#/components/schemas/AuditEvent'
         next_cursor:
-          type: [ string, "null" ]
+          type:
+          - string
+          - 'null'
+      example:
+        items:
+        - id: 515a1511-69e8-48ed-85bb-afd3035dc889
+          request_id: req_01HRYJAR2DN84Q4M4E5B12A1XQ
+          user_id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+          resource_type: transaction
+          resource_id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+          action: transaction.create
+          created_at: '2026-02-18T10:20:30Z'
+        next_cursor: eyJjcmVhdGVkX2F0IjoiMjAyNi0wMi0xOFQxMDoyMDozMFoiLCJpZCI6IjUxNWExNTExLTY5ZTgtNDhlZC04NWJiLWFmZDMwMzVkYzg4OSJ9
     AnalyticsByMonthItem:
       type: object
-      required: [ month, income_total_cents, expense_total_cents ]
+      required:
+      - month
+      - income_total_cents
+      - expense_total_cents
       properties:
         month:
           type: string
-          pattern: '^\d{4}-\d{2}$'
+          pattern: ^\d{4}-\d{2}$
         income_total_cents:
           type: integer
         expense_total_cents:
@@ -1847,19 +2866,29 @@ components:
           type: integer
         budget_limit_cents:
           type: integer
-
     AnalyticsByMonthResponse:
       type: object
-      required: [ items ]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AnalyticsByMonthItem"
-
+            $ref: '#/components/schemas/AnalyticsByMonthItem'
+      example:
+        items:
+        - month: 2026-01
+          income_total_cents: 520000
+          expense_total_cents: 300000
+          budget_spent_cents: 300000
+          budget_limit_cents: 350000
     AnalyticsByCategoryItem:
       type: object
-      required: [ category_id, category_name, income_total_cents, expense_total_cents ]
+      required:
+      - category_id
+      - category_name
+      - income_total_cents
+      - expense_total_cents
       properties:
         category_id:
           type: string
@@ -1874,20 +2903,68 @@ components:
           type: integer
         budget_limit_cents:
           type: integer
-
     AnalyticsByCategoryResponse:
       type: object
-      required: [ items ]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AnalyticsByCategoryItem"
-
+            $ref: '#/components/schemas/AnalyticsByCategoryItem'
+      example:
+        items:
+        - category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+          category_name: Groceries
+          income_total_cents: 0
+          expense_total_cents: 120000
+          budget_spent_cents: 120000
+          budget_limit_cents: 250000
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-
+  examples:
+    Problem400:
+      summary: Canonical 400 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/invalid-date-range
+        title: Invalid date range
+        status: 400
+        detail: '`from` must be less than or equal to `to`.'
+    Problem401:
+      summary: Canonical 401 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/unauthorized
+        title: Unauthorized
+        status: 401
+        detail: Missing or invalid bearer token.
+    Problem403:
+      summary: Canonical 403 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/forbidden
+        title: Forbidden
+        status: 403
+        detail: Resource is not owned by authenticated user.
+    Problem406:
+      summary: Canonical 406 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/not-acceptable
+        title: Not Acceptable
+        status: 406
+        detail: Accept header must allow a supported media type.
+    Problem409:
+      summary: Canonical 409 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/account-archived
+        title: Account is archived
+        status: 409
+        detail: Transactions cannot be created on archived accounts.
+    Problem429:
+      summary: Canonical 429 error
+      value:
+        type: https://api.budgetbuddy.dev/problems/rate-limited
+        title: Too Many Requests
+        status: 429
+        detail: Too many requests. Retry after the interval in Retry-After.

@@ -52,3 +52,15 @@ py -m pytest tests -q -s --cov=app --cov-report=term-missing:skip-covered
 - Preserve idempotent, minimal updates when syncing OpenSpec deltas into main specs.
 - All changes must keep test coverage ≥ 90% (enforced by pytest-cov fail-under).
 - All endpoints must have contract tests aligned with openapi.yml.
+## OpenAPI + SDK Commands
+From repository root:
+
+```bat
+backend\.venv\Scripts\python.exe tools\validate_openapi.py
+backend\.venv\Scripts\python.exe tools\generate_sdks.py
+backend\.venv\Scripts\python.exe tools\generate_sdks.py --check
+```
+
+Generated SDK outputs:
+- `sdk/typescript/src/`
+- `sdk/python/budgetbuddy_sdk/`

@@ -14,6 +14,7 @@ BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-i
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
 RATE_LIMITED_TITLE = "Too Many Requests"
+CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
 
 
 def _resolve_schema(schema: dict) -> dict:
@@ -293,6 +294,54 @@ def test_audit_contract_mappings_exist():
     schemas = SPEC["components"]["schemas"]
     assert "AuditEvent" in schemas
     assert "AuditListResponse" in schemas
+
+
+def test_openapi_examples_coverage_and_canonical_problem_examples():
+    schemas = SPEC["components"]["schemas"]
+    problem_schema = schemas["ProblemDetails"]
+    example_statuses = {item.get("status") for item in problem_schema.get("examples", []) if isinstance(item, dict)}
+    assert CANONICAL_EXAMPLE_STATUSES.issubset(example_statuses)
+
+    for path, path_item in SPEC["paths"].items():
+        for method, operation in path_item.items():
+            if method.lower() not in {"get", "post", "patch", "delete"}:
+                continue
+
+            responses = operation.get("responses", {})
+            success_has_body = False
+            success_has_example = False
+            error_has_problem = False
+            error_has_example = False
+
+            for status_code, response in responses.items():
+                status_s = str(status_code)
+                content = response.get("content", {})
+
+                if status_s.startswith("2"):
+                    media = content.get(VENDOR) or content.get("text/csv")
+                    if isinstance(media, dict):
+                        success_has_body = True
+                        if "example" in media or "examples" in media:
+                            success_has_example = True
+                        else:
+                            schema = media.get("schema", {})
+                            if isinstance(schema, dict) and "$ref" in schema:
+                                schema_name = schema["$ref"].split("/")[-1]
+                                schema_obj = schemas.get(schema_name, {})
+                                success_has_example = success_has_example or "example" in schema_obj or "examples" in schema_obj
+
+                if status_s.startswith(("4", "5")) and PROBLEM in content:
+                    error_has_problem = True
+                    media = content[PROBLEM]
+                    if "example" in media or "examples" in media:
+                        error_has_example = True
+                    else:
+                        error_has_example = error_has_example or "examples" in problem_schema or "example" in problem_schema
+
+            if success_has_body:
+                assert success_has_example, f"Missing success example in {method.upper()} {path}"
+            if error_has_problem:
+                assert error_has_example, f"Missing error example in {method.upper()} {path}"
 
 
 def test_openapi_e2e_contract_flow():
