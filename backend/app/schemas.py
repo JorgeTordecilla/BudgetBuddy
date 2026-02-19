@@ -176,5 +176,26 @@ class BudgetOut(BudgetBase):
     updated_at: datetime
 
 
+class TransactionImportItem(TransactionBase):
+    pass
+
+
+class TransactionImportRequest(BaseModel):
+    mode: Literal["all_or_nothing", "partial"] = "partial"
+    items: list[TransactionImportItem] = Field(min_length=1)
+
+
+class TransactionImportFailure(BaseModel):
+    index: int = Field(ge=0)
+    message: str
+    problem: ProblemDetails | None = None
+
+
+class TransactionImportResult(BaseModel):
+    created_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
+    failures: list[TransactionImportFailure]
+
+
 class BudgetListResponse(BaseModel):
     items: list[BudgetOut]

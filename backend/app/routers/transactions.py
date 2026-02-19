@@ -1,12 +1,17 @@
+import csv
+import io
 from datetime import date
-from typing import Literal
+from typing import Iterator, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import APIError
+from app.core.config import settings
+from app.core.constants import CSV_TEXT
+from app.core.errors import APIError, sanitize_problem_detail
 from app.core.money import validate_amount_cents, validate_user_currency_for_money
 from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
 from app.core.responses import vendor_response
@@ -17,12 +22,20 @@ from app.errors import (
     category_archived_error,
     category_type_mismatch_error,
     forbidden_error,
+    import_batch_limit_exceeded_error,
     invalid_cursor_error,
     invalid_date_range_error,
 )
 from app.models import Account, Category, Transaction, User
 from app.repositories import SQLAlchemyAccountRepository, SQLAlchemyCategoryRepository, SQLAlchemyTransactionRepository
-from app.schemas import TransactionCreate, TransactionOut, TransactionUpdate
+from app.schemas import (
+    TransactionCreate,
+    TransactionImportFailure,
+    TransactionImportRequest,
+    TransactionImportResult,
+    TransactionOut,
+    TransactionUpdate,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -63,6 +76,63 @@ def _validate_business_rules(db: Session, user_id: str, payload: dict):
 def _validate_money_rules(user: User, tx_type: Literal["income", "expense"], amount_cents: object) -> int:
     validate_user_currency_for_money(user.currency_code)
     return validate_amount_cents(amount_cents, tx_type)
+
+
+def _validate_batch_size_or_400(item_count: int) -> None:
+    if item_count > settings.transaction_import_max_items:
+        raise import_batch_limit_exceeded_error(
+            f"items exceeds maximum batch size ({settings.transaction_import_max_items})"
+        )
+
+
+def _build_import_failure(index: int, exc: Exception) -> TransactionImportFailure:
+    if isinstance(exc, APIError):
+        return TransactionImportFailure(
+            index=index,
+            message=sanitize_problem_detail(exc.detail) or exc.title,
+            problem={"type": exc.type_, "title": exc.title, "status": exc.status},
+        )
+    return TransactionImportFailure(index=index, message="Import row failed validation")
+
+
+def _csv_line(cells: list[object]) -> str:
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(cells)
+    return out.getvalue()
+
+
+def _csv_stream(rows) -> Iterator[str]:
+    header = [
+        "id",
+        "type",
+        "account_id",
+        "category_id",
+        "amount_cents",
+        "date",
+        "merchant",
+        "note",
+        "archived_at",
+        "created_at",
+        "updated_at",
+    ]
+    yield _csv_line(header)
+    for row in rows:
+        yield _csv_line(
+            [
+                row.id,
+                row.type,
+                row.account_id,
+                row.category_id,
+                row.amount_cents,
+                row.date.isoformat(),
+                row.merchant or "",
+                row.note or "",
+                row.archived_at.isoformat() if row.archived_at else "",
+                row.created_at.isoformat(),
+                row.updated_at.isoformat(),
+            ]
+        )
 
 
 def _apply_list_filters(
@@ -183,6 +253,76 @@ def create_transaction(payload: TransactionCreate, current_user: User = Depends(
     db.commit()
     db.refresh(row)
     return vendor_response(TransactionOut.model_validate(row).model_dump(mode="json"), status_code=201)
+
+
+@router.post("/import")
+def import_transactions(
+    payload: TransactionImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _validate_batch_size_or_400(len(payload.items))
+    mode = payload.mode
+    failures: list[TransactionImportFailure] = []
+    rows_to_insert: list[Transaction] = []
+
+    for index, item in enumerate(payload.items):
+        try:
+            data = item.model_dump()
+            data["amount_cents"] = _validate_money_rules(current_user, data["type"], data["amount_cents"])
+            _validate_business_rules(db, current_user.id, data)
+            rows_to_insert.append(Transaction(user_id=current_user.id, **data))
+        except Exception as exc:
+            failures.append(_build_import_failure(index, exc))
+
+    if mode == "all_or_nothing" and failures:
+        result = TransactionImportResult(created_count=0, failed_count=len(failures), failures=failures)
+        return vendor_response(result.model_dump(mode="json"))
+
+    for row in rows_to_insert:
+        db.add(row)
+    if rows_to_insert:
+        db.commit()
+
+    result = TransactionImportResult(
+        created_count=len(rows_to_insert),
+        failed_count=len(failures),
+        failures=failures,
+    )
+    return vendor_response(result.model_dump(mode="json"))
+
+
+@router.get("/export")
+def export_transactions(
+    type: Literal["income", "expense"] | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    category_id: UUID | None = Query(default=None),
+    from_: date | None = Query(default=None, alias="from"),
+    to: date | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if from_ and to and from_ > to:
+        raise invalid_date_range_error("from must be less than or equal to to")
+
+    stmt = select(Transaction).where(Transaction.user_id == current_user.id)
+    stmt = _apply_list_filters(
+        stmt,
+        include_archived=False,
+        type=type,
+        account_id=account_id,
+        category_id=category_id,
+        from_=from_,
+        to=to,
+    )
+    stmt = stmt.order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id.desc())
+    rows = db.scalars(stmt)
+
+    return StreamingResponse(
+        _csv_stream(rows),
+        media_type=CSV_TEXT,
+        headers={"Content-Disposition": "attachment; filename=transactions.csv"},
+    )
 
 
 @router.get("/{transaction_id}")

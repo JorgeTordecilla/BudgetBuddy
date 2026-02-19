@@ -67,6 +67,10 @@ MONEY_CURRENCY_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/money-curre
 MONEY_CURRENCY_MISMATCH_TITLE = "Money currency mismatch"
 MONEY_CURRENCY_MISMATCH_STATUS = 400
 
+IMPORT_BATCH_LIMIT_EXCEEDED_TYPE = "https://api.budgetbuddy.dev/problems/import-batch-limit-exceeded"
+IMPORT_BATCH_LIMIT_EXCEEDED_TITLE = "Import batch limit exceeded"
+IMPORT_BATCH_LIMIT_EXCEEDED_STATUS = 400
+
 
 def unauthorized_error(detail: str | None = None) -> APIError:
     return APIError(
@@ -218,4 +222,13 @@ def money_currency_mismatch_error(detail: str | None = None) -> APIError:
         title=MONEY_CURRENCY_MISMATCH_TITLE,
         detail=detail,
         type_=MONEY_CURRENCY_MISMATCH_TYPE,
+    )
+
+
+def import_batch_limit_exceeded_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=IMPORT_BATCH_LIMIT_EXCEEDED_STATUS,
+        title=IMPORT_BATCH_LIMIT_EXCEEDED_TITLE,
+        detail=detail,
+        type_=IMPORT_BATCH_LIMIT_EXCEEDED_TYPE,
     )

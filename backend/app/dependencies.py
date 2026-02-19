@@ -4,7 +4,7 @@ from typing import Iterator
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
-from app.core.constants import API_PREFIX, PROBLEM_JSON, VENDOR_JSON
+from app.core.constants import API_PREFIX, CSV_TEXT, PROBLEM_JSON, VENDOR_JSON
 from app.core.errors import APIError
 from app.core.security import decode_access_token
 from app.db import get_db
@@ -43,11 +43,22 @@ def _iter_accept_media_types(value: str) -> Iterator[str]:
             yield media_type
 
 
-def _accepts_vendor_or_problem(accept: str) -> bool:
+def _accepts_media_types(accept: str, *, supported: set[str]) -> bool:
     for media_type in _iter_accept_media_types(accept):
-        if media_type in {"*/*", "application/*", VENDOR_JSON, PROBLEM_JSON}:
+        if media_type == "*/*":
+            return True
+        if media_type.endswith("/*"):
+            media_prefix = media_type.split("/", 1)[0] + "/"
+            if any(candidate.startswith(media_prefix) for candidate in supported):
+                return True
+            continue
+        if media_type in supported:
             return True
     return False
+
+
+def _accepts_vendor_or_problem(accept: str) -> bool:
+    return _accepts_media_types(accept, supported={VENDOR_JSON, PROBLEM_JSON})
 
 
 def enforce_accept_header(request: Request) -> None:
@@ -57,7 +68,10 @@ def enforce_accept_header(request: Request) -> None:
         return
 
     accept = request.headers.get("accept", "*/*")
-    if not _accepts_vendor_or_problem(accept):
+    supported = {VENDOR_JSON, PROBLEM_JSON}
+    if request.url.path == f"{API_PREFIX}/transactions/export":
+        supported = {CSV_TEXT, PROBLEM_JSON}
+    if not _accepts_media_types(accept, supported=supported):
         raise not_acceptable_error("Unsupported Accept header")
 
 

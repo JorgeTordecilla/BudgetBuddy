@@ -64,7 +64,7 @@ def _assert_contract(response, path: str, method: str) -> None:
     assert any(response.headers["content-type"].startswith(mt) for mt in expected_types)
 
     schema = content[expected_types[0]].get("schema")
-    if schema:
+    if schema and response.headers["content-type"].startswith("application/"):
         _validate_required(schema, response.json())
 
 
@@ -184,6 +184,34 @@ def _analytics_flow(client: TestClient, access: str) -> None:
     _assert_contract(by_category, "/analytics/by-category", "get")
 
 
+def _transaction_import_export_flow(client: TestClient, access: str, account_id: str, category_id: str) -> None:
+    imported = client.post(
+        "/api/transactions/import",
+        json={
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 300000,
+                    "date": "2026-02-02",
+                    "merchant": "Acme",
+                    "note": "imported",
+                }
+            ],
+        },
+        headers={"accept": VENDOR, "content-type": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(imported, "/transactions/import", "post")
+
+    exported = client.get(
+        "/api/transactions/export?from=2026-01-01&to=2026-12-31",
+        headers={"accept": "text/csv", "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(exported, "/transactions/export", "get")
+
+
 def _budget_invalid_month_flow(client: TestClient, access: str) -> None:
     response = client.get(
         "/api/budgets?from=2026-13&to=2026-12",
@@ -234,6 +262,7 @@ def test_openapi_e2e_contract_flow():
         account_id = _account_flow(client, access)
         category_id = _category_flow(client, access)
         transaction_id = _transaction_flow(client, access, account_id, category_id)
+        _transaction_import_export_flow(client, access, account_id, category_id)
         _analytics_flow(client, access)
         _budget_invalid_month_flow(client, access)
         _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id)

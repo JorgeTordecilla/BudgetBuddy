@@ -41,6 +41,8 @@ MONEY_AMOUNT_SIGN_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/money-amo
 MONEY_AMOUNT_SIGN_INVALID_TITLE = "Money amount sign is invalid"
 MONEY_CURRENCY_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/money-currency-mismatch"
 MONEY_CURRENCY_MISMATCH_TITLE = "Money currency mismatch"
+IMPORT_BATCH_LIMIT_EXCEEDED_TYPE = "https://api.budgetbuddy.dev/problems/import-batch-limit-exceeded"
+IMPORT_BATCH_LIMIT_EXCEEDED_TITLE = "Import batch limit exceeded"
 BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate"
 BUDGET_DUPLICATE_TITLE = "Budget already exists"
 CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned"
@@ -1972,3 +1974,262 @@ def test_analytics_include_budget_spent_vs_limit_integer_fields():
         assert category_item["budget_limit_cents"] == 10000
         assert isinstance(category_item["budget_spent_cents"], int)
         assert isinstance(category_item["budget_limit_cents"], int)
+
+
+def test_transactions_import_partial_mixed_rows_reports_deterministic_failures():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "import-partial-account")
+        income_category_id = _create_category(client, headers, "import-partial-income", "income")
+        expense_category_id = _create_category(client, headers, "import-partial-expense", "expense")
+
+        response = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": income_category_id,
+                        "amount_cents": 5000,
+                        "date": "2026-07-01",
+                        "merchant": "Acme",
+                        "note": "ok-row",
+                    },
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": expense_category_id,
+                        "amount_cents": 6000,
+                        "date": "2026-07-02",
+                        "merchant": "Acme",
+                        "note": "mismatch-row",
+                    },
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": income_category_id,
+                        "amount_cents": 0,
+                        "date": "2026-07-03",
+                        "merchant": "Acme",
+                        "note": "invalid-money-row",
+                    },
+                ],
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+        assert body["created_count"] == 1
+        assert body["failed_count"] == 2
+        assert [failure["index"] for failure in body["failures"]] == [1, 2]
+        assert body["failures"][0]["problem"]["type"] == MISMATCH_TYPE
+        assert body["failures"][0]["problem"]["title"] == MISMATCH_TITLE
+        assert body["failures"][1]["problem"]["type"] == MONEY_AMOUNT_SIGN_INVALID_TYPE
+        assert body["failures"][1]["problem"]["title"] == MONEY_AMOUNT_SIGN_INVALID_TITLE
+        assert "Traceback" not in body["failures"][0]["message"]
+        assert "sqlalchemy" not in body["failures"][0]["message"].lower()
+
+        listed = client.get(
+            "/api/transactions?from=2026-07-01&to=2026-07-03",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+        assert len(listed.json()["items"]) == 1
+
+
+def test_transactions_import_all_or_nothing_rolls_back_batch():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "import-aon-account")
+        income_category_id = _create_category(client, headers, "import-aon-income", "income")
+        expense_category_id = _create_category(client, headers, "import-aon-expense", "expense")
+
+        response = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "all_or_nothing",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": income_category_id,
+                        "amount_cents": 5000,
+                        "date": "2026-08-01",
+                        "merchant": "Acme",
+                        "note": "ok-row",
+                    },
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": expense_category_id,
+                        "amount_cents": 5000,
+                        "date": "2026-08-02",
+                        "merchant": "Acme",
+                        "note": "invalid-row",
+                    },
+                ],
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+        assert body["created_count"] == 0
+        assert body["failed_count"] == 1
+        assert body["failures"][0]["index"] == 1
+
+        listed = client.get(
+            "/api/transactions?from=2026-08-01&to=2026-08-02",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+        assert listed.json()["items"] == []
+
+
+def test_transactions_import_batch_limit_returns_canonical_400(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "import-limit-account")
+        income_category_id = _create_category(client, headers, "import-limit-income", "income")
+
+        monkeypatch.setattr("app.routers.transactions.settings.transaction_import_max_items", 1)
+
+        response = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": income_category_id,
+                        "amount_cents": 1000,
+                        "date": "2026-09-01",
+                    },
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": income_category_id,
+                        "amount_cents": 2000,
+                        "date": "2026-09-02",
+                    },
+                ],
+            },
+            headers=headers,
+        )
+        _assert_money_problem(response, IMPORT_BATCH_LIMIT_EXCEEDED_TYPE, IMPORT_BATCH_LIMIT_EXCEEDED_TITLE)
+
+
+def test_transactions_export_returns_csv_headers_and_row_count():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "export-account")
+        category_id = _create_category(client, headers, "export-income", "income")
+
+        for day, note in [("2026-10-01", "row-1"), ("2026-10-02", "row-2")]:
+            status, _ = _create_transaction(
+                client,
+                headers,
+                type_="income",
+                account_id=account_id,
+                category_id=category_id,
+                note=note,
+                date=day,
+            )
+            assert status == 201
+
+        response = client.get(
+            "/api/transactions/export?from=2026-10-01&to=2026-10-31&type=income",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        lines = [line for line in response.text.strip().splitlines() if line]
+        assert lines[0] == "id,type,account_id,category_id,amount_cents,date,merchant,note,archived_at,created_at,updated_at"
+        assert len(lines) == 3
+
+
+def test_transactions_import_export_auth_and_negotiation_matrix():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "matrix-account")
+        category_id = _create_category(client, headers, "matrix-income", "income")
+
+        unauthorized_import = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": category_id,
+                        "amount_cents": 1000,
+                        "date": "2026-10-03",
+                    }
+                ],
+            },
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_unauthorized_problem(unauthorized_import)
+
+        unauthorized_export = client.get("/api/transactions/export", headers={"accept": "text/csv"})
+        _assert_unauthorized_problem(unauthorized_export)
+
+        unsupported_import_accept = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": category_id,
+                        "amount_cents": 1000,
+                        "date": "2026-10-03",
+                    }
+                ],
+            },
+            headers={"accept": "application/xml", "content-type": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert unsupported_import_accept.status_code == 406
+        assert unsupported_import_accept.headers["content-type"].startswith(PROBLEM)
+
+        unsupported_export_accept = client.get(
+            "/api/transactions/export",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert unsupported_export_accept.status_code == 406
+        assert unsupported_export_accept.headers["content-type"].startswith(PROBLEM)
+
+        unsupported_import_content_type = client.post(
+            "/api/transactions/import",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": category_id,
+                        "amount_cents": 1000,
+                        "date": "2026-10-03",
+                    }
+                ],
+            },
+            headers={
+                "accept": VENDOR,
+                "content-type": "application/json",
+                "authorization": f"Bearer {user['access']}",
+            },
+        )
+        _assert_invalid_request_problem(unsupported_import_content_type)
