@@ -15,7 +15,7 @@ from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
 from app.dependencies import utcnow
-from app.models import RefreshToken
+from app.models import RefreshToken, User
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
@@ -33,6 +33,14 @@ INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
 INVALID_CURSOR_TITLE = "Invalid cursor"
 INVALID_DATE_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/invalid-date-range"
 INVALID_DATE_RANGE_TITLE = "Invalid date range"
+MONEY_AMOUNT_NOT_INTEGER_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-not-integer"
+MONEY_AMOUNT_NOT_INTEGER_TITLE = "Money amount must be an integer"
+MONEY_AMOUNT_OUT_OF_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-out-of-range"
+MONEY_AMOUNT_OUT_OF_RANGE_TITLE = "Money amount is out of safe range"
+MONEY_AMOUNT_SIGN_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-sign-invalid"
+MONEY_AMOUNT_SIGN_INVALID_TITLE = "Money amount sign is invalid"
+MONEY_CURRENCY_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/money-currency-mismatch"
+MONEY_CURRENCY_MISMATCH_TITLE = "Money currency mismatch"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
@@ -145,6 +153,15 @@ def _assert_invalid_request_problem(response):
     assert response.headers["content-type"].startswith(PROBLEM)
     body = response.json()
     assert body["title"] == "Invalid request"
+    assert body["status"] == 400
+
+
+def _assert_money_problem(response, expected_type: str, expected_title: str):
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == expected_type
+    assert body["title"] == expected_title
     assert body["status"] == 400
 
 
@@ -948,6 +965,175 @@ def test_transaction_validation_error_returns_problem_details():
         assert body["status"] == 400
         assert "title" in body
         assert "type" in body
+
+
+def test_create_transaction_invalid_amount_values_return_canonical_money_problems():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        account_id = _create_account(client, auth_headers, "money-create-account")
+        income_category_id = _create_category(client, auth_headers, "money-create-income", "income")
+
+        invalid_payloads = [
+            (
+                {"amount_cents": "100"},
+                MONEY_AMOUNT_NOT_INTEGER_TYPE,
+                MONEY_AMOUNT_NOT_INTEGER_TITLE,
+            ),
+            (
+                {"amount_cents": 0},
+                MONEY_AMOUNT_SIGN_INVALID_TYPE,
+                MONEY_AMOUNT_SIGN_INVALID_TITLE,
+            ),
+            (
+                {"amount_cents": -10},
+                MONEY_AMOUNT_SIGN_INVALID_TYPE,
+                MONEY_AMOUNT_SIGN_INVALID_TITLE,
+            ),
+            (
+                {"amount_cents": 1_000_000_000_000},
+                MONEY_AMOUNT_OUT_OF_RANGE_TYPE,
+                MONEY_AMOUNT_OUT_OF_RANGE_TITLE,
+            ),
+        ]
+
+        for partial_payload, expected_type, expected_title in invalid_payloads:
+            payload = {
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 100,
+                "date": "2026-03-01",
+                "merchant": "Acme",
+                "note": "invalid-create",
+            }
+            payload.update(partial_payload)
+            response = client.post("/api/transactions", json=payload, headers=auth_headers)
+            _assert_money_problem(response, expected_type, expected_title)
+
+
+def test_patch_transaction_invalid_amount_values_return_canonical_money_problems():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        account_id = _create_account(client, auth_headers, "money-patch-account")
+        income_category_id = _create_category(client, auth_headers, "money-patch-income", "income")
+        status, created = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=income_category_id,
+            note="money-patch-seed",
+            date="2026-03-02",
+        )
+        assert status == 201
+        tx_id = created["id"]
+
+        invalid_patches = [
+            ({"amount_cents": "100"}, MONEY_AMOUNT_NOT_INTEGER_TYPE, MONEY_AMOUNT_NOT_INTEGER_TITLE),
+            ({"amount_cents": 0}, MONEY_AMOUNT_SIGN_INVALID_TYPE, MONEY_AMOUNT_SIGN_INVALID_TITLE),
+            ({"amount_cents": -1}, MONEY_AMOUNT_SIGN_INVALID_TYPE, MONEY_AMOUNT_SIGN_INVALID_TITLE),
+            ({"amount_cents": 1_000_000_000_000}, MONEY_AMOUNT_OUT_OF_RANGE_TYPE, MONEY_AMOUNT_OUT_OF_RANGE_TITLE),
+        ]
+
+        for patch_body, expected_type, expected_title in invalid_patches:
+            response = client.patch(f"/api/transactions/{tx_id}", json=patch_body, headers=auth_headers)
+            _assert_money_problem(response, expected_type, expected_title)
+
+
+def test_transaction_money_currency_mismatch_returns_canonical_problem():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "money-currency-account")
+        income_category_id = _create_category(client, auth_headers, "money-currency-income", "income")
+
+        db = SessionLocal()
+        try:
+            user_row = db.query(User).filter(User.username == user["username"]).one()
+            user_row.currency_code = "JPY"
+            db.commit()
+        finally:
+            db.close()
+
+        response = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 5000,
+                "date": "2026-03-03",
+            },
+            headers=auth_headers,
+        )
+        _assert_money_problem(response, MONEY_CURRENCY_MISMATCH_TYPE, MONEY_CURRENCY_MISMATCH_TITLE)
+
+
+def test_analytics_totals_are_integer_cents_and_enforce_currency_context():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "money-analytics-account")
+        income_category_id = _create_category(client, auth_headers, "money-analytics-income", "income")
+        expense_category_id = _create_category(client, auth_headers, "money-analytics-expense", "expense")
+
+        status, _ = _create_transaction(
+            client,
+            auth_headers,
+            type_="income",
+            account_id=account_id,
+            category_id=income_category_id,
+            note="income-analytics",
+            date="2026-03-04",
+        )
+        assert status == 201
+        status, _ = _create_transaction(
+            client,
+            auth_headers,
+            type_="expense",
+            account_id=account_id,
+            category_id=expense_category_id,
+            note="expense-analytics",
+            date="2026-03-05",
+        )
+        assert status == 201
+
+        by_month = client.get("/api/analytics/by-month?from=2026-03-01&to=2026-03-31", headers=auth_headers)
+        assert by_month.status_code == 200
+        for item in by_month.json()["items"]:
+            assert isinstance(item["income_total_cents"], int)
+            assert isinstance(item["expense_total_cents"], int)
+
+        by_category = client.get("/api/analytics/by-category?from=2026-03-01&to=2026-03-31", headers=auth_headers)
+        assert by_category.status_code == 200
+        for item in by_category.json()["items"]:
+            assert isinstance(item["income_total_cents"], int)
+            assert isinstance(item["expense_total_cents"], int)
+
+        db = SessionLocal()
+        try:
+            user_row = db.query(User).filter(User.username == user["username"]).one()
+            user_row.currency_code = "JPY"
+            db.commit()
+        finally:
+            db.close()
+
+        bad_currency = client.get("/api/analytics/by-month?from=2026-03-01&to=2026-03-31", headers=auth_headers)
+        _assert_money_problem(bad_currency, MONEY_CURRENCY_MISMATCH_TYPE, MONEY_CURRENCY_MISMATCH_TITLE)
+
+        bad_currency_by_category = client.get(
+            "/api/analytics/by-category?from=2026-03-01&to=2026-03-31",
+            headers=auth_headers,
+        )
+        _assert_money_problem(
+            bad_currency_by_category,
+            MONEY_CURRENCY_MISMATCH_TYPE,
+            MONEY_CURRENCY_MISMATCH_TITLE,
+        )
 
 
 def _seed_filter_domain_data(client: TestClient, auth_headers: dict[str, str]) -> tuple[str, str, str, str]:

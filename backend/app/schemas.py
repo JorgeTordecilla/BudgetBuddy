@@ -1,7 +1,7 @@
 from datetime import date as DateType, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 
 class ProblemDetails(BaseModel):
@@ -95,7 +95,7 @@ class TransactionBase(BaseModel):
     type: Literal["income", "expense"]
     account_id: str
     category_id: str
-    amount_cents: int = Field(ge=1)
+    amount_cents: StrictInt
     date: DateType
     merchant: str | None = None
     note: str | None = None
@@ -109,7 +109,7 @@ class TransactionUpdate(BaseModel):
     type: Literal["income", "expense"] | None = None
     account_id: str | None = None
     category_id: str | None = None
-    amount_cents: int | None = Field(default=None, ge=1)
+    amount_cents: StrictInt | None = None
     date: DateType | None = None
     merchant: str | None = None
     note: str | None = None

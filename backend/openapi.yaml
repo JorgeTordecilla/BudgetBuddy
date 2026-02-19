@@ -1007,6 +1007,18 @@ components:
   - type: https://api.budgetbuddy.dev/problems/category-type-mismatch
     title: Category type mismatch
     status: 409
+  - type: https://api.budgetbuddy.dev/problems/money-amount-not-integer
+    title: Money amount must be an integer
+    status: 400
+  - type: https://api.budgetbuddy.dev/problems/money-amount-out-of-range
+    title: Money amount is out of safe range
+    status: 400
+  - type: https://api.budgetbuddy.dev/problems/money-amount-sign-invalid
+    title: Money amount sign is invalid
+    status: 400
+  - type: https://api.budgetbuddy.dev/problems/money-currency-mismatch
+    title: Money currency mismatch
+    status: 400
   schemas:
     ProblemDetails:
       type: object
@@ -1192,6 +1204,7 @@ components:
         amount_cents:
           type: integer
           minimum: 1
+          maximum: 999999999999
         date:
           type: string
           format: date
@@ -1225,6 +1238,7 @@ components:
         amount_cents:
           type: integer
           minimum: 1
+          maximum: 999999999999
         date:
           type: string
           format: date
@@ -1248,6 +1262,7 @@ components:
         amount_cents:
           type: integer
           minimum: 1
+          maximum: 999999999999
         date:
           type: string
           format: date

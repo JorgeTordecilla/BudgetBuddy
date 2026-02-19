@@ -7,6 +7,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import APIError
+from app.core.money import validate_amount_cents, validate_user_currency_for_money
 from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
@@ -57,6 +58,11 @@ def _validate_business_rules(db: Session, user_id: str, payload: dict):
     if payload["type"] != category.type:
         raise category_type_mismatch_error()
     return account, category
+
+
+def _validate_money_rules(user: User, tx_type: Literal["income", "expense"], amount_cents: object) -> int:
+    validate_user_currency_for_money(user.currency_code)
+    return validate_amount_cents(amount_cents, tx_type)
 
 
 def _apply_list_filters(
@@ -170,6 +176,7 @@ def list_transactions(
 def create_transaction(payload: TransactionCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     repo = SQLAlchemyTransactionRepository(db)
     data = payload.model_dump()
+    data["amount_cents"] = _validate_money_rules(current_user, data["type"], data["amount_cents"])
     _validate_business_rules(db, current_user.id, data)
     row = Transaction(user_id=current_user.id, **data)
     repo.add(row)
@@ -193,9 +200,13 @@ def patch_transaction(
 ):
     row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     data = payload.model_dump(exclude_unset=True)
+    merged_type: Literal["income", "expense"] = data.get("type", row.type)
+    merged_amount = data.get("amount_cents", row.amount_cents)
+    _validate_money_rules(current_user, merged_type, merged_amount)
+
     if any(k in data for k in ["type", "account_id", "category_id"]):
         merged = {
-            "type": data.get("type", row.type),
+            "type": merged_type,
             "account_id": data.get("account_id", row.account_id),
             "category_id": data.get("category_id", row.category_id),
         }

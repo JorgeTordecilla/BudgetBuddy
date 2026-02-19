@@ -1,8 +1,4 @@
-## Purpose
-
-Define a single canonical catalog of supported ProblemDetails values so API documentation and runtime remain aligned.
-
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Canonical ProblemDetails Catalog
 The API contract MUST provide a single canonical catalog of supported ProblemDetails entries with exact `type`, `title`, and `status`, including money-validation failures.
@@ -48,14 +44,3 @@ ProblemDetails emitted by the API MUST avoid sensitive/internal data exposure in
 #### Scenario: Validation internals are not exposed
 - **WHEN** money-validation failures are converted to `ProblemDetails`
 - **THEN** `detail` SHALL NOT leak internal validator class names, SQL errors, or stack frame information
-
-### Requirement: API error logging has minimum structured operational fields
-API error logging MUST include structured fields for traceability.
-
-#### Scenario: APIError is logged with request context
-- **WHEN** an `APIError` is handled
-- **THEN** logs SHALL include `request_id`, `path`, `status`, and `problem_type`
-
-#### Scenario: Logging avoids sensitive credentials
-- **WHEN** API error context is logged
-- **THEN** logs SHALL NOT include authorization header values or secret-like data

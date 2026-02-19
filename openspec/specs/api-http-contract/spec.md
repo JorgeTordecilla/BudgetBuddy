@@ -78,6 +78,14 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** canonical ProblemDetails are emitted for `400/401/403/406/409`
 - **THEN** runtime responses SHALL use exact `type`, `title`, and `status` values documented in the contract catalog
 
+#### Scenario: Money validation failures are canonical 400 responses
+- **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` fails money invariants (`amount_cents` non-integer, zero/sign-invalid, out-of-range, currency mismatch)
+- **THEN** the API SHALL return `400` with `Content-Type: application/problem+json` and canonical `ProblemDetails` fields
+
+#### Scenario: Money validation failures do not leak internals
+- **WHEN** money-validation errors are returned to clients
+- **THEN** response payloads SHALL NOT include stack traces, ORM internals, or validator implementation details
+
 ### Requirement: Cross-user ownership policy
 The backend MUST enforce a single deterministic ownership policy for scoped domain resources.
 

@@ -5,6 +5,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.responses import vendor_response
+from app.core.money import validate_user_currency_for_money
 from app.db import get_db
 from app.dependencies import get_current_user
 from app.models import Category, Transaction, User
@@ -26,6 +27,7 @@ def analytics_by_month(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    validate_user_currency_for_money(current_user.currency_code)
     month_expr = _month_expr(db)
     income_expr = func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount_cents), else_=0)), 0)
     expense_expr = func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount_cents), else_=0)), 0)
@@ -57,6 +59,7 @@ def analytics_by_category(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    validate_user_currency_for_money(current_user.currency_code)
     income_expr = func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount_cents), else_=0)), 0)
     expense_expr = func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount_cents), else_=0)), 0)
 

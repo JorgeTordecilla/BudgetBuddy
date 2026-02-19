@@ -36,6 +36,7 @@ _LOGGER = logging.getLogger("app.errors")
 _BEARER_RE = re.compile(r"(?i)bearer\s+[a-z0-9\-._~+/]+=*")
 _JWT_RE = re.compile(r"\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b")
 _SECRET_KV_RE = re.compile(r"(?i)\b(token|password|secret)\s*[:=]\s*\S+")
+_INTERNAL_MARKERS_RE = re.compile(r"(?i)\b(sqlalchemy|traceback|stack|validator|pydantic|fastapi)\b")
 
 
 def sanitize_problem_detail(detail: str | None) -> str | None:
@@ -47,7 +48,16 @@ def sanitize_problem_detail(detail: str | None) -> str | None:
     sanitized = _BEARER_RE.sub("Bearer [REDACTED]", sanitized)
     sanitized = _JWT_RE.sub("[REDACTED]", sanitized)
     sanitized = _SECRET_KV_RE.sub(r"\1=[REDACTED]", sanitized)
+    sanitized = _INTERNAL_MARKERS_RE.sub("[REDACTED]", sanitized)
     return sanitized.replace("\n", " ").replace("\r", " ")
+
+
+def _is_amount_cents_validation_error(exc: RequestValidationError) -> bool:
+    for item in exc.errors():
+        loc = item.get("loc")
+        if isinstance(loc, (list, tuple)) and "amount_cents" in loc:
+            return True
+    return False
 
 
 def _problem_response(status: int, title: str, detail: str | None, request: Request, type_: str = "about:blank") -> JSONResponse:
@@ -80,6 +90,13 @@ def register_exception_handlers(app) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError):
+        if _is_amount_cents_validation_error(exc):
+            from app.errors import (
+                MONEY_AMOUNT_NOT_INTEGER_TITLE,
+                MONEY_AMOUNT_NOT_INTEGER_TYPE,
+            )
+
+            return _problem_response(400, MONEY_AMOUNT_NOT_INTEGER_TITLE, "amount_cents must be an integer", request, MONEY_AMOUNT_NOT_INTEGER_TYPE)
         return _problem_response(400, "Invalid request", str(exc), request)
 
     @app.exception_handler(Exception)

@@ -51,7 +51,7 @@ The backend MUST implement `/categories` and `/categories/{category_id}` with li
 - **THEN** the API SHALL return canonical `403` ProblemDetails
 
 ### Requirement: Transactions resource behavior
-The backend MUST implement `/transactions` and `/transactions/{transaction_id}` with create, list, get, update, archive, and restore semantics including all documented filters.
+The backend MUST implement `/transactions` and `/transactions/{transaction_id}` with create, list, get, update, archive, and restore semantics including all documented filters, while enforcing strict money invariants for `amount_cents` and currency consistency.
 
 #### Scenario: List transactions with filters
 - **WHEN** `GET /transactions` is called with optional filters (`type`, `account_id`, `category_id`, `from`, `to`, `include_archived`, `cursor`, `limit`)
@@ -104,6 +104,26 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 #### Scenario: Restore blocked for non-owner
 - **WHEN** authenticated non-owner calls restore patch for another user's transaction
 - **THEN** API SHALL return canonical `403` ProblemDetails
+
+#### Scenario: amount_cents must be an integer on create
+- **WHEN** `POST /transactions` provides a non-integer `amount_cents` value
+- **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
+
+#### Scenario: amount_cents must be an integer on patch
+- **WHEN** `PATCH /transactions/{transaction_id}` provides a non-integer `amount_cents` value
+- **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
+
+#### Scenario: amount_cents is rejected when zero or sign-invalid
+- **WHEN** a transaction write provides `amount_cents=0` or a sign that violates the domain sign rule for the effective transaction type
+- **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
+
+#### Scenario: amount_cents is rejected when out of safe bounds
+- **WHEN** a transaction write provides `amount_cents` beyond configured safe limits
+- **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
+
+#### Scenario: transaction currency must match user currency
+- **WHEN** a transaction write resolves to a money operation with a currency different from the authenticated user's `currency_code`
+- **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
 
 ### Requirement: Ownership and access control across domain resources
 The backend MUST enforce authenticated user ownership for accounts, categories, and transactions.
