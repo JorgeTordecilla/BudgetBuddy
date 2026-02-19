@@ -1,8 +1,8 @@
 import base64
 import json
-from datetime import datetime
+from datetime import date, datetime
 
-from app.core.errors import APIError
+from app.errors import invalid_cursor_error
 
 
 def encode_cursor(payload: dict) -> str:
@@ -18,11 +18,18 @@ def decode_cursor(value: str) -> dict:
             raise ValueError("cursor must decode to object")
         return data
     except Exception as exc:
-        raise APIError(status=400, title="Invalid request", detail="Invalid cursor") from exc
+        raise invalid_cursor_error() from exc
 
 
 def parse_datetime(value: str) -> datetime:
     try:
         return datetime.fromisoformat(value)
     except ValueError as exc:
-        raise APIError(status=400, title="Invalid request", detail="Invalid cursor value") from exc
+        raise invalid_cursor_error() from exc
+
+
+def parse_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise invalid_cursor_error() from exc

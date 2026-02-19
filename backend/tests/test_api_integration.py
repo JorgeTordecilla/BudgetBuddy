@@ -16,6 +16,8 @@ NOT_ACCEPTABLE_TYPE = "https://api.budgetbuddy.dev/problems/not-acceptable"
 NOT_ACCEPTABLE_TITLE = "Not Acceptable"
 CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived"
 CATEGORY_ARCHIVED_TITLE = "Category is archived"
+INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
+INVALID_CURSOR_TITLE = "Invalid cursor"
 
 
 def _register_user(client: TestClient):
@@ -98,6 +100,15 @@ def _assert_category_mismatch_problem(response):
     assert body["type"] == MISMATCH_TYPE
     assert body["title"] == MISMATCH_TITLE
     assert body["status"] == 409
+
+
+def _assert_invalid_cursor_problem(response):
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == INVALID_CURSOR_TYPE
+    assert body["title"] == INVALID_CURSOR_TITLE
+    assert body["status"] == 400
 
 
 def test_problem_details_on_invalid_accept():
@@ -575,6 +586,36 @@ def test_list_transactions_filters_and_ordering():
         assert body["next_cursor"] is None
         assert len(body["items"]) == 2
         assert [item["id"] for item in body["items"]] == [tx_2_id, tx_1.json()["id"]]
+
+
+def test_list_accounts_invalid_cursor_returns_problem_details():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/accounts?cursor=not-base64!!",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_cursor_problem(response)
+
+
+def test_list_categories_invalid_cursor_returns_problem_details():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/categories?cursor=not-base64!!",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_cursor_problem(response)
+
+
+def test_list_transactions_invalid_cursor_returns_problem_details():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/transactions?cursor=not-base64!!",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_cursor_problem(response)
 
 
 def test_restore_category_happy_path_and_idempotent():

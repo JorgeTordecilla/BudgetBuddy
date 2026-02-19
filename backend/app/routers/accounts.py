@@ -10,7 +10,7 @@ from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
-from app.errors import forbidden_error
+from app.errors import forbidden_error, invalid_cursor_error
 from app.models import Account, User
 from app.schemas import AccountCreate, AccountOut, AccountUpdate
 
@@ -38,8 +38,11 @@ def list_accounts(
 
     if cursor:
         data = decode_cursor(cursor)
-        c_created = parse_datetime(data["created_at"])
-        c_id = data["id"]
+        c_created_raw = data.get("created_at")
+        c_id = data.get("id")
+        if not isinstance(c_created_raw, str) or not isinstance(c_id, str):
+            raise invalid_cursor_error()
+        c_created = parse_datetime(c_created_raw)
         stmt = stmt.where(or_(Account.created_at < c_created, and_(Account.created_at == c_created, Account.id < c_id)))
 
     stmt = stmt.order_by(Account.created_at.desc(), Account.id.desc()).limit(limit + 1)

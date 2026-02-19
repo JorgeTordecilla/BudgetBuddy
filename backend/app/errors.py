@@ -12,6 +12,10 @@ NOT_ACCEPTABLE_TYPE = "https://api.budgetbuddy.dev/problems/not-acceptable"
 NOT_ACCEPTABLE_TITLE = "Not Acceptable"
 NOT_ACCEPTABLE_STATUS = 406
 
+INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
+INVALID_CURSOR_TITLE = "Invalid cursor"
+INVALID_CURSOR_STATUS = 400
+
 ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-archived"
 ACCOUNT_ARCHIVED_TITLE = "Account is archived"
 ACCOUNT_ARCHIVED_STATUS = 409
@@ -49,6 +53,15 @@ def not_acceptable_error(detail: str | None = None) -> APIError:
         title=NOT_ACCEPTABLE_TITLE,
         detail=detail,
         type_=NOT_ACCEPTABLE_TYPE,
+    )
+
+
+def invalid_cursor_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=INVALID_CURSOR_STATUS,
+        title=INVALID_CURSOR_TITLE,
+        detail=detail,
+        type_=INVALID_CURSOR_TYPE,
     )
 
 

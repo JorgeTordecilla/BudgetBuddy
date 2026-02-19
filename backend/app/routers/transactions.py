@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.errors import account_archived_error, category_archived_error, category_type_mismatch_error, forbidden_error
 from app.core.errors import APIError
-from app.core.pagination import decode_cursor, encode_cursor
+from app.core.pagination import decode_cursor, encode_cursor, parse_date
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
+from app.errors import invalid_cursor_error
 from app.models import Account, Category, Transaction, User
 from app.schemas import TransactionCreate, TransactionOut, TransactionUpdate
 
@@ -78,8 +79,11 @@ def list_transactions(
 
     if cursor:
         data = decode_cursor(cursor)
-        c_date = date.fromisoformat(data["date"])
-        c_id = data["id"]
+        c_date_raw = data.get("date")
+        c_id = data.get("id")
+        if not isinstance(c_date_raw, str) or not isinstance(c_id, str):
+            raise invalid_cursor_error()
+        c_date = parse_date(c_date_raw)
         stmt = stmt.where(or_(Transaction.date < c_date, and_(Transaction.date == c_date, Transaction.id < c_id)))
 
     stmt = stmt.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(limit + 1)

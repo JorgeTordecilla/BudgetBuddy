@@ -18,6 +18,10 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 - **WHEN** request data violates schema constraints
 - **THEN** the API SHALL return status `400` with `Content-Type: application/problem+json` and a body containing `type`, `title`, and `status`
 
+#### Scenario: Invalid cursor is canonical
+- **WHEN** `cursor` query parameter is malformed (invalid base64, invalid JSON, or missing required cursor keys)
+- **THEN** the API SHALL return `400` with `application/problem+json` and canonical `type=https://api.budgetbuddy.dev/problems/invalid-cursor`, `title=Invalid cursor`, `status=400`
+
 #### Scenario: Unauthorized responses are canonical
 - **WHEN** authentication fails for protected endpoints (including missing/invalid bearer token)
 - **THEN** the API SHALL return `401` with `application/problem+json` and canonical `type=https://api.budgetbuddy.dev/problems/unauthorized`, `title=Unauthorized`, `status=401`
@@ -71,6 +75,13 @@ Transaction write endpoints MUST expose conflict responses in OpenAPI with `appl
 #### Scenario: OpenAPI includes category archived conflict on transaction create and patch
 - **WHEN** contract files are reviewed for `POST /transactions` and `PATCH /transactions/{transaction_id}`
 - **THEN** both endpoints SHALL include `409` response mapping with `application/problem+json`
+
+### Requirement: OpenAPI response mapping for paginated list errors
+Paginated list endpoints MUST document invalid cursor errors with `application/problem+json`.
+
+#### Scenario: OpenAPI includes invalid cursor conflict for list endpoints
+- **WHEN** contract files are reviewed for `GET /accounts`, `GET /categories`, and `GET /transactions`
+- **THEN** each endpoint SHALL include `400` response mapping with `application/problem+json` for invalid cursor cases
 
 ### Requirement: 204 responses have no response body
 The backend MUST return empty bodies for `204 No Content` responses.
