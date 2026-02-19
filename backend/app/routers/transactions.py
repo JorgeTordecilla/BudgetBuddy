@@ -4,13 +4,19 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.errors import account_archived_error, category_archived_error, category_type_mismatch_error, forbidden_error
 from app.core.errors import APIError
-from app.core.pagination import decode_cursor, encode_cursor, parse_date
+from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
 from app.dependencies import get_current_user, utcnow
-from app.errors import invalid_cursor_error
+from app.errors import (
+    account_archived_error,
+    category_archived_error,
+    category_type_mismatch_error,
+    forbidden_error,
+    invalid_cursor_error,
+    invalid_date_range_error,
+)
 from app.models import Account, Category, Transaction, User
 from app.schemas import TransactionCreate, TransactionOut, TransactionUpdate
 
@@ -63,6 +69,9 @@ def list_transactions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if from_ and to and from_ > to:
+        raise invalid_date_range_error("from must be less than or equal to to")
+
     stmt = select(Transaction).where(Transaction.user_id == current_user.id)
     if not include_archived:
         stmt = stmt.where(Transaction.archived_at.is_(None))
@@ -80,20 +89,42 @@ def list_transactions(
     if cursor:
         data = decode_cursor(cursor)
         c_date_raw = data.get("date")
+        c_created_at_raw = data.get("created_at")
         c_id = data.get("id")
+
         if not isinstance(c_date_raw, str) or not isinstance(c_id, str):
             raise invalid_cursor_error()
-        c_date = parse_date(c_date_raw)
-        stmt = stmt.where(or_(Transaction.date < c_date, and_(Transaction.date == c_date, Transaction.id < c_id)))
 
-    stmt = stmt.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(limit + 1)
+        c_date = parse_date(c_date_raw)
+
+        if c_created_at_raw is not None:
+            if not isinstance(c_created_at_raw, str):
+                raise invalid_cursor_error()
+            c_created_at = parse_datetime(c_created_at_raw)
+            stmt = stmt.where(
+                or_(
+                    Transaction.date < c_date,
+                    and_(
+                        Transaction.date == c_date,
+                        or_(
+                            Transaction.created_at < c_created_at,
+                            and_(Transaction.created_at == c_created_at, Transaction.id < c_id),
+                        ),
+                    ),
+                )
+            )
+        else:
+            # Backward compatibility with legacy cursor shape that used date + id.
+            stmt = stmt.where(or_(Transaction.date < c_date, and_(Transaction.date == c_date, Transaction.id < c_id)))
+
+    stmt = stmt.order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id.desc()).limit(limit + 1)
     rows = list(db.scalars(stmt))
     has_more = len(rows) > limit
     items = rows[:limit]
     next_cursor = None
     if has_more:
         last = items[-1]
-        next_cursor = encode_cursor({"date": last.date.isoformat(), "id": last.id})
+        next_cursor = encode_cursor({"date": last.date.isoformat(), "created_at": last.created_at.isoformat(), "id": last.id})
 
     payload = {
         "items": [TransactionOut.model_validate(item).model_dump(mode="json") for item in items],

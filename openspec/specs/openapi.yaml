@@ -589,7 +589,8 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
   /transactions:
     get:
-      summary: List transactions (most recent first)
+      summary: List transactions (ordered by date desc, then created_at desc)
+      description: Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates. Deterministic order is `date desc` with tie-breaker `created_at desc` (and stable `id desc`).
       parameters:
       - name: include_archived
         in: query
@@ -657,7 +658,7 @@ paths:
                     type: [ string, "null" ]
 
         "400":
-          description: Invalid cursor
+          description: Invalid cursor or invalid date range (from must be <= to)
           content:
             application/problem+json:
               schema:
@@ -936,6 +937,9 @@ components:
     status: 406
   - type: https://api.budgetbuddy.dev/problems/invalid-cursor
     title: Invalid cursor
+    status: 400
+  - type: https://api.budgetbuddy.dev/problems/invalid-date-range
+    title: Invalid date range
     status: 400
   - type: https://api.budgetbuddy.dev/problems/refresh-revoked
     title: Refresh token revoked

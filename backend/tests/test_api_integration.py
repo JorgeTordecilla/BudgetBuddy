@@ -23,6 +23,8 @@ CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived
 CATEGORY_ARCHIVED_TITLE = "Category is archived"
 INVALID_CURSOR_TYPE = "https://api.budgetbuddy.dev/problems/invalid-cursor"
 INVALID_CURSOR_TITLE = "Invalid cursor"
+INVALID_DATE_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/invalid-date-range"
+INVALID_DATE_RANGE_TITLE = "Invalid date range"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
@@ -116,6 +118,15 @@ def _assert_invalid_cursor_problem(response):
     body = response.json()
     assert body["type"] == INVALID_CURSOR_TYPE
     assert body["title"] == INVALID_CURSOR_TITLE
+    assert body["status"] == 400
+
+
+def _assert_invalid_date_range_problem(response):
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == INVALID_DATE_RANGE_TYPE
+    assert body["title"] == INVALID_DATE_RANGE_TITLE
     assert body["status"] == 400
 
 
@@ -684,7 +695,7 @@ def test_list_transactions_filters_and_ordering():
 
         filtered = client.get(
             "/api/transactions?type=income&account_id="
-            f"{account_1_id}&from=2026-01-09&to=2026-01-12",
+            f"{account_1_id}&category_id={income_category_id}&from=2026-01-09&to=2026-01-12",
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
         )
         assert filtered.status_code == 200
@@ -1016,3 +1027,47 @@ def test_restore_category_rejects_unsupported_accept():
         assert body["type"] == NOT_ACCEPTABLE_TYPE
         assert body["title"] == NOT_ACCEPTABLE_TITLE
         assert body["status"] == 406
+
+
+def test_list_transactions_same_date_is_stably_sorted_by_created_at():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        account_id = _create_account(client, auth_headers, "sort-account")
+        category_id = _create_category(client, auth_headers, "sort-income", "income")
+
+        created_ids: list[str] = []
+        for note in ["first", "second", "third"]:
+            status, body = _create_transaction(
+                client,
+                auth_headers,
+                type_="income",
+                account_id=account_id,
+                category_id=category_id,
+                note=note,
+                date="2026-02-21",
+            )
+            assert status == 201
+            created_ids.append(body["id"])
+
+        listed = client.get(
+            "/api/transactions?type=income&account_id="
+            f"{account_id}&category_id={category_id}&from=2026-02-21&to=2026-02-21",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+
+        listed_ids = [item["id"] for item in listed.json()["items"]]
+        assert listed_ids[:3] == list(reversed(created_ids))
+
+
+def test_list_transactions_invalid_date_range_returns_problem_details():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/transactions?from=2026-02-10&to=2026-02-01",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_date_range_problem(response)

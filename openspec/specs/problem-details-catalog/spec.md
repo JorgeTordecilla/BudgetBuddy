@@ -13,7 +13,11 @@ The API contract MUST provide a single canonical catalog of supported ProblemDet
 
 #### Scenario: Catalog includes canonical cursor and business conflicts
 - **WHEN** OpenAPI contract files are reviewed
-- **THEN** the catalog SHALL include canonical entries for invalid cursor (`400`) and documented business conflicts (`409`) used by runtime
+- **THEN** the catalog SHALL include canonical entries for invalid cursor (`400`), invalid date range (`400`), and documented business conflicts (`409`) used by runtime
+
+#### Scenario: Canonical fields are exact for invalid date range
+- **WHEN** runtime emits invalid date range errors for list endpoints
+- **THEN** the payload SHALL use exact `type=https://api.budgetbuddy.dev/problems/invalid-date-range`, `title=Invalid date range`, `status=400`
 
 ### Requirement: Catalog and Runtime Alignment
 Documented ProblemDetails catalog entries MUST match runtime emissions exactly.
