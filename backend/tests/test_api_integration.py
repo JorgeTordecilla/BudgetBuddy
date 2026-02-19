@@ -1,8 +1,10 @@
 import uuid
 from datetime import timedelta
+from threading import Barrier, BrokenBarrierError, Event, Lock, Thread, current_thread
 
 from fastapi.testclient import TestClient
 
+import app.routers.auth as auth_router
 from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
@@ -310,6 +312,54 @@ def test_refresh_token_rotation_blocks_reuse():
         _assert_refresh_revoked_problem(second_refresh_same_token, REFRESH_REUSE_DETECTED_TITLE)
 
 
+def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
+    user_refresh: str = ""
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        user_refresh = user["refresh"]
+
+    refresh_hash = hash_refresh_token(user_refresh)
+    barrier = Barrier(2)
+    original_get_by_hash = auth_router.SQLAlchemyRefreshTokenRepository.get_by_hash
+
+    def synchronized_get_by_hash(self, token_hash: str):
+        row = original_get_by_hash(self, token_hash)
+        if token_hash == refresh_hash and row is not None and row.revoked_at is None:
+            try:
+                barrier.wait(timeout=2)
+            except BrokenBarrierError:
+                pass
+        return row
+
+    monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", synchronized_get_by_hash)
+
+    responses: list = [None, None]
+
+    def do_refresh(index: int):
+        with TestClient(app) as client:
+            responses[index] = client.post(
+                "/api/auth/refresh",
+                json={"refresh_token": user_refresh},
+                headers={"accept": VENDOR, "content-type": VENDOR},
+            )
+
+    t1 = Thread(target=do_refresh, args=(0,))
+    t2 = Thread(target=do_refresh, args=(1,))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    status_codes = sorted([responses[0].status_code, responses[1].status_code])
+    assert status_codes == [200, 403]
+
+    success = responses[0] if responses[0].status_code == 200 else responses[1]
+    failure = responses[0] if responses[0].status_code == 403 else responses[1]
+    assert success.headers["content-type"].startswith(VENDOR)
+    _assert_refresh_revoked_problem(failure, REFRESH_REUSE_DETECTED_TITLE)
+
+
 def test_refresh_with_expired_token_returns_401():
     with TestClient(app) as client:
         user = _register_user(client)
@@ -336,6 +386,43 @@ def test_refresh_with_expired_token_returns_401():
         assert body["status"] == 401
 
 
+def test_refresh_returns_401_if_token_expires_during_rotation(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        refresh_hash = hash_refresh_token(user["refresh"])
+
+        db = SessionLocal()
+        try:
+            row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+            row.expires_at = utcnow() + timedelta(minutes=5)
+            db.commit()
+        finally:
+            db.close()
+
+        base_now = utcnow()
+        times = [base_now, base_now + timedelta(days=2), base_now + timedelta(days=2)]
+        call_index = {"value": 0}
+
+        def fake_utcnow():
+            idx = call_index["value"]
+            call_index["value"] += 1
+            return times[idx] if idx < len(times) else times[-1]
+
+        monkeypatch.setattr(auth_router, "utcnow", fake_utcnow)
+
+        response = client.post(
+            "/api/auth/refresh",
+            json={"refresh_token": user["refresh"]},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert response.status_code == 401
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == UNAUTHORIZED_TYPE
+        assert body["title"] == UNAUTHORIZED_TITLE
+        assert body["status"] == 401
+
+
 def test_logout_revokes_active_refresh_tokens():
     with TestClient(app) as client:
         user = _register_user(client)
@@ -357,6 +444,87 @@ def test_logout_revokes_active_refresh_tokens():
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         _assert_refresh_revoked_problem(refresh_after_logout, REFRESH_REVOKED_TITLE)
+
+
+def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        refresh_hash = hash_refresh_token(user["refresh"])
+
+        db = SessionLocal()
+        try:
+            token_row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+            user_id = token_row.user_id
+        finally:
+            db.close()
+
+        refresh_ready = Event()
+        continue_refresh = Event()
+        original_get_by_hash = auth_router.SQLAlchemyRefreshTokenRepository.get_by_hash
+
+        block_once_lock = Lock()
+        block_once_state = {"blocked": False}
+
+        def synchronized_get_by_hash(self, token_hash: str):
+            row = original_get_by_hash(self, token_hash)
+            if token_hash == refresh_hash:
+                should_block = False
+                with block_once_lock:
+                    if not block_once_state["blocked"]:
+                        block_once_state["blocked"] = True
+                        should_block = True
+                if should_block:
+                    refresh_ready.set()
+                    continue_refresh.wait(timeout=5)
+            return row
+
+        monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", synchronized_get_by_hash)
+
+        responses: list = [None, None]
+
+        def do_refresh():
+            with TestClient(app) as refresh_client:
+                responses[0] = refresh_client.post(
+                    "/api/auth/refresh",
+                    json={"refresh_token": user["refresh"]},
+                    headers={"accept": VENDOR, "content-type": VENDOR},
+                )
+
+        refresh_thread = Thread(target=do_refresh, name="refresh-thread")
+        refresh_thread.start()
+        assert refresh_ready.wait(timeout=2)
+
+        responses[1] = client.post(
+            "/api/auth/logout",
+            json={"refresh_token": user["refresh"]},
+            headers={
+                "accept": VENDOR,
+                "content-type": VENDOR,
+                "authorization": f"Bearer {user['access']}",
+            },
+        )
+        assert responses[1].status_code == 204
+
+        continue_refresh.set()
+        refresh_thread.join()
+
+        assert responses[0].status_code in (200, 403)
+        if responses[0].status_code == 403:
+            _assert_refresh_revoked_problem(responses[0], REFRESH_REVOKED_TITLE)
+        else:
+            assert responses[0].headers["content-type"].startswith(VENDOR)
+
+        db = SessionLocal()
+        try:
+            active_count = (
+                db.query(RefreshToken)
+                .filter(RefreshToken.user_id == user_id)
+                .filter(RefreshToken.revoked_at.is_(None))
+                .count()
+            )
+            assert active_count == 0
+        finally:
+            db.close()
 
 
 def test_domain_and_analytics_flow():

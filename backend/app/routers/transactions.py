@@ -57,6 +57,72 @@ def _validate_business_rules(db: Session, user_id: str, payload: dict):
     return account, category
 
 
+def _apply_list_filters(
+    stmt,
+    *,
+    include_archived: bool,
+    type: str | None,
+    account_id: str | None,
+    category_id: str | None,
+    from_: date | None,
+    to: date | None,
+):
+    if not include_archived:
+        stmt = stmt.where(Transaction.archived_at.is_(None))
+    if type:
+        stmt = stmt.where(Transaction.type == type)
+    if account_id:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if category_id:
+        stmt = stmt.where(Transaction.category_id == category_id)
+    if from_:
+        stmt = stmt.where(Transaction.date >= from_)
+    if to:
+        stmt = stmt.where(Transaction.date <= to)
+    return stmt
+
+
+def _apply_cursor(stmt, cursor: str):
+    data = decode_cursor(cursor)
+    c_date_raw = data.get("date")
+    c_created_at_raw = data.get("created_at")
+    c_id = data.get("id")
+
+    if not isinstance(c_date_raw, str) or not isinstance(c_id, str):
+        raise invalid_cursor_error()
+
+    c_date = parse_date(c_date_raw)
+
+    if c_created_at_raw is not None:
+        if not isinstance(c_created_at_raw, str):
+            raise invalid_cursor_error()
+        c_created_at = parse_datetime(c_created_at_raw)
+        return stmt.where(
+            or_(
+                Transaction.date < c_date,
+                and_(
+                    Transaction.date == c_date,
+                    or_(
+                        Transaction.created_at < c_created_at,
+                        and_(Transaction.created_at == c_created_at, Transaction.id < c_id),
+                    ),
+                ),
+            )
+        )
+
+    # Backward compatibility with legacy cursor shape that used date + id.
+    return stmt.where(or_(Transaction.date < c_date, and_(Transaction.date == c_date, Transaction.id < c_id)))
+
+
+def _build_page(rows: list[Transaction], limit: int) -> tuple[list[Transaction], str | None]:
+    items = rows[:limit]
+    if len(rows) <= limit:
+        return items, None
+    last = items[-1]
+    next_cursor = encode_cursor({"date": last.date.isoformat(), "created_at": last.created_at.isoformat(), "id": last.id})
+    return items, next_cursor
+
+
 @router.get("")
 def list_transactions(
     include_archived: bool = Query(default=False),
@@ -74,58 +140,22 @@ def list_transactions(
         raise invalid_date_range_error("from must be less than or equal to to")
 
     stmt = select(Transaction).where(Transaction.user_id == current_user.id)
-    if not include_archived:
-        stmt = stmt.where(Transaction.archived_at.is_(None))
-    if type:
-        stmt = stmt.where(Transaction.type == type)
-    if account_id:
-        stmt = stmt.where(Transaction.account_id == account_id)
-    if category_id:
-        stmt = stmt.where(Transaction.category_id == category_id)
-    if from_:
-        stmt = stmt.where(Transaction.date >= from_)
-    if to:
-        stmt = stmt.where(Transaction.date <= to)
+    stmt = _apply_list_filters(
+        stmt,
+        include_archived=include_archived,
+        type=type,
+        account_id=account_id,
+        category_id=category_id,
+        from_=from_,
+        to=to,
+    )
 
     if cursor:
-        data = decode_cursor(cursor)
-        c_date_raw = data.get("date")
-        c_created_at_raw = data.get("created_at")
-        c_id = data.get("id")
-
-        if not isinstance(c_date_raw, str) or not isinstance(c_id, str):
-            raise invalid_cursor_error()
-
-        c_date = parse_date(c_date_raw)
-
-        if c_created_at_raw is not None:
-            if not isinstance(c_created_at_raw, str):
-                raise invalid_cursor_error()
-            c_created_at = parse_datetime(c_created_at_raw)
-            stmt = stmt.where(
-                or_(
-                    Transaction.date < c_date,
-                    and_(
-                        Transaction.date == c_date,
-                        or_(
-                            Transaction.created_at < c_created_at,
-                            and_(Transaction.created_at == c_created_at, Transaction.id < c_id),
-                        ),
-                    ),
-                )
-            )
-        else:
-            # Backward compatibility with legacy cursor shape that used date + id.
-            stmt = stmt.where(or_(Transaction.date < c_date, and_(Transaction.date == c_date, Transaction.id < c_id)))
+        stmt = _apply_cursor(stmt, cursor)
 
     stmt = stmt.order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id.desc()).limit(limit + 1)
     rows = list(db.scalars(stmt))
-    has_more = len(rows) > limit
-    items = rows[:limit]
-    next_cursor = None
-    if has_more:
-        last = items[-1]
-        next_cursor = encode_cursor({"date": last.date.isoformat(), "created_at": last.created_at.isoformat(), "id": last.id})
+    items, next_cursor = _build_page(rows, limit)
 
     payload = {
         "items": [TransactionOut.model_validate(item).model_dump(mode="json") for item in items],
