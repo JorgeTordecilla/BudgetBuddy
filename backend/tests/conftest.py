@@ -6,6 +6,7 @@ import pytest
 
 TEST_DB_PATH = Path(__file__).resolve().parent / "budgetbuddy_test.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH.as_posix()}"
+os.environ["JWT_SECRET"] = "test-jwt-secret"
 
 
 @pytest.fixture(autouse=True)

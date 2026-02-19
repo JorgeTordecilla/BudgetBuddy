@@ -1,6 +1,5 @@
 import logging
 import re
-from datetime import UTC, datetime
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -85,5 +84,11 @@ def register_exception_handlers(app) -> None:
 
     @app.exception_handler(Exception)
     async def generic_error_handler(request: Request, exc: Exception):
-        _ = datetime.now(tz=UTC)
+        request_id = getattr(request.state, "request_id", "")
+        _LOGGER.exception(
+            "unhandled_error request_id=%s path=%s",
+            request_id,
+            request.url.path,
+            exc_info=exc,
+        )
         return _problem_response(500, "Internal Server Error", "An unexpected error occurred", request)

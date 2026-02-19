@@ -15,11 +15,22 @@ from app.repositories import SQLAlchemyUserRepository
 _BODY_METHODS = {"POST", "PATCH", "PUT"}
 
 
+def _parse_media_type(value: str) -> str:
+    return value.split(";", 1)[0].strip().lower()
+
+
+def _iter_accept_media_types(value: str):
+    for raw_part in value.split(","):
+        media_type = _parse_media_type(raw_part)
+        if media_type:
+            yield media_type
+
+
 def _accepts_vendor_or_problem(accept: str) -> bool:
-    value = accept.lower()
-    if "*/*" in value:
-        return True
-    return (VENDOR_JSON in value) or (PROBLEM_JSON in value)
+    for media_type in _iter_accept_media_types(accept):
+        if media_type in {"*/*", "application/*", VENDOR_JSON, PROBLEM_JSON}:
+            return True
+    return False
 
 
 def enforce_accept_header(request: Request) -> None:
@@ -39,8 +50,8 @@ def enforce_content_type(request: Request) -> None:
     if request.url.path in {f"{API_PREFIX}/health", f"{API_PREFIX}/openapi.json"}:
         return
 
-    content_type = request.headers.get("content-type", "").lower()
-    if VENDOR_JSON not in content_type:
+    content_type = _parse_media_type(request.headers.get("content-type", ""))
+    if content_type != VENDOR_JSON:
         raise APIError(status=400, title="Invalid request", detail="Unsupported Content-Type")
 
 

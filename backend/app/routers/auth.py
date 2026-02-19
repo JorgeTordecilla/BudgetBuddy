@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from threading import Lock
+from weakref import WeakValueDictionary
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import and_, update
@@ -19,7 +20,7 @@ from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequ
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 _USER_LOCKS_GUARD = Lock()
-_USER_LOCKS: dict[str, Lock] = {}
+_USER_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
 
 
 def _user_lock(user_id: str) -> Lock:

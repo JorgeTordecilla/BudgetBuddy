@@ -208,6 +208,35 @@ def test_problem_details_on_invalid_accept():
         _assert_request_id_header_present(r)
 
 
+def test_accept_header_rejects_partial_media_type_match():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "abc_124", "password": "supersecurepwd123", "currency_code": "USD"},
+            headers={"accept": "application/vnd.budgetbuddy.v1+json-foo", "content-type": VENDOR},
+        )
+        assert response.status_code == 406
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+
+def test_content_type_rejects_partial_media_type_match():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "abc_125", "password": "supersecurepwd123", "currency_code": "USD"},
+            headers={"accept": VENDOR, "content-type": "application/vnd.budgetbuddy.v1+json-foo"},
+        )
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["title"] == "Invalid request"
+        assert body["status"] == 400
+
+
 def test_success_response_includes_request_id_header():
     with TestClient(app) as client:
         response = client.get("/api/health")
