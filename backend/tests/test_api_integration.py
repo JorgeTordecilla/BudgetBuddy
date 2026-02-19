@@ -28,6 +28,7 @@ INVALID_DATE_RANGE_TITLE = "Invalid date range"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
+REQUEST_ID_HEADER = "x-request-id"
 
 
 def _register_user(client: TestClient):
@@ -157,6 +158,11 @@ def _assert_refresh_revoked_problem(response, title: str):
     assert body["status"] == 403
 
 
+def _assert_request_id_header_present(response):
+    assert REQUEST_ID_HEADER in response.headers
+    assert response.headers[REQUEST_ID_HEADER].strip() != ""
+
+
 def _collect_paginated_ids(client: TestClient, path: str, access_token: str, *, limit: int = 10) -> tuple[list[str], list[int]]:
     ids: list[str] = []
     page_sizes: list[int] = []
@@ -197,6 +203,49 @@ def test_problem_details_on_invalid_accept():
         assert body["type"] == NOT_ACCEPTABLE_TYPE
         assert body["title"] == NOT_ACCEPTABLE_TITLE
         assert body["status"] == 406
+        _assert_request_id_header_present(r)
+
+
+def test_success_response_includes_request_id_header():
+    with TestClient(app) as client:
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        _assert_request_id_header_present(response)
+
+
+def test_client_supplied_request_id_is_propagated():
+    with TestClient(app) as client:
+        request_id = "req-hu10-propagation-001"
+        response = client.get("/api/health", headers={REQUEST_ID_HEADER: request_id})
+        assert response.status_code == 200
+        assert response.headers[REQUEST_ID_HEADER] == request_id
+
+
+def test_error_response_includes_request_id_header():
+    with TestClient(app) as client:
+        response = client.get("/api/accounts", headers={"accept": VENDOR})
+        assert response.status_code == 401
+        _assert_request_id_header_present(response)
+
+
+def test_problem_detail_sanitizes_token_like_content():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={
+                "username": "abc_123",
+                "password": {"token": "Bearer abc.def.ghi"},
+                "currency_code": "USD",
+            },
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith(PROBLEM)
+        _assert_request_id_header_present(response)
+        body = response.json()
+        detail = body.get("detail", "")
+        assert "Bearer abc.def.ghi" not in detail
+        assert "abc.def.ghi" not in detail
 
 
 def test_auth_lifecycle_and_204_logout():

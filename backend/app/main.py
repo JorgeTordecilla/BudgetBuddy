@@ -1,5 +1,6 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
+import uuid
 
 import yaml
 from fastapi import APIRouter, FastAPI, Request
@@ -25,6 +26,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
+REQUEST_ID_HEADER = "X-Request-Id"
 
 
 def load_spec():
@@ -33,6 +35,9 @@ def load_spec():
 
 @app.middleware("http")
 async def contract_guards(request: Request, call_next):
+    incoming_request_id = request.headers.get(REQUEST_ID_HEADER, "").strip()
+    request_id = incoming_request_id or str(uuid.uuid4())
+    request.state.request_id = request_id
     try:
         enforce_accept_header(request)
         enforce_content_type(request)
@@ -44,8 +49,15 @@ async def contract_guards(request: Request, call_next):
             type_=exc.type_,
             instance=str(request.url),
         )
-        return JSONResponse(status_code=exc.status, content=body, media_type=PROBLEM_JSON)
-    return await call_next(request)
+        return JSONResponse(
+            status_code=exc.status,
+            content=body,
+            media_type=PROBLEM_JSON,
+            headers={REQUEST_ID_HEADER: request_id},
+        )
+    response = await call_next(request)
+    response.headers[REQUEST_ID_HEADER] = request_id
+    return response
 
 register_exception_handlers(app)
 

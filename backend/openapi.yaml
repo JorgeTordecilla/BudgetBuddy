@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: BudgetBuddy API
   version: "1"
+  description: |
+    Operational header behavior: responses include `X-Request-Id`.
+    If request provides `X-Request-Id`, the API echoes it; otherwise it generates one.
 servers:
 - url: /api
 security:
@@ -21,6 +24,9 @@ paths:
       responses:
         "201":
           description: Created
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
@@ -39,6 +45,9 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "406":
           description: Not Acceptable
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/problem+json:
               schema:
@@ -187,6 +196,9 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
@@ -207,6 +219,9 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "401":
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/problem+json:
               schema:
@@ -410,6 +425,9 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
@@ -430,6 +448,9 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "401":
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/problem+json:
               schema:
@@ -663,6 +684,9 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
@@ -684,6 +708,9 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
         "401":
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
           content:
             application/problem+json:
               schema:
@@ -944,6 +971,11 @@ paths:
                 $ref: "#/components/schemas/ProblemDetails"
 
 components:
+  headers:
+    X-Request-Id:
+      description: Correlation id for tracing requests. Propagated when provided by client, generated otherwise.
+      schema:
+        type: string
   x-problem-details-catalog:
   - type: https://api.budgetbuddy.dev/problems/unauthorized
     title: Unauthorized

@@ -1,11 +1,14 @@
 import base64
 import json
+import logging
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from app.core.errors import APIError
+from app.core.errors import APIError, register_exception_handlers
 from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.security import (
     create_access_token,
@@ -126,3 +129,34 @@ def test_dependency_guards_and_current_user_paths(monkeypatch):
     user = SimpleNamespace(id="u1")
     resolved = get_current_user(authorization="Bearer token", db=_DB(user=user))
     assert resolved.id == "u1"
+
+
+def test_api_error_logging_includes_structured_operational_fields(caplog):
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.middleware("http")
+    async def inject_request_id(request, call_next):
+        request.state.request_id = "req-unit-001"
+        return await call_next(request)
+
+    @app.get("/boom")
+    async def boom():
+        raise APIError(
+            status=401,
+            title="Unauthorized",
+            detail="Bearer abc.def.ghi",
+            type_="https://api.budgetbuddy.dev/problems/unauthorized",
+        )
+
+    with TestClient(app) as client, caplog.at_level(logging.WARNING, logger="app.errors"):
+        response = client.get("/boom")
+
+    assert response.status_code == 401
+    assert response.headers["x-request-id"] == "req-unit-001"
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.errors"]
+    assert any("request_id=req-unit-001" in message for message in messages)
+    assert any("path=/boom" in message for message in messages)
+    assert any("status=401" in message for message in messages)
+    assert any("problem_type=https://api.budgetbuddy.dev/problems/unauthorized" in message for message in messages)
