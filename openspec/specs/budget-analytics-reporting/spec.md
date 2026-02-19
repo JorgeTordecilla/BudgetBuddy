@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+Define analytics and reporting contract expectations, including deterministic aggregation and archive-policy behavior.
+## Requirements
 ### Requirement: Monthly analytics aggregation
 The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return totals grouped by `YYYY-MM`, computed deterministically using integer cents only, with budget comparison fields when a matching monthly category budget exists.
 
@@ -52,3 +53,15 @@ Analytics endpoints MUST require valid access tokens and follow shared HTTP cont
 #### Scenario: Analytics not acceptable media type
 - **WHEN** analytics endpoints receive an unsupported `Accept` header
 - **THEN** the API SHALL return `406` as `ProblemDetails`
+
+### Requirement: Analytics archived-transaction policy is explicit and deterministic
+Analytics totals MUST apply one explicit policy for archived transactions.
+
+#### Scenario: Archived transactions are excluded from analytics totals
+- **WHEN** analytics endpoints compute totals by month or category
+- **THEN** archived transactions SHALL be excluded from aggregates by default policy
+
+#### Scenario: Analytics policy is stable under archive toggling
+- **WHEN** a transaction is archived or restored
+- **THEN** analytics totals SHALL deterministically reflect exclusion on archive and inclusion on restore
+

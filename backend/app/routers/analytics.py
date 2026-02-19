@@ -41,6 +41,7 @@ def analytics_by_month(
             expense_expr.label("expense_total_cents"),
         )
         .where(Transaction.user_id == current_user.id)
+        .where(Transaction.archived_at.is_(None))
         .where(Transaction.date >= from_)
         .where(Transaction.date <= to)
         .group_by(month_expr)
@@ -107,6 +108,7 @@ def analytics_by_category(
         )
         .join(Category, Category.id == Transaction.category_id)
         .where(Transaction.user_id == current_user.id)
+        .where(Transaction.archived_at.is_(None))
         .where(Transaction.date >= from_)
         .where(Transaction.date <= to)
         .group_by(Category.id, Category.name)

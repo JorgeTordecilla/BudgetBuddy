@@ -284,6 +284,22 @@ def _archive_category_and_assert(client: TestClient, user_access: str, category_
     assert archive.status_code == 204
 
 
+def _archive_account_and_assert(client: TestClient, user_access: str, account_id: str) -> None:
+    archive = client.delete(
+        f"/api/accounts/{account_id}",
+        headers={"accept": VENDOR, "authorization": f"Bearer {user_access}"},
+    )
+    assert archive.status_code == 204
+
+
+def _archive_transaction_and_assert(client: TestClient, user_access: str, transaction_id: str) -> None:
+    archive = client.delete(
+        f"/api/transactions/{transaction_id}",
+        headers={"accept": VENDOR, "authorization": f"Bearer {user_access}"},
+    )
+    assert archive.status_code == 204
+
+
 def _make_access_token(sub) -> str:
     payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
     payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
@@ -879,6 +895,144 @@ def test_domain_and_analytics_flow():
         forbidden = client.get(f"/api/accounts/{uuid.uuid4()}", headers=auth_headers)
         assert forbidden.status_code == 403
         assert forbidden.headers["content-type"].startswith(PROBLEM)
+
+
+def test_include_archived_toggle_policy_is_consistent_across_list_endpoints():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        account_active = _create_account(client, auth_headers, "toggle-account-active")
+        account_archived = _create_account(client, auth_headers, "toggle-account-archived")
+        _archive_account_and_assert(client, user["access"], account_archived)
+
+        category_active = _create_category(client, auth_headers, "toggle-category-active", "expense")
+        category_archived = _create_category(client, auth_headers, "toggle-category-archived", "expense")
+        _archive_category_and_assert(client, user["access"], category_archived)
+
+        status, tx_active_body = _create_transaction(
+            client,
+            auth_headers,
+            type_="expense",
+            account_id=account_active,
+            category_id=category_active,
+            note="toggle-tx-active",
+            date="2026-10-01",
+        )
+        assert status == 201
+        status, tx_archived_body = _create_transaction(
+            client,
+            auth_headers,
+            type_="expense",
+            account_id=account_active,
+            category_id=category_active,
+            note="toggle-tx-archived",
+            date="2026-10-02",
+        )
+        assert status == 201
+        _archive_transaction_and_assert(client, user["access"], tx_archived_body["id"])
+
+        accounts_default = client.get("/api/accounts", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert accounts_default.status_code == 200
+        account_ids_default = {item["id"] for item in accounts_default.json()["items"]}
+        assert account_active in account_ids_default
+        assert account_archived not in account_ids_default
+
+        accounts_with_archived = client.get(
+            "/api/accounts?include_archived=true",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert accounts_with_archived.status_code == 200
+        account_ids_with_archived = {item["id"] for item in accounts_with_archived.json()["items"]}
+        assert account_active in account_ids_with_archived
+        assert account_archived in account_ids_with_archived
+
+        categories_default = client.get("/api/categories", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert categories_default.status_code == 200
+        category_ids_default = {item["id"] for item in categories_default.json()["items"]}
+        assert category_active in category_ids_default
+        assert category_archived not in category_ids_default
+
+        categories_with_archived = client.get(
+            "/api/categories?include_archived=true",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert categories_with_archived.status_code == 200
+        category_ids_with_archived = {item["id"] for item in categories_with_archived.json()["items"]}
+        assert category_active in category_ids_with_archived
+        assert category_archived in category_ids_with_archived
+
+        transactions_default = client.get(
+            "/api/transactions",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert transactions_default.status_code == 200
+        transaction_ids_default = {item["id"] for item in transactions_default.json()["items"]}
+        assert tx_active_body["id"] in transaction_ids_default
+        assert tx_archived_body["id"] not in transaction_ids_default
+
+        transactions_with_archived = client.get(
+            "/api/transactions?include_archived=true",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert transactions_with_archived.status_code == 200
+        transaction_ids_with_archived = {item["id"] for item in transactions_with_archived.json()["items"]}
+        assert tx_active_body["id"] in transaction_ids_with_archived
+        assert tx_archived_body["id"] in transaction_ids_with_archived
+
+
+def test_analytics_excludes_archived_transactions_and_restores_on_unarchive():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "analytics-archived-account")
+        category_id = _create_category(client, auth_headers, "analytics-archived-category", "expense")
+
+        status, tx_body = _create_transaction(
+            client,
+            auth_headers,
+            type_="expense",
+            account_id=account_id,
+            category_id=category_id,
+            note="analytics-archived-seed",
+            date="2026-11-15",
+        )
+        assert status == 201
+        tx_id = tx_body["id"]
+
+        by_month_before = client.get("/api/analytics/by-month?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_month_before.status_code == 200
+        assert by_month_before.json()["items"][0]["expense_total_cents"] == 7000
+
+        by_category_before = client.get("/api/analytics/by-category?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_category_before.status_code == 200
+        assert by_category_before.json()["items"][0]["expense_total_cents"] == 7000
+
+        _archive_transaction_and_assert(client, user["access"], tx_id)
+
+        by_month_after_archive = client.get("/api/analytics/by-month?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_month_after_archive.status_code == 200
+        assert by_month_after_archive.json()["items"] == []
+
+        by_category_after_archive = client.get("/api/analytics/by-category?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_category_after_archive.status_code == 200
+        assert by_category_after_archive.json()["items"] == []
+
+        restore = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"archived_at": None},
+            headers=auth_headers,
+        )
+        assert restore.status_code == 200
+        assert restore.json()["archived_at"] is None
+
+        by_month_after_restore = client.get("/api/analytics/by-month?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_month_after_restore.status_code == 200
+        assert by_month_after_restore.json()["items"][0]["expense_total_cents"] == 7000
+
+        by_category_after_restore = client.get("/api/analytics/by-category?from=2026-11-01&to=2026-11-30", headers=auth_headers)
+        assert by_category_after_restore.status_code == 200
+        assert by_category_after_restore.json()["items"][0]["expense_total_cents"] == 7000
 
 
 def test_persistence_survives_app_restart_for_user_data():

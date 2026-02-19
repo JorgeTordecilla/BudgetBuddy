@@ -344,6 +344,28 @@ def test_openapi_examples_coverage_and_canonical_problem_examples():
                 assert error_has_example, f"Missing error example in {method.upper()} {path}"
 
 
+def test_openapi_archived_policy_contract_wording_is_explicit():
+    for path in ("/accounts", "/categories", "/transactions"):
+        op = SPEC["paths"][path]["get"]
+        description = op.get("description", "")
+        assert "excluded by default" in description
+        assert "include_archived=true" in description
+
+        include_archived_param = next(p for p in op["parameters"] if p["name"] == "include_archived")
+        assert include_archived_param["schema"]["default"] is False
+        assert "Defaults to false" in include_archived_param.get("description", "")
+
+    for path in ("/accounts/{account_id}", "/categories/{category_id}", "/transactions/{transaction_id}"):
+        get_description = SPEC["paths"][path]["get"].get("description", "")
+        assert "regardless of archive state" in get_description
+        delete_204_description = SPEC["paths"][path]["delete"]["responses"]["204"]["description"]
+        assert "Archived (soft-delete)" in delete_204_description
+
+    for path in ("/analytics/by-month", "/analytics/by-category"):
+        description = SPEC["paths"][path]["get"].get("description", "")
+        assert "archived transactions are excluded" in description
+
+
 def test_openapi_e2e_contract_flow():
     with TestClient(app) as client:
         username = f"u_{uuid.uuid4().hex[:8]}"

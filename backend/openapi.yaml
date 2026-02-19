@@ -290,7 +290,10 @@ paths:
   /accounts:
     get:
       summary: List accounts
-      description: 'Cursor pagination uses an opaque `base64url(JSON)` token.
+      description: 'Archived policy: accounts are excluded by default and included only when `include_archived=true`.
+
+
+        Cursor pagination uses an opaque `base64url(JSON)` token.
 
         Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
 
@@ -306,6 +309,7 @@ paths:
         schema:
           type: boolean
           default: false
+        description: Include archived accounts when true. Defaults to false (active accounts only).
       - name: cursor
         in: query
         required: false
@@ -522,6 +526,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: Returns an owned account regardless of archive state (active or archived).
     patch:
       summary: Update account
       requestBody:
@@ -603,7 +608,7 @@ paths:
       summary: Archive account
       responses:
         '204':
-          description: No Content
+          description: Archived (soft-delete). No Content
         '400':
           description: Invalid request
           content:
@@ -651,7 +656,10 @@ paths:
   /categories:
     get:
       summary: List categories
-      description: 'Cursor pagination uses an opaque `base64url(JSON)` token.
+      description: 'Archived policy: categories are excluded by default and included only when `include_archived=true`.
+
+
+        Cursor pagination uses an opaque `base64url(JSON)` token.
 
         Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
 
@@ -667,6 +675,7 @@ paths:
         schema:
           type: boolean
           default: false
+        description: Include archived categories when true. Defaults to false (active categories only).
       - name: type
         in: query
         required: false
@@ -888,6 +897,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: Returns an owned category regardless of archive state (active or archived).
     patch:
       summary: Update category
       requestBody:
@@ -968,7 +978,7 @@ paths:
       summary: Archive category
       responses:
         '204':
-          description: No Content
+          description: Archived (soft-delete). No Content
         '400':
           description: Invalid request
           content:
@@ -1016,7 +1026,10 @@ paths:
   /transactions:
     get:
       summary: List transactions (ordered by date desc, then created_at desc)
-      description: 'Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates.
+      description: 'Archived policy: transactions are excluded by default and included only when `include_archived=true`.
+
+
+        Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates.
 
         Cursor pagination uses an opaque `base64url(JSON)` token and deterministic ordering by `date DESC, created_at DESC, id DESC`.
 
@@ -1036,6 +1049,7 @@ paths:
         schema:
           type: boolean
           default: false
+        description: Include archived transactions when true. Defaults to false (active transactions only).
       - name: type
         in: query
         required: false
@@ -1403,6 +1417,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: Exports active transactions only (archived transactions are excluded by retention policy).
   /transactions/{transaction_id}:
     parameters:
     - name: transaction_id
@@ -1476,6 +1491,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: Returns an owned transaction regardless of archive state (active or archived).
     patch:
       summary: Update or restore transaction
       requestBody:
@@ -1562,7 +1578,7 @@ paths:
       summary: Archive transaction
       responses:
         '204':
-          description: No Content
+          description: Archived (soft-delete). No Content
         '400':
           description: Invalid request
           content:
@@ -2119,6 +2135,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: 'Retention policy: archived transactions are excluded from analytics totals. Restored transactions re-enter totals deterministically.'
   /analytics/by-category:
     get:
       summary: Analytics totals by category (income and expense)
@@ -2183,6 +2200,7 @@ paths:
                 title: Not Acceptable
                 status: 406
                 detail: Accept header must allow a supported media type.
+      description: 'Retention policy: archived transactions are excluded from analytics totals. Restored transactions re-enter totals deterministically.'
 components:
   headers:
     X-Request-Id:

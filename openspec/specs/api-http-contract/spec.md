@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+Define the canonical HTTP/API contract for BudgetBuddy, including media types, error semantics, and endpoint behavior guarantees.
+## Requirements
 ### Requirement: Vendor media type for successful payloads
 The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`.
 
@@ -359,4 +360,26 @@ Examples MUST remain consistent with schema constraints and media-type rules.
 #### Scenario: Error examples use ProblemDetails media type
 - **WHEN** an error example is defined
 - **THEN** it SHALL be under `application/problem+json` and include required ProblemDetails fields
+
+### Requirement: Archived semantics are explicit in API contract
+The OpenAPI contract MUST explicitly describe soft-delete archive behavior for accounts, categories, and transactions.
+
+#### Scenario: Delete operations are documented as archive semantics
+- **WHEN** `/accounts/{account_id}`, `/categories/{category_id}`, and `/transactions/{transaction_id}` delete operations are reviewed
+- **THEN** descriptions SHALL state archive (soft-delete) semantics and not hard-delete semantics
+
+#### Scenario: Ownership and authz wording remains canonical
+- **WHEN** archived-resource access responses are documented
+- **THEN** canonical `401/403/406` wording SHALL remain consistent with contract conventions
+
+### Requirement: List endpoint archived policy is explicit
+List endpoints MUST document default exclusion of archived resources and opt-in inclusion behavior.
+
+#### Scenario: Default list behavior excludes archived resources
+- **WHEN** list endpoints for accounts/categories/transactions are documented
+- **THEN** documentation SHALL state archived resources are excluded unless `include_archived=true`
+
+#### Scenario: include_archived toggle includes archived resources
+- **WHEN** `include_archived=true` is provided
+- **THEN** contract SHALL specify that archived resources are included in list results
 
