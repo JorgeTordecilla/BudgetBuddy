@@ -157,6 +157,33 @@ def _assert_refresh_revoked_problem(response, title: str):
     assert body["status"] == 403
 
 
+def _collect_paginated_ids(client: TestClient, path: str, access_token: str, *, limit: int = 10) -> tuple[list[str], list[int]]:
+    ids: list[str] = []
+    page_sizes: list[int] = []
+    cursor: str | None = None
+
+    while True:
+        sep = "&" if "?" in path else "?"
+        url = f"{path}{sep}limit={limit}"
+        if cursor:
+            url = f"{url}&cursor={cursor}"
+
+        response = client.get(url, headers={"accept": VENDOR, "authorization": f"Bearer {access_token}"})
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+
+        items = body["items"]
+        page_sizes.append(len(items))
+        ids.extend([item["id"] for item in items])
+
+        cursor = body["next_cursor"]
+        if cursor is None:
+            break
+
+    return ids, page_sizes
+
+
 def test_problem_details_on_invalid_accept():
     with TestClient(app) as client:
         r = client.post(
@@ -734,6 +761,76 @@ def test_list_transactions_invalid_cursor_returns_problem_details():
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
         )
         _assert_invalid_cursor_problem(response)
+
+
+def test_list_accounts_pagination_is_deterministic_without_duplicates_or_skips():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        created_ids: list[str] = []
+        for idx in range(25):
+            created_ids.append(_create_account(client, auth_headers, f"acc-page-{idx:02d}"))
+
+        listed_ids, page_sizes = _collect_paginated_ids(client, "/api/accounts", user["access"], limit=10)
+
+        assert page_sizes == [10, 10, 5]
+        assert len(listed_ids) == 25
+        assert len(listed_ids) == len(set(listed_ids))
+        assert set(listed_ids) == set(created_ids)
+        assert listed_ids == list(reversed(created_ids))
+
+
+def test_list_categories_pagination_is_deterministic_without_duplicates_or_skips():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+
+        created_ids: list[str] = []
+        for idx in range(25):
+            created_ids.append(_create_category(client, auth_headers, f"cat-page-{idx:02d}", "expense"))
+
+        listed_ids, page_sizes = _collect_paginated_ids(client, "/api/categories?type=expense", user["access"], limit=10)
+
+        assert page_sizes == [10, 10, 5]
+        assert len(listed_ids) == 25
+        assert len(listed_ids) == len(set(listed_ids))
+        assert set(listed_ids) == set(created_ids)
+        assert listed_ids == list(reversed(created_ids))
+
+
+def test_list_transactions_pagination_is_deterministic_without_duplicates_or_skips():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        auth_headers = _auth_headers(user["access"])
+        account_id = _create_account(client, auth_headers, "tx-page-account")
+        category_id = _create_category(client, auth_headers, "tx-page-category", "income")
+
+        created_ids: list[str] = []
+        for day in range(1, 26):
+            status, body = _create_transaction(
+                client,
+                auth_headers,
+                type_="income",
+                account_id=account_id,
+                category_id=category_id,
+                note=f"tx-page-{day:02d}",
+                date=f"2026-03-{day:02d}",
+            )
+            assert status == 201
+            created_ids.append(body["id"])
+
+        listed_ids, page_sizes = _collect_paginated_ids(
+            client,
+            f"/api/transactions?type=income&account_id={account_id}&category_id={category_id}",
+            user["access"],
+            limit=10,
+        )
+
+        assert page_sizes == [10, 10, 5]
+        assert len(listed_ids) == 25
+        assert len(listed_ids) == len(set(listed_ids))
+        assert set(listed_ids) == set(created_ids)
 
 
 def test_restore_category_happy_path_and_idempotent():

@@ -158,6 +158,11 @@ paths:
   /accounts:
     get:
       summary: List accounts
+      description: |
+        Cursor pagination uses an opaque `base64url(JSON)` token.
+        Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
+        For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+        Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
       parameters:
       - name: include_archived
         in: query
@@ -168,6 +173,7 @@ paths:
       - name: cursor
         in: query
         required: false
+        description: Opaque `base64url(JSON)` token built from `created_at` and `id` of the last item in the previous page.
         schema:
           type: string
       - name: limit
@@ -369,6 +375,11 @@ paths:
   /categories:
     get:
       summary: List categories
+      description: |
+        Cursor pagination uses an opaque `base64url(JSON)` token.
+        Ordering is deterministic by `created_at DESC, id DESC`, and `next_cursor` is derived from that same sort key.
+        For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+        Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
       parameters:
       - name: include_archived
         in: query
@@ -385,6 +396,7 @@ paths:
       - name: cursor
         in: query
         required: false
+        description: Opaque `base64url(JSON)` token built from `created_at` and `id` of the last item in the previous page.
         schema:
           type: string
       - name: limit
@@ -590,7 +602,13 @@ paths:
   /transactions:
     get:
       summary: List transactions (ordered by date desc, then created_at desc)
-      description: Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates. Deterministic order is `date desc` with tie-breaker `created_at desc` (and stable `id desc`).
+      description: |
+        Filters `type`, `account_id`, `category_id`, `from`, `to`, and `include_archived` are combined as AND predicates.
+        Cursor pagination uses an opaque `base64url(JSON)` token and deterministic ordering by `date DESC, created_at DESC, id DESC`.
+        For stable datasets, paging is deterministic with no overlaps or skips; terminal page returns `next_cursor: null`.
+        Under concurrent mutations, pagination is best-effort and does not guarantee snapshot semantics.
+        Compatibility policy: `GET /transactions` accepts legacy cursors containing only `date` and `id` (without `created_at`) for backward compatibility in API v1.
+        `GET /accounts` and `GET /categories` require current cursor fields only; malformed or unsupported cursor shapes return canonical `400 Invalid cursor`.
       parameters:
       - name: include_archived
         in: query
@@ -631,6 +649,7 @@ paths:
       - name: cursor
         in: query
         required: false
+        description: Opaque `base64url(JSON)` token built from `date`, `created_at`, and `id` of the last item in the previous page.
         schema:
           type: string
       - name: limit
