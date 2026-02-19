@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Iterator
 
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
@@ -19,10 +20,26 @@ def _parse_media_type(value: str) -> str:
     return value.split(";", 1)[0].strip().lower()
 
 
-def _iter_accept_media_types(value: str):
+def _parse_accept_part(raw_part: str) -> tuple[str, float]:
+    segments = [segment.strip() for segment in raw_part.split(";")]
+    media_type = segments[0].lower()
+    q = 1.0
+    for param in segments[1:]:
+        key, _, raw_value = param.partition("=")
+        if key.strip().lower() != "q":
+            continue
+        try:
+            q = float(raw_value.strip())
+        except ValueError:
+            q = 0.0
+        break
+    return media_type, q
+
+
+def _iter_accept_media_types(value: str) -> Iterator[str]:
     for raw_part in value.split(","):
-        media_type = _parse_media_type(raw_part)
-        if media_type:
+        media_type, q = _parse_accept_part(raw_part)
+        if media_type and q > 0:
             yield media_type
 
 

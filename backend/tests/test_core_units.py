@@ -113,6 +113,7 @@ def test_password_and_token_security_paths(monkeypatch):
 def test_dependency_guards_and_current_user_paths(monkeypatch):
     assert _accepts_vendor_or_problem("*/*")
     assert _accepts_vendor_or_problem("application/vnd.budgetbuddy.v1+json")
+    assert not _accepts_vendor_or_problem("application/vnd.budgetbuddy.v1+json;q=0")
     assert not _accepts_vendor_or_problem("application/xml")
 
     # Path ignored (outside API).

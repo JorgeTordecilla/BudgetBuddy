@@ -1,4 +1,6 @@
 from datetime import date
+from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, or_, select
@@ -61,9 +63,9 @@ def _apply_list_filters(
     stmt,
     *,
     include_archived: bool,
-    type: str | None,
-    account_id: str | None,
-    category_id: str | None,
+    type: Literal["income", "expense"] | None,
+    account_id: UUID | None,
+    category_id: UUID | None,
     from_: date | None,
     to: date | None,
 ):
@@ -72,9 +74,9 @@ def _apply_list_filters(
     if type:
         stmt = stmt.where(Transaction.type == type)
     if account_id:
-        stmt = stmt.where(Transaction.account_id == account_id)
+        stmt = stmt.where(Transaction.account_id == str(account_id))
     if category_id:
-        stmt = stmt.where(Transaction.category_id == category_id)
+        stmt = stmt.where(Transaction.category_id == str(category_id))
     if from_:
         stmt = stmt.where(Transaction.date >= from_)
     if to:
@@ -126,9 +128,9 @@ def _build_page(rows: list[Transaction], limit: int) -> tuple[list[Transaction],
 @router.get("")
 def list_transactions(
     include_archived: bool = Query(default=False),
-    type: str | None = Query(default=None),
-    account_id: str | None = Query(default=None),
-    category_id: str | None = Query(default=None),
+    type: Literal["income", "expense"] | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    category_id: UUID | None = Query(default=None),
     from_: date | None = Query(default=None, alias="from"),
     to: date | None = Query(default=None),
     cursor: str | None = None,
@@ -177,14 +179,19 @@ def create_transaction(payload: TransactionCreate, current_user: User = Depends(
 
 
 @router.get("/{transaction_id}")
-def get_transaction(transaction_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_transaction_or_403(db, current_user.id, transaction_id)
+def get_transaction(transaction_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     return vendor_response(TransactionOut.model_validate(row).model_dump(mode="json"))
 
 
 @router.patch("/{transaction_id}")
-def patch_transaction(transaction_id: str, payload: TransactionUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_transaction_or_403(db, current_user.id, transaction_id)
+def patch_transaction(
+    transaction_id: UUID,
+    payload: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     data = payload.model_dump(exclude_unset=True)
     if any(k in data for k in ["type", "account_id", "category_id"]):
         merged = {
@@ -205,8 +212,8 @@ def patch_transaction(transaction_id: str, payload: TransactionUpdate, current_u
 
 
 @router.delete("/{transaction_id}", status_code=204)
-def delete_transaction(transaction_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_transaction_or_403(db, current_user.id, transaction_id)
+def delete_transaction(transaction_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     now = utcnow()
     row.archived_at = now
     row.updated_at = now

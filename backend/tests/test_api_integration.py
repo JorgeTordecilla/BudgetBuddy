@@ -140,6 +140,14 @@ def _assert_invalid_date_range_problem(response):
     assert body["status"] == 400
 
 
+def _assert_invalid_request_problem(response):
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["title"] == "Invalid request"
+    assert body["status"] == 400
+
+
 def _assert_forbidden_problem(response):
     assert response.status_code == 403
     assert response.headers["content-type"].startswith(PROBLEM)
@@ -278,6 +286,21 @@ def test_accept_header_rejects_partial_media_type_match():
             "/api/auth/register",
             json={"username": "abc_124", "password": "supersecurepwd123", "currency_code": "USD"},
             headers={"accept": "application/vnd.budgetbuddy.v1+json-foo", "content-type": VENDOR},
+        )
+        assert response.status_code == 406
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == NOT_ACCEPTABLE_TYPE
+        assert body["title"] == NOT_ACCEPTABLE_TITLE
+        assert body["status"] == 406
+
+
+def test_accept_header_with_q_zero_is_rejected():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "abc_1245", "password": "supersecurepwd123", "currency_code": "USD"},
+            headers={"accept": f"{VENDOR};q=0", "content-type": VENDOR},
         )
         assert response.status_code == 406
         assert response.headers["content-type"].startswith(PROBLEM)
@@ -1040,6 +1063,35 @@ def test_list_transactions_invalid_cursor_returns_problem_details():
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
         )
         _assert_invalid_cursor_problem(response)
+
+
+def test_list_categories_invalid_type_returns_invalid_request():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/categories?type=invalid",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_request_problem(response)
+
+
+def test_list_transactions_invalid_type_returns_invalid_request():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.get(
+            "/api/transactions?type=invalid",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_invalid_request_problem(response)
+
+
+def test_resource_routes_reject_invalid_uuid_path_params():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = {"accept": VENDOR, "authorization": f"Bearer {user['access']}"}
+        _assert_invalid_request_problem(client.get("/api/accounts/not-a-uuid", headers=headers))
+        _assert_invalid_request_problem(client.get("/api/categories/not-a-uuid", headers=headers))
+        _assert_invalid_request_problem(client.get("/api/transactions/not-a-uuid", headers=headers))
 
 
 def test_list_accounts_pagination_is_deterministic_without_duplicates_or_skips():

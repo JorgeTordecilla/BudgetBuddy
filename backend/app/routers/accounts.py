@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -58,14 +60,19 @@ def create_account(payload: AccountCreate, current_user: User = Depends(get_curr
 
 
 @router.get("/{account_id}")
-def get_account(account_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    account = _owned_account_or_403(db, current_user.id, account_id)
+def get_account(account_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    account = _owned_account_or_403(db, current_user.id, str(account_id))
     return vendor_response(AccountOut.model_validate(account).model_dump(mode="json"))
 
 
 @router.patch("/{account_id}")
-def patch_account(account_id: str, payload: AccountUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    account = _owned_account_or_403(db, current_user.id, account_id)
+def patch_account(
+    account_id: UUID,
+    payload: AccountUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = _owned_account_or_403(db, current_user.id, str(account_id))
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, key, value)
     account.updated_at = utcnow()
@@ -75,8 +82,8 @@ def patch_account(account_id: str, payload: AccountUpdate, current_user: User = 
 
 
 @router.delete("/{account_id}", status_code=204)
-def delete_account(account_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    account = _owned_account_or_403(db, current_user.id, account_id)
+def delete_account(account_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    account = _owned_account_or_403(db, current_user.id, str(account_id))
     now = utcnow()
     account.archived_at = now
     account.updated_at = now

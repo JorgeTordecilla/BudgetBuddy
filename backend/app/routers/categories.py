@@ -1,3 +1,6 @@
+from typing import Literal
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,7 +27,7 @@ def _owned_category_or_403(db: Session, user_id: str, category_id: str) -> Categ
 @router.get("")
 def list_categories(
     include_archived: bool = Query(default=False),
-    type: str | None = Query(default=None),
+    type: Literal["income", "expense"] | None = Query(default=None),
     cursor: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -60,14 +63,19 @@ def create_category(payload: CategoryCreate, current_user: User = Depends(get_cu
 
 
 @router.get("/{category_id}")
-def get_category(category_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_category_or_403(db, current_user.id, category_id)
+def get_category(category_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = _owned_category_or_403(db, current_user.id, str(category_id))
     return vendor_response(CategoryOut.model_validate(row).model_dump(mode="json"))
 
 
 @router.patch("/{category_id}")
-def patch_category(category_id: str, payload: CategoryUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_category_or_403(db, current_user.id, category_id)
+def patch_category(
+    category_id: UUID,
+    payload: CategoryUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = _owned_category_or_403(db, current_user.id, str(category_id))
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(row, key, value)
     row.updated_at = utcnow()
@@ -77,8 +85,8 @@ def patch_category(category_id: str, payload: CategoryUpdate, current_user: User
 
 
 @router.delete("/{category_id}", status_code=204)
-def delete_category(category_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    row = _owned_category_or_403(db, current_user.id, category_id)
+def delete_category(category_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = _owned_category_or_403(db, current_user.id, str(category_id))
     now = utcnow()
     row.archived_at = now
     row.updated_at = now
