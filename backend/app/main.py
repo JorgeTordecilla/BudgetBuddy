@@ -3,9 +3,11 @@ import uuid
 
 import yaml
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.constants import API_PREFIX, PROBLEM_JSON
+from app.core.config import settings
 from app.core.errors import APIError, ProblemDetails, register_exception_handlers
 from app.dependencies import enforce_accept_header, enforce_content_type
 from app.routers.accounts import router as accounts_router
@@ -17,6 +19,14 @@ from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-Id"],
+    expose_headers=["X-Request-Id", "Retry-After"],
+)
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 REQUEST_ID_HEADER = "X-Request-Id"

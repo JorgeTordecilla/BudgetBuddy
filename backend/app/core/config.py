@@ -8,6 +8,15 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_csv_list(name: str, default: list[str]) -> list[str]:
+    raw = os.getenv(name)
+    if raw is None:
+        return list(default)
+    values = [item.strip() for item in raw.split(",")]
+    parsed = [item for item in values if item]
+    return parsed or list(default)
+
+
 class Settings:
     database_url: str
     jwt_secret: str
@@ -25,6 +34,7 @@ class Settings:
     auth_rate_limit_window_seconds: int
     auth_rate_limit_lock_enabled: bool
     auth_rate_limit_lock_seconds: int
+    cors_origins: list[str]
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "sqlite:///./budgetbuddy.db")
@@ -48,6 +58,9 @@ class Settings:
         self.auth_rate_limit_window_seconds = int(os.getenv("AUTH_RATE_LIMIT_WINDOW_SECONDS", "60"))
         self.auth_rate_limit_lock_enabled = _env_bool("AUTH_RATE_LIMIT_LOCK_ENABLED", False)
         self.auth_rate_limit_lock_seconds = int(os.getenv("AUTH_RATE_LIMIT_LOCK_SECONDS", "300"))
+        self.cors_origins = _env_csv_list("BUDGETBUDDY_CORS_ORIGINS", ["http://localhost:5173"])
+        if "*" in self.cors_origins:
+            raise ValueError("BUDGETBUDDY_CORS_ORIGINS must not contain '*' when credentials are enabled")
 
 
 settings = Settings()

@@ -6,6 +6,11 @@ info:
 
     If request provides `X-Request-Id`, the API echoes it; otherwise it generates one.
 
+    Cross-site CORS policy for browser clients: API uses explicit origin allowlist from configuration
+    (`BUDGETBUDDY_CORS_ORIGINS`, default `http://localhost:5173`), `Access-Control-Allow-Credentials:
+    true`, allowed methods `GET,POST,PATCH,DELETE,OPTIONS`, allowed headers `Authorization,Content-Type,Accept,X-Request-Id`,
+    and exposed headers `X-Request-Id,Retry-After`.
+
     '
 servers:
 - url: /api

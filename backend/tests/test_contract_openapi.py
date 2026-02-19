@@ -314,6 +314,14 @@ def test_auth_cookie_transport_contract_mappings_exist():
     assert "refresh_token" not in auth_session_schema.get("properties", {})
 
 
+def test_cors_cookie_cross_site_contract_notes_exist():
+    description = SPEC["info"]["description"]
+    assert "BUDGETBUDDY_CORS_ORIGINS" in description
+    assert "Access-Control-Allow-Credentials" in description
+    assert "GET,POST,PATCH,DELETE,OPTIONS" in description
+    assert "X-Request-Id,Retry-After" in description
+
+
 def test_audit_contract_mappings_exist():
     audit_get = SPEC["paths"]["/audit"]["get"]
     responses = audit_get["responses"]

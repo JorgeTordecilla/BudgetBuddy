@@ -59,6 +59,7 @@ REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 REQUEST_ID_HEADER = "x-request-id"
 REFRESH_COOKIE_NAME = "bb_refresh"
+CORS_DEV_ORIGIN = "http://localhost:5173"
 
 
 def _register_user(client: TestClient):
@@ -506,6 +507,43 @@ def test_auth_lifecycle_and_204_logout():
         logout_cookie_header = logout.headers.get("set-cookie", "")
         assert f"{REFRESH_COOKIE_NAME}=" in logout_cookie_header
         assert "Max-Age=0" in logout_cookie_header
+
+
+def test_cors_preflight_auth_refresh_allows_credentials_for_dev_origin():
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/auth/refresh",
+            headers={
+                "origin": CORS_DEV_ORIGIN,
+                "access-control-request-method": "POST",
+                "access-control-request-headers": "authorization,content-type,accept,x-request-id",
+            },
+        )
+        assert response.status_code in {200, 204}
+        assert response.headers.get("access-control-allow-origin") == CORS_DEV_ORIGIN
+        assert response.headers.get("access-control-allow-credentials") == "true"
+        allow_methods = response.headers.get("access-control-allow-methods", "").upper()
+        assert "GET" in allow_methods
+        assert "POST" in allow_methods
+        assert "PATCH" in allow_methods
+        assert "DELETE" in allow_methods
+        assert "OPTIONS" in allow_methods
+
+
+def test_cors_headers_present_on_auth_login_for_allowed_origin():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": user["password"]},
+            headers={"accept": VENDOR, "content-type": VENDOR, "origin": CORS_DEV_ORIGIN},
+        )
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == CORS_DEV_ORIGIN
+        assert response.headers.get("access-control-allow-credentials") == "true"
+        expose_headers = response.headers.get("access-control-expose-headers", "").lower()
+        assert "x-request-id" in expose_headers
+        assert "retry-after" in expose_headers
 
 
 def test_refresh_token_rotation_blocks_reuse():
