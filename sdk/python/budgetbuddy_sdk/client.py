@@ -1,7 +1,7 @@
 """AUTO-GENERATED FILE. DO NOT EDIT.
 source: backend/openapi.yaml
 generator: budgetbuddy-py-sdkgen@1.0.0
-spec_sha256: 4be659271890ccfdc5a360faa1e436c74cfdfcb13c6fc0eca753c1b56c2de98f
+spec_sha256: c24c2a234d0155910e7daec46257e669b2565532d71cc95d84c23ac7ab9e4df5
 """
 
 from __future__ import annotations

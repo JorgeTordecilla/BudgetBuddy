@@ -1,4 +1,5 @@
 import uuid
+from http.cookies import SimpleCookie
 from pathlib import Path
 
 import yaml
@@ -10,6 +11,7 @@ SPEC = yaml.safe_load(Path("openapi.yaml").read_text(encoding="utf-8"))
 COMPONENTS = SPEC.get("components", {}).get("schemas", {})
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
+REFRESH_COOKIE_NAME = "bb_refresh"
 BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
@@ -75,6 +77,22 @@ def _auth_headers(access: str) -> dict[str, str]:
     return {"accept": VENDOR, "content-type": VENDOR, "authorization": f"Bearer {access}"}
 
 
+def _refresh_headers(refresh_token: str) -> dict[str, str]:
+    return {
+        "accept": VENDOR,
+        "content-type": VENDOR,
+        "cookie": f"{REFRESH_COOKIE_NAME}={refresh_token}",
+    }
+
+
+def _refresh_cookie_from_response(response) -> str:
+    cookie = SimpleCookie()
+    cookie.load(response.headers.get("set-cookie", ""))
+    morsel = cookie.get(REFRESH_COOKIE_NAME)
+    assert morsel is not None
+    return morsel.value
+
+
 def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
     register = client.post(
         "/api/auth/register",
@@ -92,11 +110,10 @@ def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
 
     refresh = client.post(
         "/api/auth/refresh",
-        json={"refresh_token": register.json()["refresh_token"]},
-        headers={"accept": VENDOR, "content-type": VENDOR},
+        headers=_refresh_headers(register.json()["refresh_token"]),
     )
     _assert_contract(refresh, "/auth/refresh", "post")
-    return refresh.json()["access_token"], refresh.json()["refresh_token"]
+    return refresh.json()["access_token"], _refresh_cookie_from_response(refresh)
 
 
 def _account_flow(client: TestClient, access: str) -> str:
@@ -240,8 +257,7 @@ def _teardown_flow(client: TestClient, access: str, refresh_token: str, account_
 
     logout = client.post(
         "/api/auth/logout",
-        json={"refresh_token": refresh_token},
-        headers={"accept": VENDOR, "content-type": VENDOR, "authorization": f"Bearer {access}"},
+        headers=_refresh_headers(refresh_token),
     )
     _assert_contract(logout, "/auth/logout", "post")
 
@@ -274,6 +290,28 @@ def test_auth_rate_limit_contract_mappings_exist():
     assert len(rate_limited) == 1
     assert rate_limited[0]["title"] == RATE_LIMITED_TITLE
     assert rate_limited[0]["status"] == 429
+
+
+def test_auth_cookie_transport_contract_mappings_exist():
+    login_post = SPEC["paths"]["/auth/login"]["post"]
+    refresh_post = SPEC["paths"]["/auth/refresh"]["post"]
+    logout_post = SPEC["paths"]["/auth/logout"]["post"]
+
+    assert "requestBody" in login_post
+    assert "requestBody" not in refresh_post
+    assert "requestBody" not in logout_post
+
+    assert "Set-Cookie" in login_post["responses"]["200"].get("headers", {})
+    assert "Set-Cookie" in refresh_post["responses"]["200"].get("headers", {})
+    assert "Set-Cookie" in logout_post["responses"]["204"].get("headers", {})
+
+    login_schema_ref = login_post["responses"]["200"]["content"][VENDOR]["schema"]["$ref"]
+    refresh_schema_ref = refresh_post["responses"]["200"]["content"][VENDOR]["schema"]["$ref"]
+    assert login_schema_ref.endswith("/AuthSessionResponse")
+    assert refresh_schema_ref.endswith("/AuthSessionResponse")
+
+    auth_session_schema = SPEC["components"]["schemas"]["AuthSessionResponse"]
+    assert "refresh_token" not in auth_session_schema.get("properties", {})
 
 
 def test_audit_contract_mappings_exist():

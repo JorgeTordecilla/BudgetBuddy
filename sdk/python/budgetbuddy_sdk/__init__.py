@@ -2,6 +2,6 @@
 
 from .client import BudgetBuddyClient
 
-SPEC_SHA256 = "4be659271890ccfdc5a360faa1e436c74cfdfcb13c6fc0eca753c1b56c2de98f"
+SPEC_SHA256 = "c24c2a234d0155910e7daec46257e669b2565532d71cc95d84c23ac7ab9e4df5"
 
 __all__ = ["BudgetBuddyClient", "SPEC_SHA256"]

@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 from datetime import timedelta
+from http.cookies import SimpleCookie
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
 from fastapi.testclient import TestClient
@@ -57,6 +58,7 @@ REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reus
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 REQUEST_ID_HEADER = "x-request-id"
+REFRESH_COOKIE_NAME = "bb_refresh"
 
 
 def _register_user(client: TestClient):
@@ -84,6 +86,23 @@ def _auth_headers(access: str) -> dict[str, str]:
         "content-type": VENDOR,
         "authorization": f"Bearer {access}",
     }
+
+
+def _refresh_headers(refresh_token: str) -> dict[str, str]:
+    return {
+        "accept": VENDOR,
+        "content-type": VENDOR,
+        "cookie": f"{REFRESH_COOKIE_NAME}={refresh_token}",
+    }
+
+
+def _refresh_cookie_from_response(response) -> str:
+    set_cookie = response.headers.get("set-cookie", "")
+    cookie = SimpleCookie()
+    cookie.load(set_cookie)
+    morsel = cookie.get(REFRESH_COOKIE_NAME)
+    assert morsel is not None
+    return morsel.value
 
 
 def _create_account(client: TestClient, headers: dict[str, str], name: str) -> str:
@@ -459,6 +478,13 @@ def test_auth_lifecycle_and_204_logout():
         )
         assert login.status_code == 200
         assert login.headers["content-type"].startswith(VENDOR)
+        login_cookie_header = login.headers.get("set-cookie", "")
+        assert f"{REFRESH_COOKIE_NAME}=" in login_cookie_header
+        assert "HttpOnly" in login_cookie_header
+        assert "Secure" in login_cookie_header
+        assert "samesite=none" in login_cookie_header.lower()
+        assert "Path=/api/auth" in login_cookie_header
+        assert "Max-Age=" in login_cookie_header
 
         bad_login = client.post(
             "/api/auth/login",
@@ -468,45 +494,31 @@ def test_auth_lifecycle_and_204_logout():
         assert bad_login.status_code == 401
         assert bad_login.headers["content-type"].startswith(PROBLEM)
 
-        refresh = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert refresh.status_code == 200
+        assert "refresh_token" not in refresh.json()
+        rotated_cookie = _refresh_cookie_from_response(refresh)
+        assert rotated_cookie != user["refresh"]
 
-        logout = client.post(
-            "/api/auth/logout",
-            json={"refresh_token": refresh.json()["refresh_token"]},
-            headers={
-                "accept": VENDOR,
-                "content-type": VENDOR,
-                "authorization": f"Bearer {refresh.json()['access_token']}",
-            },
-        )
+        logout = client.post("/api/auth/logout", headers=_refresh_headers(rotated_cookie))
         assert logout.status_code == 204
         assert logout.text == ""
+        logout_cookie_header = logout.headers.get("set-cookie", "")
+        assert f"{REFRESH_COOKIE_NAME}=" in logout_cookie_header
+        assert "Max-Age=0" in logout_cookie_header
 
 
 def test_refresh_token_rotation_blocks_reuse():
     with TestClient(app) as client:
         user = _register_user(client)
 
-        first_refresh = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert first_refresh.status_code == 200
         assert first_refresh.headers["content-type"].startswith(VENDOR)
-        new_refresh_token = first_refresh.json()["refresh_token"]
+        new_refresh_token = _refresh_cookie_from_response(first_refresh)
         assert new_refresh_token != user["refresh"]
 
-        second_refresh_same_token = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        second_refresh_same_token = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         _assert_refresh_reuse_detected_problem(second_refresh_same_token)
 
 
@@ -536,11 +548,7 @@ def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
 
     def do_refresh(index: int):
         with TestClient(app) as client:
-            responses[index] = client.post(
-                "/api/auth/refresh",
-                json={"refresh_token": user_refresh},
-                headers={"accept": VENDOR, "content-type": VENDOR},
-            )
+            responses[index] = client.post("/api/auth/refresh", headers=_refresh_headers(user_refresh))
 
     t1 = Thread(target=do_refresh, args=(0,))
     t2 = Thread(target=do_refresh, args=(1,))
@@ -571,17 +579,20 @@ def test_refresh_with_expired_token_returns_401():
         finally:
             db.close()
 
-        refresh = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert refresh.status_code == 401
         assert refresh.headers["content-type"].startswith(PROBLEM)
         body = refresh.json()
         assert body["type"] == UNAUTHORIZED_TYPE
         assert body["title"] == UNAUTHORIZED_TITLE
         assert body["status"] == 401
+
+
+def test_refresh_without_cookie_returns_canonical_401():
+    with TestClient(app) as client:
+        _register_user(client)
+        response = client.post("/api/auth/refresh", headers={"accept": VENDOR, "content-type": VENDOR})
+        _assert_unauthorized_problem(response)
 
 
 def test_refresh_returns_401_if_token_expires_during_rotation(monkeypatch):
@@ -608,11 +619,7 @@ def test_refresh_returns_401_if_token_expires_during_rotation(monkeypatch):
 
         monkeypatch.setattr(auth_router, "utcnow", fake_utcnow)
 
-        response = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert response.status_code == 401
         assert response.headers["content-type"].startswith(PROBLEM)
         body = response.json()
@@ -625,22 +632,10 @@ def test_logout_revokes_active_refresh_tokens():
     with TestClient(app) as client:
         user = _register_user(client)
 
-        logout = client.post(
-            "/api/auth/logout",
-            json={"refresh_token": user["refresh"]},
-            headers={
-                "accept": VENDOR,
-                "content-type": VENDOR,
-                "authorization": f"Bearer {user['access']}",
-            },
-        )
+        logout = client.post("/api/auth/logout", headers=_refresh_headers(user["refresh"]))
         assert logout.status_code == 204
 
-        refresh_after_logout = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        refresh_after_logout = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         _assert_refresh_revoked_problem(refresh_after_logout, REFRESH_REVOKED_TITLE)
 
 
@@ -701,25 +696,13 @@ def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
 
         def do_refresh():
             with TestClient(app) as refresh_client:
-                responses[0] = refresh_client.post(
-                    "/api/auth/refresh",
-                    json={"refresh_token": user["refresh"]},
-                    headers={"accept": VENDOR, "content-type": VENDOR},
-                )
+                responses[0] = refresh_client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
 
         refresh_thread = Thread(target=do_refresh, name="refresh-thread")
         refresh_thread.start()
         assert refresh_ready.wait(timeout=2)
 
-        responses[1] = client.post(
-            "/api/auth/logout",
-            json={"refresh_token": user["refresh"]},
-            headers={
-                "accept": VENDOR,
-                "content-type": VENDOR,
-                "authorization": f"Bearer {user['access']}",
-            },
-        )
+        responses[1] = client.post("/api/auth/logout", headers=_refresh_headers(user["refresh"]))
         assert responses[1].status_code == 204
 
         continue_refresh.set()
@@ -778,18 +761,10 @@ def test_auth_refresh_rate_limit_exceeded_returns_canonical_429(monkeypatch):
 
     with TestClient(app) as client:
         _register_user(client)
-        first = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": "invalid-refresh-token"},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        first = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token"))
         assert first.status_code == 401
 
-        second = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": "invalid-refresh-token"},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        second = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token"))
         _assert_rate_limited_problem(second)
         assert int(second.headers["retry-after"]) >= 1
 
@@ -807,11 +782,7 @@ def test_auth_login_refresh_behavior_unchanged_under_limit(monkeypatch):
         assert login.status_code == 200
         assert login.headers["content-type"].startswith(VENDOR)
 
-        refresh = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": login.json()["refresh_token"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        refresh = client.post("/api/auth/refresh", headers=_refresh_headers(_refresh_cookie_from_response(login)))
         assert refresh.status_code == 200
         assert refresh.headers["content-type"].startswith(VENDOR)
 
@@ -2568,30 +2539,14 @@ def test_audit_events_created_for_key_actions():
         )
         assert tx_restore.status_code == 200
 
-        first_refresh = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert first_refresh.status_code == 200
-        rotated_refresh = first_refresh.json()["refresh_token"]
+        rotated_refresh = _refresh_cookie_from_response(first_refresh)
 
-        reuse = client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": user["refresh"]},
-            headers={"accept": VENDOR, "content-type": VENDOR},
-        )
+        reuse = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         _assert_refresh_reuse_detected_problem(reuse)
 
-        logout = client.post(
-            "/api/auth/logout",
-            json={"refresh_token": rotated_refresh},
-            headers={
-                "accept": VENDOR,
-                "content-type": VENDOR,
-                "authorization": f"Bearer {first_refresh.json()['access_token']}",
-            },
-        )
+        logout = client.post("/api/auth/logout", headers=_refresh_headers(rotated_refresh))
         assert logout.status_code == 204
 
         audit = client.get(

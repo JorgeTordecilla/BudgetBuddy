@@ -30,15 +30,16 @@ class LoginRequest(BaseModel):
     username: str = Field(pattern=r"^[a-zA-Z0-9_]{3,20}$")
     password: str = Field(min_length=12)
 
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
 class AuthResponse(BaseModel):
     user: UserOut
     access_token: str
     refresh_token: str
+    access_token_expires_in: int
+
+
+class AuthSessionResponse(BaseModel):
+    user: UserOut
+    access_token: str
     access_token_expires_in: int
 
 

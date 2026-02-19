@@ -89,17 +89,19 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/Set-Cookie-Refresh'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/AuthSessionResponse'
               example:
                 user:
                   id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
                   username: demo_user
                   currency_code: USD
                 access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
-                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
                 access_token_expires_in: 900
         '400':
           description: Invalid request
@@ -152,26 +154,22 @@ paths:
     post:
       security: []
       summary: Refresh token
-      requestBody:
-        required: true
-        content:
-          application/vnd.budgetbuddy.v1+json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
       responses:
         '200':
           description: OK
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/Set-Cookie-Refresh'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/AuthSessionResponse'
               example:
                 user:
                   id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
                   username: demo_user
                   currency_code: USD
                 access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
-                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
                 access_token_expires_in: 900
         '400':
           description: Invalid request
@@ -194,7 +192,7 @@ paths:
                 type: https://api.budgetbuddy.dev/problems/unauthorized
                 title: Unauthorized
                 status: 401
-                detail: Missing or invalid bearer token.
+                detail: Refresh cookie is missing, invalid, or expired.
         '403':
           description: Forbidden
           content:
@@ -233,16 +231,14 @@ paths:
                 detail: Accept header must allow a supported media type.
   /auth/logout:
     post:
-      summary: Logout (revoke refresh token)
-      requestBody:
-        required: true
-        content:
-          application/vnd.budgetbuddy.v1+json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
+      security: []
+      summary: Logout (revoke refresh cookie session)
       responses:
         '204':
           description: No Content
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/Set-Cookie-Refresh-Cleared'
         '400':
           description: Invalid request
           content:
@@ -264,7 +260,7 @@ paths:
                 type: https://api.budgetbuddy.dev/problems/unauthorized
                 title: Unauthorized
                 status: 401
-                detail: Missing or invalid bearer token.
+                detail: Refresh cookie is missing, invalid, or expired.
         '403':
           description: Forbidden
           content:
@@ -2207,6 +2203,14 @@ components:
       description: Correlation id for tracing requests. Propagated when provided by client, generated otherwise.
       schema:
         type: string
+    Set-Cookie-Refresh:
+      description: 'Refresh session cookie. Example attributes: `bb_refresh=<token>; Path=/api/auth; Max-Age=2592000; HttpOnly; Secure; SameSite=None`.'
+      schema:
+        type: string
+    Set-Cookie-Refresh-Cleared:
+      description: 'Expired refresh cookie. Example attributes: `bb_refresh=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=None`.'
+      schema:
+        type: string
     Retry-After:
       description: Seconds to wait before retrying after rate limiting.
       schema:
@@ -2380,6 +2384,27 @@ components:
         access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
         refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
         access_token_expires_in: 900
+    AuthSessionResponse:
+      type: object
+      required:
+      - user
+      - access_token
+      - access_token_expires_in
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        access_token:
+          type: string
+        access_token_expires_in:
+          type: integer
+          description: Seconds until access token expiration
+      example:
+        user:
+          id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
+          username: demo_user
+          currency_code: USD
+        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
+        access_token_expires_in: 900
     LoginRequest:
       type: object
       required:
@@ -2392,13 +2417,6 @@ components:
         password:
           type: string
           minLength: 12
-    RefreshRequest:
-      type: object
-      required:
-      - refresh_token
-      properties:
-        refresh_token:
-          type: string
     Account:
       type: object
       required:

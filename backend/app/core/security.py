@@ -5,6 +5,7 @@ import json
 import secrets
 import time
 from datetime import UTC, datetime, timedelta
+from fastapi.responses import Response
 
 from app.core.config import settings
 
@@ -66,3 +67,29 @@ def generate_refresh_token() -> str:
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=settings.refresh_cookie_name,
+        value=refresh_token,
+        max_age=settings.refresh_token_ttl_seconds,
+        path=settings.refresh_cookie_path,
+        domain=settings.refresh_cookie_domain,
+        secure=settings.refresh_cookie_secure,
+        httponly=True,
+        samesite=settings.refresh_cookie_samesite,
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.set_cookie(
+        key=settings.refresh_cookie_name,
+        value="",
+        max_age=0,
+        path=settings.refresh_cookie_path,
+        domain=settings.refresh_cookie_domain,
+        secure=settings.refresh_cookie_secure,
+        httponly=True,
+        samesite=settings.refresh_cookie_samesite,
+    )
