@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+# Ensure Alembic sees the same env vars as the app runtime.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from app.core.config import settings
 from app.db import Base
