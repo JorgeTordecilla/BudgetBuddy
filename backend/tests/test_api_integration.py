@@ -329,6 +329,17 @@ def _archive_transaction_and_assert(client: TestClient, user_access: str, transa
 
 
 def _make_access_token(sub) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
+    header_part = base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
+    payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
+    secret = os.environ["JWT_SECRET"].encode("utf-8")
+    sig = hmac.new(secret, f"{header_part}.{payload_part}".encode("ascii"), hashlib.sha256).digest()
+    sig_part = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
+    return f"{header_part}.{payload_part}.{sig_part}"
+
+
+def _make_legacy_access_token(sub) -> str:
     payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
     payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
     secret = os.environ["JWT_SECRET"].encode("utf-8")
@@ -543,7 +554,22 @@ def test_me_without_token_returns_canonical_401():
     with TestClient(app) as client:
         response = client.get("/api/me", headers={"accept": VENDOR})
         _assert_unauthorized_problem(response)
-        _assert_request_id_header_present(response)
+
+
+def test_legacy_access_token_is_rejected():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        me = client.get("/api/me", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert me.status_code == 200
+        user_id = me.json()["id"]
+
+        legacy_token = _make_legacy_access_token(user_id)
+        rejected = client.get(
+            "/api/me",
+            headers={"accept": VENDOR, "authorization": f"Bearer {legacy_token}"},
+        )
+        _assert_unauthorized_problem(rejected)
+        _assert_request_id_header_present(rejected)
 
 
 def test_me_not_acceptable_returns_canonical_406():

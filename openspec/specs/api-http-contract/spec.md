@@ -524,6 +524,17 @@ Documented request-id behavior for auth endpoints MUST match middleware-emitted 
 - **WHEN** clients call login/refresh/logout endpoints
 - **THEN** responses SHALL include non-empty `X-Request-Id` header
 
+### Requirement: Bearer access token format is standards-aligned
+The API contract MUST describe bearer access tokens as JWT-compatible while keeping the existing authorization transport unchanged.
+
+#### Scenario: Authorization transport remains unchanged
+- **WHEN** authenticated endpoints are called
+- **THEN** clients SHALL continue sending `Authorization: Bearer <access_token>`
+
+#### Scenario: Contract clarifies JWT interoperability expectations
+- **WHEN** auth endpoint docs are reviewed
+- **THEN** they SHALL state that access tokens are signed JWTs and that invalid/expired tokens return canonical `401` ProblemDetails
+
 ### Requirement: Auth Set-Cookie domain policy is explicit
 The HTTP contract MUST explicitly describe refresh-cookie `Domain` behavior so clients can reason about host-only and shared-subdomain deployments.
 
@@ -538,4 +549,3 @@ The HTTP contract MUST explicitly describe refresh-cookie `Domain` behavior so c
 #### Scenario: Logout clear-cookie semantics preserve domain policy clarity
 - **WHEN** `Set-Cookie-Refresh-Cleared` header docs are reviewed
 - **THEN** they SHALL document the same default/optional `Domain` behavior for deterministic cookie clearing
-

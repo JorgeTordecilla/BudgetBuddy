@@ -4,7 +4,6 @@ import hmac
 import json
 import secrets
 import time
-from datetime import UTC, datetime, timedelta
 from fastapi.responses import Response
 
 from app.core.config import settings
@@ -34,31 +33,68 @@ def _b64decode(value: str) -> bytes:
     return base64.urlsafe_b64decode((value + padding).encode("ascii"))
 
 
-def create_access_token(user_id: str) -> str:
-    payload = {
-        "sub": user_id,
-        "exp": int(time.time()) + settings.access_token_expires_in,
-        "iat": int(time.time()),
-    }
-    payload_part = _b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    sig = hmac.new(settings.jwt_secret.encode("utf-8"), payload_part.encode("ascii"), hashlib.sha256).digest()
-    return f"{payload_part}.{_b64encode(sig)}"
+def _sign_segment(segment: str) -> bytes:
+    return hmac.new(settings.jwt_secret.encode("utf-8"), segment.encode("ascii"), hashlib.sha256).digest()
 
 
-def decode_access_token(token: str) -> dict:
+def _decode_jwt_access_token(token: str) -> dict:
     try:
-        payload_part, sig_part = token.split(".", 1)
+        header_part, payload_part, sig_part = token.split(".")
     except ValueError as exc:
         raise ValueError("invalid token format") from exc
 
-    expected = hmac.new(settings.jwt_secret.encode("utf-8"), payload_part.encode("ascii"), hashlib.sha256).digest()
+    signing_input = f"{header_part}.{payload_part}"
+    expected = _sign_segment(signing_input)
     if not hmac.compare_digest(expected, _b64decode(sig_part)):
         raise ValueError("invalid signature")
 
-    payload = json.loads(_b64decode(payload_part).decode("utf-8"))
-    if int(payload.get("exp", 0)) < int(time.time()):
+    try:
+        header = json.loads(_b64decode(header_part).decode("utf-8"))
+        payload = json.loads(_b64decode(payload_part).decode("utf-8"))
+    except Exception as exc:
+        raise ValueError("invalid token payload") from exc
+
+    if not isinstance(header, dict):
+        raise ValueError("invalid token header")
+    if header.get("alg") not in {"HS256"}:
+        raise ValueError("invalid token algorithm")
+    if header.get("typ") not in {"JWT"}:
+        raise ValueError("invalid token type")
+    if not isinstance(payload, dict):
+        raise ValueError("invalid token payload")
+
+    exp = payload.get("exp")
+    iat = payload.get("iat")
+    sub = payload.get("sub")
+    if not isinstance(exp, int) or not isinstance(iat, int) or not isinstance(sub, str) or not sub.strip():
+        raise ValueError("invalid token claims")
+    if exp < int(time.time()):
         raise ValueError("token expired")
     return payload
+
+
+def create_access_token(user_id: str) -> str:
+    now = int(time.time())
+    header = {
+        "alg": "HS256",
+        "typ": "JWT",
+    }
+    payload = {
+        "sub": user_id,
+        "exp": now + settings.access_token_expires_in,
+        "iat": now,
+    }
+    header_part = _b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_part = _b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_part}.{payload_part}"
+    sig = _sign_segment(signing_input)
+    return f"{signing_input}.{_b64encode(sig)}"
+
+
+def decode_access_token(token: str) -> dict:
+    if token.count(".") != 2:
+        raise ValueError("invalid token format")
+    return _decode_jwt_access_token(token)
 
 
 def generate_refresh_token() -> str:

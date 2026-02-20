@@ -339,6 +339,8 @@ def test_auth_cookie_transport_contract_mappings_exist():
 
     auth_session_schema = SPEC["components"]["schemas"]["AuthSessionResponse"]
     assert "refresh_token" not in auth_session_schema.get("properties", {})
+    access_token_schema = auth_session_schema["properties"]["access_token"]
+    assert "JWT" in access_token_schema.get("description", "")
 
     refresh_cookie_header_desc = SPEC["components"]["headers"]["Set-Cookie-Refresh"]["description"]
     cleared_cookie_header_desc = SPEC["components"]["headers"]["Set-Cookie-Refresh-Cleared"]["description"]
@@ -348,6 +350,9 @@ def test_auth_cookie_transport_contract_mappings_exist():
     assert "REFRESH_COOKIE_DOMAIN" in refresh_cookie_header_desc
     assert "Domain" in cleared_cookie_header_desc
     assert "omitted" in cleared_cookie_header_desc
+
+    register_access_token = register_post["responses"]["201"]["content"][VENDOR]["example"]["access_token"]
+    assert register_access_token.count(".") == 2
 
 
 def test_cors_cookie_cross_site_contract_notes_exist():

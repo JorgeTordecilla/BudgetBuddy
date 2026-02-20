@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import time
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
@@ -97,9 +98,9 @@ def test_password_and_token_security_paths(monkeypatch):
         decode_access_token("invalid-token-format")
 
     # Signature failure path: mutate the signature segment directly.
-    payload_seg, signature = token.split(".", 1)
+    header_seg, payload_seg, signature = token.split(".")
     mutated_signature = ("A" if signature[0] != "A" else "B") + signature[1:]
-    mutated = f"{payload_seg}.{mutated_signature}"
+    mutated = f"{header_seg}.{payload_seg}.{mutated_signature}"
     with pytest.raises(ValueError):
         decode_access_token(mutated)
 
@@ -110,6 +111,17 @@ def test_password_and_token_security_paths(monkeypatch):
     expired = create_access_token("user-2")
     with pytest.raises(ValueError):
         decode_access_token(expired)
+
+
+def _make_legacy_access_token(sub: str, *, exp_offset: int = 3600) -> str:
+    payload = {"sub": sub, "exp": int(time.time()) + exp_offset, "iat": int(time.time())}
+    payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
+    return f"{payload_part}.legacy"
+
+
+def test_legacy_access_token_is_rejected():
+    with pytest.raises(ValueError):
+        decode_access_token(_make_legacy_access_token("legacy-user"))
 
 
 def test_dependency_guards_and_current_user_paths(monkeypatch):
