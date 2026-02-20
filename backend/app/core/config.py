@@ -54,6 +54,12 @@ class Settings:
     log_level: str
     auth_refresh_allowed_origins: list[str]
     auth_refresh_missing_origin_mode: str
+    bootstrap_allow_prod: bool
+    bootstrap_create_demo_user: bool
+    bootstrap_seed_minimal_data: bool
+    bootstrap_demo_username: str
+    bootstrap_demo_password: str
+    bootstrap_demo_currency_code: str
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "").strip()
@@ -107,6 +113,16 @@ class Settings:
             self.auth_refresh_missing_origin_mode = missing_origin_raw.strip().lower()
         if self.auth_refresh_missing_origin_mode not in {"deny", "allow_trusted"}:
             raise ValueError("AUTH_REFRESH_MISSING_ORIGIN_MODE must be one of: deny, allow_trusted")
+        self.bootstrap_allow_prod = _env_bool("BOOTSTRAP_ALLOW_PROD", False)
+        self.bootstrap_create_demo_user = _env_bool("BOOTSTRAP_CREATE_DEMO_USER", True)
+        self.bootstrap_seed_minimal_data = _env_bool("BOOTSTRAP_SEED_MINIMAL_DATA", True)
+        self.bootstrap_demo_username = os.getenv("BOOTSTRAP_DEMO_USERNAME", "demo_user").strip() or "demo_user"
+        self.bootstrap_demo_password = os.getenv("BOOTSTRAP_DEMO_PASSWORD", "demo-password-123").strip()
+        self.bootstrap_demo_currency_code = os.getenv("BOOTSTRAP_DEMO_CURRENCY_CODE", "USD").strip().upper() or "USD"
+        if self.bootstrap_create_demo_user and not self.bootstrap_demo_password:
+            raise ValueError("BOOTSTRAP_DEMO_PASSWORD must be configured when BOOTSTRAP_CREATE_DEMO_USER is true")
+        if len(self.bootstrap_demo_currency_code) != 3:
+            raise ValueError("BOOTSTRAP_DEMO_CURRENCY_CODE must be a 3-letter code")
         log_level_raw = os.getenv("LOG_LEVEL", "INFO").strip().upper()
         allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if log_level_raw not in allowed_log_levels:
@@ -142,6 +158,9 @@ class Settings:
             "log_level": self.log_level,
             "auth_refresh_allowed_origins_count": len(self.auth_refresh_allowed_origins),
             "auth_refresh_missing_origin_mode": self.auth_refresh_missing_origin_mode,
+            "bootstrap_allow_prod": self.bootstrap_allow_prod,
+            "bootstrap_create_demo_user": self.bootstrap_create_demo_user,
+            "bootstrap_seed_minimal_data": self.bootstrap_seed_minimal_data,
         }
 
 

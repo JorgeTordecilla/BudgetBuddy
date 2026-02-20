@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from starlette.requests import Request
 
 from app.core.config import Settings
@@ -38,6 +39,7 @@ from app.repositories.interfaces import (
     TransactionRepository,
     UserRepository,
 )
+from app.cli import bootstrap as bootstrap_cli
 
 
 def _request(path: str, method: str = "GET", headers: dict[str, str] | None = None) -> Request:
@@ -326,6 +328,69 @@ def test_settings_refresh_origin_allowlist_defaults_to_cors(monkeypatch):
     monkeypatch.delenv("AUTH_REFRESH_ALLOWED_ORIGINS", raising=False)
     settings = Settings()
     assert settings.auth_refresh_allowed_origins == ["http://localhost:5173", "https://app.example.com"]
+
+
+def test_bootstrap_happy_path_creates_demo_user_and_minimal_seed(monkeypatch):
+    messages: list[str] = []
+    monkeypatch.setattr(bootstrap_cli, "run_migrations", lambda: messages.append("migrated"))
+    monkeypatch.setattr(bootstrap_cli.settings, "runtime_env", "development")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_allow_prod", False)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_create_demo_user", True)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_seed_minimal_data", True)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_username", "bootstrap_demo")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_password", "bootstrap-demo-password")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_currency_code", "USD")
+
+    bootstrap_cli.run_bootstrap(log_fn=messages.append)
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == "bootstrap_demo"))
+        assert user is not None
+        account = db.scalar(select(Account).where(Account.user_id == user.id, Account.name == "Demo Cash"))
+        assert account is not None
+        income = db.scalar(select(Category).where(Category.user_id == user.id, Category.name == "Salary", Category.type == "income"))
+        expense = db.scalar(
+            select(Category).where(Category.user_id == user.id, Category.name == "Groceries", Category.type == "expense")
+        )
+        assert income is not None
+        assert expense is not None
+    assert "migrated" in messages
+    assert not any("bootstrap-demo-password" in message for message in messages)
+
+
+def test_bootstrap_is_idempotent_on_repeated_runs(monkeypatch):
+    monkeypatch.setattr(bootstrap_cli, "run_migrations", lambda: None)
+    monkeypatch.setattr(bootstrap_cli.settings, "runtime_env", "development")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_allow_prod", False)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_create_demo_user", True)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_seed_minimal_data", True)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_username", "bootstrap_repeat")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_password", "bootstrap-repeat-password")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_demo_currency_code", "USD")
+
+    bootstrap_cli.run_bootstrap(log_fn=lambda _: None)
+    bootstrap_cli.run_bootstrap(log_fn=lambda _: None)
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == "bootstrap_repeat"))
+        assert user is not None
+        account_count = db.query(Account).filter(Account.user_id == user.id, Account.name == "Demo Cash").count()
+        income_count = db.query(Category).filter(Category.user_id == user.id, Category.name == "Salary", Category.type == "income").count()
+        expense_count = (
+            db.query(Category).filter(Category.user_id == user.id, Category.name == "Groceries", Category.type == "expense").count()
+        )
+        assert account_count == 1
+        assert income_count == 1
+        assert expense_count == 1
+
+
+def test_bootstrap_is_blocked_in_production_without_override(monkeypatch):
+    monkeypatch.setattr(bootstrap_cli.settings, "runtime_env", "production")
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_allow_prod", False)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_create_demo_user", True)
+    monkeypatch.setattr(bootstrap_cli.settings, "bootstrap_seed_minimal_data", True)
+    with pytest.raises(RuntimeError, match="disabled in production"):
+        bootstrap_cli.run_bootstrap(log_fn=lambda _: None)
 
 
 def test_get_migration_revision_state_handles_internal_errors(monkeypatch):

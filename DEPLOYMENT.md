@@ -114,11 +114,41 @@ Expected:
 - Login returns `200`.
 - `/api/me` returns `200` with authenticated user payload.
 
-## 4. Rollback Strategy
+## 4. Environment Bootstrap (Dev/QA)
+
+Use bootstrap only for non-production environments unless explicitly overridden.
+
+From `backend/`:
+
+```bash
+.venv\Scripts\python.exe -m app.cli.bootstrap
+```
+
+Bootstrap behavior:
+
+- Runs migrations first (`alembic upgrade head` behavior).
+- Optionally creates a demo user.
+- Optionally seeds minimal data (`Demo Cash`, `Salary`, `Groceries`).
+- Is idempotent (safe to run more than once).
+
+Environment flags:
+
+- `BOOTSTRAP_ALLOW_PROD` (default `false`)
+- `BOOTSTRAP_CREATE_DEMO_USER` (default `true`)
+- `BOOTSTRAP_SEED_MINIMAL_DATA` (default `true`)
+- `BOOTSTRAP_DEMO_USERNAME` (default `demo_user`)
+- `BOOTSTRAP_DEMO_PASSWORD` (required when creating demo user)
+- `BOOTSTRAP_DEMO_CURRENCY_CODE` (default `USD`)
+
+Production guardrail:
+
+- If `ENV=production` and `BOOTSTRAP_ALLOW_PROD!=true`, bootstrap exits with an error and does not seed.
+
+## 5. Rollback Strategy
 
 Always start by rolling back application version/image to the last known-good release.
 
-### 4.1 Reversible migration path
+### 5.1 Reversible migration path
 
 If the latest migration is reversible:
 
@@ -139,7 +169,7 @@ Then run:
 curl -i http://localhost:8000/api/readyz
 ```
 
-### 4.2 Non-reversible migration path
+### 5.2 Non-reversible migration path
 
 If downgrade is not available/safe:
 
@@ -148,7 +178,7 @@ If downgrade is not available/safe:
 3. Redeploy compatible app version.
 4. Re-run readiness and smoke test.
 
-## 5. Downgrade vs Restore Decision Guide
+## 6. Downgrade vs Restore Decision Guide
 
 Use `alembic downgrade` when:
 
@@ -161,7 +191,7 @@ Use backup/snapshot restore when:
 - Reverse DDL/data transform is unsafe or undefined.
 - Incident severity requires fastest full-state recovery.
 
-## 6. Migration Mismatch Diagnostics
+## 7. Migration Mismatch Diagnostics
 
 From `backend/`:
 
@@ -176,7 +206,7 @@ Interpretation:
 - mismatch -> schema drift; in strict mode, readiness may stay `503`.
 - missing revision metadata/errors -> treat as non-ready until resolved.
 
-## 7. Log Safety
+## 8. Log Safety
 
 When sharing command output, redact:
 
