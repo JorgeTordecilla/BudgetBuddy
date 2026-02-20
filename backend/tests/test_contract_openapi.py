@@ -300,6 +300,18 @@ def test_auth_rate_limit_contract_mappings_exist():
     assert rate_limited[0]["status"] == 429
 
 
+def test_transactions_rate_limit_contract_mappings_exist():
+    import_responses = SPEC["paths"]["/transactions/import"]["post"]["responses"]
+    export_responses = SPEC["paths"]["/transactions/export"]["get"]["responses"]
+
+    assert "429" in import_responses
+    assert "429" in export_responses
+    assert "application/problem+json" in import_responses["429"]["content"]
+    assert "application/problem+json" in export_responses["429"]["content"]
+    assert "Retry-After" in import_responses["429"].get("headers", {})
+    assert "Retry-After" in export_responses["429"].get("headers", {})
+
+
 def test_auth_cookie_transport_contract_mappings_exist():
     register_post = SPEC["paths"]["/auth/register"]["post"]
     login_post = SPEC["paths"]["/auth/login"]["post"]

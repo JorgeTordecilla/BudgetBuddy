@@ -1021,6 +1021,22 @@ def _configure_auth_rate_limit_for_test(
     monkeypatch.setattr(auth_router, "_AUTH_RATE_LIMITER", InMemoryRateLimiter(now_fn=now_fn))
 
 
+def _configure_transaction_rate_limit_for_test(
+    monkeypatch,
+    *,
+    import_limit: int,
+    export_limit: int,
+    window_seconds: int,
+    now_fn=None,
+):
+    import app.routers.transactions as transactions_router
+
+    monkeypatch.setattr(transactions_router.settings, "transactions_import_rate_limit_per_minute", import_limit)
+    monkeypatch.setattr(transactions_router.settings, "transactions_export_rate_limit_per_minute", export_limit)
+    monkeypatch.setattr(transactions_router.settings, "auth_rate_limit_window_seconds", window_seconds)
+    monkeypatch.setattr(transactions_router, "_TRANSACTION_RATE_LIMITER", InMemoryRateLimiter(now_fn=now_fn))
+
+
 def test_auth_login_rate_limit_exceeded_returns_canonical_429(monkeypatch):
     _configure_auth_rate_limit_for_test(monkeypatch, login_limit=1, refresh_limit=30, window_seconds=60)
 
@@ -1117,6 +1133,127 @@ def test_auth_login_lock_window_is_deterministic(monkeypatch):
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert after_lock.status_code == 401
+
+
+def test_transactions_import_rate_limit_exceeded_returns_canonical_429(monkeypatch):
+    _configure_transaction_rate_limit_for_test(monkeypatch, import_limit=1, export_limit=30, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rl-import-account")
+        category_id = _create_category(client, headers, "rl-import-category", "income")
+        payload = {
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 1000,
+                    "date": "2026-12-01",
+                }
+            ],
+        }
+
+        first = client.post("/api/transactions/import", json=payload, headers=headers)
+        assert first.status_code == 200
+
+        second = client.post("/api/transactions/import", json=payload, headers=headers)
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_transactions_export_rate_limit_exceeded_returns_canonical_429(monkeypatch):
+    _configure_transaction_rate_limit_for_test(monkeypatch, import_limit=30, export_limit=1, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rl-export-account")
+        category_id = _create_category(client, headers, "rl-export-category", "income")
+        status, _ = _create_transaction(
+            client,
+            headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="rl-export",
+            date="2026-12-02",
+        )
+        assert status == 201
+
+        first = client.get(
+            "/api/transactions/export?from=2026-12-01&to=2026-12-31&type=income",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        assert first.status_code == 200
+
+        second = client.get(
+            "/api/transactions/export?from=2026-12-01&to=2026-12-31&type=income",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_transactions_import_export_behavior_unchanged_under_limit(monkeypatch):
+    _configure_transaction_rate_limit_for_test(monkeypatch, import_limit=10, export_limit=10, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rl-under-account")
+        category_id = _create_category(client, headers, "rl-under-category", "income")
+        payload = {
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 5000,
+                    "date": "2026-12-03",
+                }
+            ],
+        }
+        imported = client.post("/api/transactions/import", json=payload, headers=headers)
+        assert imported.status_code == 200
+        assert imported.headers["content-type"].startswith(VENDOR)
+
+        exported = client.get(
+            "/api/transactions/export?from=2026-12-01&to=2026-12-31&type=income",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        assert exported.status_code == 200
+        assert exported.headers["content-type"].startswith("text/csv")
+
+
+def test_rate_limited_log_event_is_structured_and_secret_safe(monkeypatch, caplog):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=1, refresh_limit=30, window_seconds=60)
+
+    with TestClient(app) as client, caplog.at_level(logging.WARNING, logger="app.rate_limit"):
+        user = _register_user(client)
+        first = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first.status_code == 401
+        second = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(second)
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.rate_limit"]
+    assert any("event=rate_limited" in message for message in messages)
+    assert any("request_id=" in message for message in messages)
+    assert any("method=POST" in message for message in messages)
+    assert any("path=/api/auth/login" in message for message in messages)
+    assert any("retry_after=" in message for message in messages)
+    assert not any("wrongpassword123" in message for message in messages)
 
 
 def test_domain_and_analytics_flow():

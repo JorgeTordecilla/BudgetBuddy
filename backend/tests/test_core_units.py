@@ -288,6 +288,20 @@ def test_settings_uses_valid_log_level(monkeypatch):
     assert settings.log_level == "DEBUG"
 
 
+def test_settings_rejects_invalid_transactions_import_rate_limit(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("TRANSACTIONS_IMPORT_RATE_LIMIT_PER_MINUTE", "0")
+    with pytest.raises(ValueError, match="TRANSACTIONS_IMPORT_RATE_LIMIT_PER_MINUTE"):
+        Settings()
+
+
+def test_settings_rejects_non_numeric_transactions_export_rate_limit(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE", "fast")
+    with pytest.raises(ValueError, match="TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE"):
+        Settings()
+
+
 def test_settings_refresh_origin_missing_mode_defaults_by_environment(monkeypatch):
     _set_minimum_config_env(monkeypatch)
     monkeypatch.delenv("AUTH_REFRESH_MISSING_ORIGIN_MODE", raising=False)

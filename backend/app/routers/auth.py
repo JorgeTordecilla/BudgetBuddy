@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import emit_audit_event
 from app.core.config import settings
 from app.core.errors import APIError
-from app.core.rate_limit import InMemoryRateLimiter, RateLimiter
+from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limited
 from app.core.responses import vendor_response
 from app.core.security import (
     clear_refresh_cookie,
@@ -84,6 +84,14 @@ def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -
         lock_seconds=max(0, lock_seconds),
     )
     if not allowed:
+        log_rate_limited(
+            request,
+            endpoint=endpoint,
+            key=key,
+            retry_after=retry_after,
+            limit=limit,
+            window_seconds=window_seconds,
+        )
         raise rate_limited_error("Too many requests, retry later", retry_after=retry_after)
 
 

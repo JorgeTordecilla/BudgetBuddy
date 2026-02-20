@@ -627,6 +627,18 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem403'
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
           content:
@@ -736,6 +748,18 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem403'
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
           content:
@@ -1342,6 +1366,18 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem403'
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
           content:

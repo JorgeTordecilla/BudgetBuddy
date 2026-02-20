@@ -561,3 +561,18 @@ The HTTP contract MUST define deterministic behavior for origin-rejected refresh
 #### Scenario: Refresh still supports trusted non-browser mode when configured
 - **WHEN** refresh request has no `Origin` header and missing-origin mode is configured to allow trusted calls
 - **THEN** contract semantics SHALL preserve normal refresh success/error mappings for token validation paths
+
+### Requirement: Heavy transaction endpoints expose canonical throttling contract
+The HTTP contract MUST define deterministic throttling behavior for import/export endpoints.
+
+#### Scenario: Import endpoint documents canonical 429
+- **WHEN** `POST /transactions/import` is reviewed in OpenAPI
+- **THEN** it SHALL include `429` with `application/problem+json` and `Retry-After` header
+
+#### Scenario: Export endpoint documents canonical 429
+- **WHEN** `GET /transactions/export` is reviewed in OpenAPI
+- **THEN** it SHALL include `429` with `application/problem+json` and `Retry-After` header
+
+#### Scenario: Throttling identity remains canonical across endpoints
+- **WHEN** any rate-limited endpoint returns `429`
+- **THEN** `type`, `title`, and `status` SHALL match canonical rate-limited ProblemDetails identity

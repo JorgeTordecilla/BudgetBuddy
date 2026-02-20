@@ -17,6 +17,17 @@ def _env_csv_list(name: str, default: list[str]) -> list[str]:
     return parsed or list(default)
 
 
+def _env_positive_int(name: str, default: str, *, minimum: int = 1) -> int:
+    raw = os.getenv(name, default)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be an integer >= {minimum}") from exc
+    if value < minimum:
+        raise ValueError(f"{name} must be an integer >= {minimum}")
+    return value
+
+
 class Settings:
     database_url: str
     jwt_secret: str
@@ -33,6 +44,8 @@ class Settings:
     transaction_import_max_items: int
     auth_login_rate_limit_per_minute: int
     auth_refresh_rate_limit_per_minute: int
+    transactions_import_rate_limit_per_minute: int
+    transactions_export_rate_limit_per_minute: int
     auth_rate_limit_window_seconds: int
     auth_rate_limit_lock_enabled: bool
     auth_rate_limit_lock_seconds: int
@@ -66,12 +79,20 @@ class Settings:
         self.refresh_cookie_samesite = samesite_raw if samesite_raw in {"lax", "strict", "none"} else "none"
         domain_raw = os.getenv("REFRESH_COOKIE_DOMAIN", "").strip()
         self.refresh_cookie_domain = domain_raw or None
-        self.transaction_import_max_items = int(os.getenv("TRANSACTION_IMPORT_MAX_ITEMS", "500"))
-        self.auth_login_rate_limit_per_minute = int(os.getenv("AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", "10"))
-        self.auth_refresh_rate_limit_per_minute = int(os.getenv("AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", "30"))
-        self.auth_rate_limit_window_seconds = int(os.getenv("AUTH_RATE_LIMIT_WINDOW_SECONDS", "60"))
+        self.transaction_import_max_items = _env_positive_int("TRANSACTION_IMPORT_MAX_ITEMS", "500")
+        self.auth_login_rate_limit_per_minute = _env_positive_int("AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", "10")
+        self.auth_refresh_rate_limit_per_minute = _env_positive_int("AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", "30")
+        self.transactions_import_rate_limit_per_minute = _env_positive_int(
+            "TRANSACTIONS_IMPORT_RATE_LIMIT_PER_MINUTE",
+            "20",
+        )
+        self.transactions_export_rate_limit_per_minute = _env_positive_int(
+            "TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE",
+            "30",
+        )
+        self.auth_rate_limit_window_seconds = _env_positive_int("AUTH_RATE_LIMIT_WINDOW_SECONDS", "60")
         self.auth_rate_limit_lock_enabled = _env_bool("AUTH_RATE_LIMIT_LOCK_ENABLED", False)
-        self.auth_rate_limit_lock_seconds = int(os.getenv("AUTH_RATE_LIMIT_LOCK_SECONDS", "300"))
+        self.auth_rate_limit_lock_seconds = _env_positive_int("AUTH_RATE_LIMIT_LOCK_SECONDS", "300", minimum=0)
         migrations_strict_raw = os.getenv("MIGRATIONS_STRICT")
         if migrations_strict_raw is None:
             self.migrations_strict = self.runtime_env == "production"

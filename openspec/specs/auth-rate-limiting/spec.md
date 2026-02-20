@@ -2,7 +2,7 @@
 
 TBD: Define auth-rate-limiting capability behavior.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Auth endpoint rate limiting
 The backend MUST enforce deterministic rate limits for `POST /auth/login` and `POST /auth/refresh`.
@@ -15,12 +15,16 @@ The backend MUST enforce deterministic rate limits for `POST /auth/login` and `P
 - **WHEN** a client exceeds the configured refresh threshold within the active rate-limit window
 - **THEN** the API SHALL reject further refresh attempts with canonical `429` ProblemDetails until the window allows retry
 
-### Requirement: Endpoint-specific and configurable limits
-Rate-limit thresholds and windows MUST be configurable per auth endpoint.
+### Requirement: Auth rate limits are configurable per endpoint
+The backend MUST allow independent rate-limit configuration for auth login and auth refresh endpoints.
 
 #### Scenario: Login and refresh limits are independently configurable
-- **WHEN** service configuration defines different thresholds for login and refresh
-- **THEN** runtime enforcement SHALL apply each endpoint policy independently without cross-endpoint bucket coupling
+- **WHEN** operators set endpoint-specific auth rate-limit env values
+- **THEN** runtime SHALL enforce distinct thresholds for `POST /auth/login` and `POST /auth/refresh`
+
+#### Scenario: Auth throttling returns canonical retry contract
+- **WHEN** auth rate limit is exceeded
+- **THEN** response SHALL be canonical `429` ProblemDetails and SHALL include `Retry-After`
 
 #### Scenario: Limits can be tuned without contract change
 - **WHEN** operators adjust configured thresholds/windows

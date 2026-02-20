@@ -1,8 +1,14 @@
+import hashlib
+import logging
 import math
 import time
 from dataclasses import dataclass
 from threading import Lock
 from typing import Protocol
+
+from fastapi import Request
+
+_LOGGER = logging.getLogger("app.rate_limit")
 
 
 @dataclass
@@ -63,3 +69,31 @@ class InMemoryRateLimiter(RateLimiter):
 
             state.count += 1
             return True, None
+
+
+def _sanitize_key(key: str) -> str:
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def log_rate_limited(
+    request: Request,
+    *,
+    endpoint: str,
+    key: str,
+    retry_after: int | None,
+    limit: int,
+    window_seconds: int,
+) -> None:
+    request_id = getattr(request.state, "request_id", "") or "-"
+    _LOGGER.warning(
+        "event=rate_limited request_id=%s method=%s path=%s endpoint=%s identity_key=%s limit=%s window_seconds=%s retry_after=%s",
+        request_id,
+        request.method,
+        request.url.path,
+        endpoint,
+        _sanitize_key(key),
+        limit,
+        window_seconds,
+        retry_after or 1,
+    )

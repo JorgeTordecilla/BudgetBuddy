@@ -14,6 +14,7 @@ from app.core.audit import emit_audit_event
 from app.core.constants import CSV_TEXT
 from app.core.errors import APIError, sanitize_problem_detail
 from app.core.money import validate_amount_cents, validate_user_currency_for_money
+from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limited
 from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
 from app.core.responses import vendor_response
 from app.db import get_db
@@ -26,6 +27,7 @@ from app.errors import (
     import_batch_limit_exceeded_error,
     invalid_cursor_error,
     invalid_date_range_error,
+    rate_limited_error,
 )
 from app.models import Account, Category, Transaction, User
 from app.repositories import SQLAlchemyAccountRepository, SQLAlchemyCategoryRepository, SQLAlchemyTransactionRepository
@@ -39,6 +41,7 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+_TRANSACTION_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
 
 
 def _owned_transaction_or_403(db: Session, user_id: str, transaction_id: str) -> Transaction:
@@ -84,6 +87,41 @@ def _validate_batch_size_or_400(item_count: int) -> None:
         raise import_batch_limit_exceeded_error(
             f"items exceeds maximum batch size ({settings.transaction_import_max_items})"
         )
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded:
+        first = forwarded.split(",", 1)[0].strip()
+        if first:
+            return first
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _transactions_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
+    window_seconds = max(1, settings.auth_rate_limit_window_seconds)
+    if endpoint == "transactions_import":
+        limit = max(1, settings.transactions_import_rate_limit_per_minute)
+    else:
+        limit = max(1, settings.transactions_export_rate_limit_per_minute)
+    key = f"{endpoint}:{identity}"
+    allowed, retry_after = _TRANSACTION_RATE_LIMITER.check(
+        key,
+        limit=limit,
+        window_seconds=window_seconds,
+    )
+    if not allowed:
+        log_rate_limited(
+            request,
+            endpoint=endpoint,
+            key=key,
+            retry_after=retry_after,
+            limit=limit,
+            window_seconds=window_seconds,
+        )
+        raise rate_limited_error("Too many requests, retry later", retry_after=retry_after)
 
 
 def _build_import_failure(index: int, exc: Exception) -> TransactionImportFailure:
@@ -277,6 +315,11 @@ def import_transactions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _transactions_rate_limit_or_429(
+        request,
+        endpoint="transactions_import",
+        identity=f"{current_user.id}:{_client_ip(request)}",
+    )
     _validate_batch_size_or_400(len(payload.items))
     mode = payload.mode
     failures: list[TransactionImportFailure] = []
@@ -320,6 +363,7 @@ def import_transactions(
 
 @router.get("/export")
 def export_transactions(
+    request: Request,
     type: Literal["income", "expense"] | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     category_id: UUID | None = Query(default=None),
@@ -328,6 +372,11 @@ def export_transactions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _transactions_rate_limit_or_429(
+        request,
+        endpoint="transactions_export",
+        identity=f"{current_user.id}:{_client_ip(request)}",
+    )
     if from_ and to and from_ > to:
         raise invalid_date_range_error("from must be less than or equal to to")
 
