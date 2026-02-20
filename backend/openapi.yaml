@@ -40,6 +40,8 @@ paths:
       security: []
       summary: Readiness probe
       description: Returns readiness for serving traffic based on dependency checks.
+        Database connectivity is always required. Migration head parity is additionally enforced
+        when `MIGRATIONS_STRICT=true`.
       responses:
         '200':
           description: Ready
@@ -50,12 +52,21 @@ paths:
             application/vnd.budgetbuddy.v1+json:
               schema:
                 $ref: '#/components/schemas/ProbeReadinessResponse'
-              example:
-                status: ready
-                version: '1'
-                checks:
-                  db: ok
-                  schema: skip
+              examples:
+                strict-schema-match:
+                  value:
+                    status: ready
+                    version: '1'
+                    checks:
+                      db: ok
+                      schema: ok
+                non-strict-schema-mismatch:
+                  value:
+                    status: ready
+                    version: '1'
+                    checks:
+                      db: ok
+                      schema: fail
         '503':
           description: Not Ready
           headers:
@@ -65,12 +76,21 @@ paths:
             application/vnd.budgetbuddy.v1+json:
               schema:
                 $ref: '#/components/schemas/ProbeReadinessResponse'
-              example:
-                status: not_ready
-                version: '1'
-                checks:
-                  db: fail
-                  schema: skip
+              examples:
+                db-unreachable:
+                  value:
+                    status: not_ready
+                    version: '1'
+                    checks:
+                      db: fail
+                      schema: skip
+                strict-schema-mismatch:
+                  value:
+                    status: not_ready
+                    version: '1'
+                    checks:
+                      db: ok
+                      schema: fail
   /auth/register:
     post:
       security: []
@@ -2256,11 +2276,13 @@ components:
       properties:
         db:
           type: string
+          description: Database connectivity readiness.
           enum:
           - ok
           - fail
         schema:
           type: string
+          description: Migration head readiness (`fail` may still be non-blocking when `MIGRATIONS_STRICT=false`).
           enum:
           - ok
           - fail

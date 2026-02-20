@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 import uuid
@@ -461,7 +462,9 @@ def test_healthz_returns_liveness_payload():
         assert isinstance(body["version"], str)
 
 
-def test_readyz_returns_200_when_database_ready():
+def test_readyz_returns_200_when_database_ready(monkeypatch):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", False)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("ok", "rev-db", "rev-head"))
     with TestClient(app) as client:
         response = client.get("/api/readyz")
         assert response.status_code == 200
@@ -469,7 +472,7 @@ def test_readyz_returns_200_when_database_ready():
         body = response.json()
         assert body["status"] == "ready"
         assert isinstance(body["version"], str)
-        assert body["checks"] == {"db": "ok", "schema": "skip"}
+        assert body["checks"] == {"db": "ok", "schema": "ok"}
 
 
 def test_readyz_returns_503_when_database_not_ready(monkeypatch):
@@ -482,6 +485,63 @@ def test_readyz_returns_503_when_database_not_ready(monkeypatch):
         assert body["status"] == "not_ready"
         assert isinstance(body["version"], str)
         assert body["checks"] == {"db": "fail", "schema": "skip"}
+
+
+def test_readyz_strict_mode_schema_mismatch_returns_503(monkeypatch):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", True)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("fail", "db_rev", "head_rev"))
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 503
+        body = response.json()
+        assert body["status"] == "not_ready"
+        assert body["checks"] == {"db": "ok", "schema": "fail"}
+
+
+def test_readyz_strict_mode_schema_match_returns_200(monkeypatch):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", True)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("ok", "db_rev", "db_rev"))
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "ready"
+        assert body["checks"] == {"db": "ok", "schema": "ok"}
+
+
+def test_readyz_non_strict_mode_schema_mismatch_stays_ready(monkeypatch):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", False)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("fail", "db_rev", "head_rev"))
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "ready"
+        assert body["checks"] == {"db": "ok", "schema": "fail"}
+
+
+def test_readyz_schema_check_failure_handling(monkeypatch):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", True)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("unknown", None, None))
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 503
+        body = response.json()
+        assert body["status"] == "not_ready"
+        assert body["checks"] == {"db": "ok", "schema": "fail"}
+
+
+def test_readyz_logs_revision_diagnostics(monkeypatch, caplog):
+    monkeypatch.setattr(app_main.settings, "migrations_strict", False)
+    monkeypatch.setattr(app_main, "get_migration_revision_state", lambda: ("ok", "db_rev_1", "head_rev_1"))
+    with caplog.at_level(logging.INFO, logger="app.readiness"):
+        with TestClient(app) as client:
+            response = client.get("/api/readyz")
+            assert response.status_code == 200
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.readiness"]
+    assert any("db_revision=db_rev_1" in message for message in messages)
+    assert any("head_revision=head_rev_1" in message for message in messages)
+    assert any("migrations_strict=False" in message for message in messages)
 
 
 def test_error_response_includes_request_id_header():

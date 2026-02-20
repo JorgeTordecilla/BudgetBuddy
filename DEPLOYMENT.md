@@ -58,3 +58,28 @@ Expected behavior:
 
 - `GET /api/healthz`: returns `200` when process is alive, without DB checks.
 - `GET /api/readyz`: returns `200` when DB is reachable, otherwise `503`.
+
+## Migrations Gate
+
+Readiness can enforce schema head parity through `MIGRATIONS_STRICT`.
+
+- Recommended: `MIGRATIONS_STRICT=true` in production.
+- In strict mode, `/api/readyz` returns `503` when DB revision is not at Alembic head.
+
+Deployment baseline:
+
+```bash
+alembic upgrade head
+```
+
+Mismatch diagnosis:
+
+```bash
+alembic current
+alembic heads
+```
+
+Interpretation:
+
+- `current == heads` (single head): schema is aligned.
+- mismatch or missing revision metadata: readiness can fail in strict mode until migration state is fixed.

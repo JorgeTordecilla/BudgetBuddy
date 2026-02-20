@@ -20,7 +20,7 @@ from app.core.security import (
     verify_password,
 )
 from app.dependencies import _accepts_vendor_or_problem, enforce_accept_header, enforce_content_type, get_current_user
-from app.db import SessionLocal
+from app.db import SessionLocal, get_migration_revision_state
 from app.models import Account, Budget, Category, RefreshToken, Transaction, User
 from app.repositories import (
     SQLAlchemyAccountRepository,
@@ -243,6 +243,41 @@ def test_settings_fail_fast_for_production_missing_explicit_cookie_vars(monkeypa
     monkeypatch.delenv("REFRESH_COOKIE_PATH", raising=False)
     with pytest.raises(ValueError, match="REFRESH_COOKIE_PATH must be explicitly configured in production"):
         Settings()
+
+
+def test_settings_migrations_strict_default_is_environment_sensitive(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.delenv("MIGRATIONS_STRICT", raising=False)
+    settings = Settings()
+    assert settings.migrations_strict is False
+
+    monkeypatch.setenv("ENV", "production")
+    settings = Settings()
+    assert settings.migrations_strict is True
+
+
+def test_settings_migrations_strict_can_be_explicitly_overridden(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("MIGRATIONS_STRICT", "false")
+    settings = Settings()
+    assert settings.migrations_strict is False
+
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.setenv("MIGRATIONS_STRICT", "true")
+    settings = Settings()
+    assert settings.migrations_strict is True
+
+
+def test_get_migration_revision_state_handles_internal_errors(monkeypatch):
+    monkeypatch.setattr(
+        "app.db.session.ScriptDirectory.from_config",
+        lambda _cfg: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    state, db_revision, head_revision = get_migration_revision_state()
+    assert state == "unknown"
+    assert db_revision is None
+    assert head_revision is None
 
 
 def test_startup_logs_config_without_secret_leakage(caplog):
