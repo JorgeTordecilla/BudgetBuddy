@@ -340,6 +340,15 @@ def test_auth_cookie_transport_contract_mappings_exist():
     auth_session_schema = SPEC["components"]["schemas"]["AuthSessionResponse"]
     assert "refresh_token" not in auth_session_schema.get("properties", {})
 
+    refresh_cookie_header_desc = SPEC["components"]["headers"]["Set-Cookie-Refresh"]["description"]
+    cleared_cookie_header_desc = SPEC["components"]["headers"]["Set-Cookie-Refresh-Cleared"]["description"]
+    assert "Domain" in refresh_cookie_header_desc
+    assert "By default" in refresh_cookie_header_desc
+    assert "omitted" in refresh_cookie_header_desc
+    assert "REFRESH_COOKIE_DOMAIN" in refresh_cookie_header_desc
+    assert "Domain" in cleared_cookie_header_desc
+    assert "omitted" in cleared_cookie_header_desc
+
 
 def test_cors_cookie_cross_site_contract_notes_exist():
     description = SPEC["info"]["description"]

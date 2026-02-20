@@ -60,11 +60,11 @@ The refresh cookie MUST be emitted with enterprise-safe attributes across login 
 
 #### Scenario: Login emits hardened cookie attributes
 - **WHEN** `POST /auth/login` succeeds
-- **THEN** emitted `bb_refresh` cookie SHALL include `HttpOnly`, `Secure`, `SameSite=None`, `Path=/api/auth`, and `Max-Age=<refresh_ttl_seconds>`
+- **THEN** emitted `bb_refresh` cookie SHALL include `HttpOnly`, `Secure`, `SameSite=None`, `Path=/api/auth`, and `Max-Age=<refresh_ttl_seconds>`, and SHALL omit `Domain` by default unless `REFRESH_COOKIE_DOMAIN` is configured
 
 #### Scenario: Refresh rotation preserves hardened cookie attributes
 - **WHEN** `POST /auth/refresh` succeeds
-- **THEN** rotated `bb_refresh` cookie SHALL include the same hardened attributes as login
+- **THEN** rotated `bb_refresh` cookie SHALL include the same hardened attributes as login, including the same default/optional `Domain` policy
 
 ### Requirement: Login flow behavior under throttling
 The login flow MUST preserve existing credential validation semantics under threshold and return deterministic throttling behavior over threshold.

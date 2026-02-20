@@ -167,6 +167,10 @@ The OpenAPI contract MUST explicitly document refresh-cookie transport and respo
 - **WHEN** `POST /auth/login` and `POST /auth/refresh` are reviewed in `backend/openapi.yaml`
 - **THEN** each operation SHALL define a `Set-Cookie` response header describing `bb_refresh` attributes (`HttpOnly`, `Secure`, `SameSite=None`, `Path=/api/auth`, `Max-Age=<refresh_ttl_seconds>`)
 
+#### Scenario: Set-Cookie Domain policy is explicit
+- **WHEN** auth `Set-Cookie` response header definitions are reviewed
+- **THEN** documentation SHALL explicitly state that `Domain` is omitted by default (host-only cookie) and may be included only when `REFRESH_COOKIE_DOMAIN` is configured
+
 #### Scenario: Refresh request body is not required by contract
 - **WHEN** `POST /auth/refresh` request schema is reviewed
 - **THEN** the operation SHALL require refresh authentication via cookie and SHALL NOT require a JSON request body
@@ -519,3 +523,19 @@ Documented request-id behavior for auth endpoints MUST match middleware-emitted 
 #### Scenario: Runtime auth responses include request-id
 - **WHEN** clients call login/refresh/logout endpoints
 - **THEN** responses SHALL include non-empty `X-Request-Id` header
+
+### Requirement: Auth Set-Cookie domain policy is explicit
+The HTTP contract MUST explicitly describe refresh-cookie `Domain` behavior so clients can reason about host-only and shared-subdomain deployments.
+
+#### Scenario: Login and refresh Set-Cookie describe default host-only behavior
+- **WHEN** `Set-Cookie-Refresh` header docs are reviewed for auth success responses
+- **THEN** they SHALL state that `Domain` is omitted by default, yielding a host-only cookie scoped to the API host
+
+#### Scenario: Contract documents optional configured Domain attribute
+- **WHEN** deployers set `REFRESH_COOKIE_DOMAIN`
+- **THEN** docs SHALL state that `Set-Cookie` may include `Domain=<configured_domain>` for shared-subdomain cookie scope
+
+#### Scenario: Logout clear-cookie semantics preserve domain policy clarity
+- **WHEN** `Set-Cookie-Refresh-Cleared` header docs are reviewed
+- **THEN** they SHALL document the same default/optional `Domain` behavior for deterministic cookie clearing
+

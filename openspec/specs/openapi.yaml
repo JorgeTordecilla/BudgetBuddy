@@ -2064,11 +2064,11 @@ components:
       schema:
         type: string
     Set-Cookie-Refresh:
-      description: 'Refresh session cookie. Example attributes: `bb_refresh=<token>; Path=/api/auth; Max-Age=2592000; HttpOnly; Secure; SameSite=None`.'
+      description: 'Refresh session cookie. By default, `Domain` is omitted (host-only cookie scoped to the API host). If `REFRESH_COOKIE_DOMAIN` is configured, `Domain=<configured_domain>` may be present. Example attributes: `bb_refresh=<token>; Path=/api/auth; Max-Age=2592000; HttpOnly; Secure; SameSite=None`.'
       schema:
         type: string
     Set-Cookie-Refresh-Cleared:
-      description: 'Expired refresh cookie. Example attributes: `bb_refresh=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=None`.'
+      description: 'Expired refresh cookie. `Domain` follows the same policy as refresh issuance: omitted by default (host-only), or included as `Domain=<configured_domain>` when configured. Example attributes: `bb_refresh=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=None`.'
       schema:
         type: string
     Retry-After:
