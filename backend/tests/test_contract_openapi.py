@@ -16,6 +16,8 @@ BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-i
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
 RATE_LIMITED_TITLE = "Too Many Requests"
+ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
+ORIGIN_NOT_ALLOWED_TITLE = "Forbidden"
 CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
 
 
@@ -353,6 +355,17 @@ def test_auth_cookie_transport_contract_mappings_exist():
 
     register_access_token = register_post["responses"]["201"]["content"][VENDOR]["example"]["access_token"]
     assert register_access_token.count(".") == 2
+    refresh_forbidden_examples = refresh_post["responses"]["403"]["content"][PROBLEM]["examples"]
+    assert "origin-not-allowed" in refresh_forbidden_examples
+    assert refresh_forbidden_examples["origin-not-allowed"]["$ref"].endswith("/Problem403OriginNotAllowed")
+
+
+def test_origin_not_allowed_problem_catalog_mapping_exists():
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+    origin_not_allowed = [item for item in catalog if item["type"] == ORIGIN_NOT_ALLOWED_TYPE]
+    assert len(origin_not_allowed) == 1
+    assert origin_not_allowed[0]["title"] == ORIGIN_NOT_ALLOWED_TITLE
+    assert origin_not_allowed[0]["status"] == 403
 
 
 def test_cors_cookie_cross_site_contract_notes_exist():

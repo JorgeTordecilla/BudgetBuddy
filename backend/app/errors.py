@@ -26,6 +26,8 @@ REFRESH_REVOKED_STATUS = 403
 
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
+ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
+ORIGIN_NOT_ALLOWED_TITLE = "Forbidden"
 
 ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-archived"
 ACCOUNT_ARCHIVED_TITLE = "Account is archived"
@@ -136,6 +138,15 @@ def refresh_reuse_detected_error(detail: str | None = None) -> APIError:
         title=REFRESH_REUSE_DETECTED_TITLE,
         detail=detail,
         type_=REFRESH_REUSE_DETECTED_TYPE,
+    )
+
+
+def origin_not_allowed_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=FORBIDDEN_STATUS,
+        title=ORIGIN_NOT_ALLOWED_TITLE,
+        detail=detail,
+        type_=ORIGIN_NOT_ALLOWED_TYPE,
     )
 
 

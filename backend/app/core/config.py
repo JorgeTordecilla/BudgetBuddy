@@ -39,6 +39,8 @@ class Settings:
     migrations_strict: bool
     cors_origins: list[str]
     log_level: str
+    auth_refresh_allowed_origins: list[str]
+    auth_refresh_missing_origin_mode: str
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "").strip()
@@ -76,6 +78,14 @@ class Settings:
         else:
             self.migrations_strict = _env_bool("MIGRATIONS_STRICT", self.runtime_env == "production")
         self.cors_origins = _env_csv_list("BUDGETBUDDY_CORS_ORIGINS", ["http://localhost:5173"])
+        self.auth_refresh_allowed_origins = _env_csv_list("AUTH_REFRESH_ALLOWED_ORIGINS", self.cors_origins)
+        missing_origin_raw = os.getenv("AUTH_REFRESH_MISSING_ORIGIN_MODE")
+        if missing_origin_raw is None:
+            self.auth_refresh_missing_origin_mode = "deny" if self.runtime_env == "production" else "allow_trusted"
+        else:
+            self.auth_refresh_missing_origin_mode = missing_origin_raw.strip().lower()
+        if self.auth_refresh_missing_origin_mode not in {"deny", "allow_trusted"}:
+            raise ValueError("AUTH_REFRESH_MISSING_ORIGIN_MODE must be one of: deny, allow_trusted")
         log_level_raw = os.getenv("LOG_LEVEL", "INFO").strip().upper()
         allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if log_level_raw not in allowed_log_levels:
@@ -109,6 +119,8 @@ class Settings:
             "refresh_cookie_domain_configured": self.refresh_cookie_domain is not None,
             "migrations_strict": self.migrations_strict,
             "log_level": self.log_level,
+            "auth_refresh_allowed_origins_count": len(self.auth_refresh_allowed_origins),
+            "auth_refresh_missing_origin_mode": self.auth_refresh_missing_origin_mode,
         }
 
 

@@ -288,6 +288,32 @@ def test_settings_uses_valid_log_level(monkeypatch):
     assert settings.log_level == "DEBUG"
 
 
+def test_settings_refresh_origin_missing_mode_defaults_by_environment(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.delenv("AUTH_REFRESH_MISSING_ORIGIN_MODE", raising=False)
+    settings = Settings()
+    assert settings.auth_refresh_missing_origin_mode == "allow_trusted"
+
+    monkeypatch.setenv("ENV", "production")
+    settings = Settings()
+    assert settings.auth_refresh_missing_origin_mode == "deny"
+
+
+def test_settings_refresh_origin_missing_mode_validation(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("AUTH_REFRESH_MISSING_ORIGIN_MODE", "invalid")
+    with pytest.raises(ValueError, match="AUTH_REFRESH_MISSING_ORIGIN_MODE must be one of"):
+        Settings()
+
+
+def test_settings_refresh_origin_allowlist_defaults_to_cors(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "http://localhost:5173,https://app.example.com")
+    monkeypatch.delenv("AUTH_REFRESH_ALLOWED_ORIGINS", raising=False)
+    settings = Settings()
+    assert settings.auth_refresh_allowed_origins == ["http://localhost:5173", "https://app.example.com"]
+
+
 def test_get_migration_revision_state_handles_internal_errors(monkeypatch):
     monkeypatch.setattr(
         "app.db.session.ScriptDirectory.from_config",

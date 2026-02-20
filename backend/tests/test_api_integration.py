@@ -57,6 +57,7 @@ BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-i
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
+ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
 REFRESH_REVOKED_TITLE = "Refresh token revoked"
 REFRESH_REUSE_DETECTED_TITLE = "Refresh token reuse detected"
 REQUEST_ID_HEADER = "x-request-id"
@@ -99,12 +100,15 @@ def _auth_headers(access: str) -> dict[str, str]:
     }
 
 
-def _refresh_headers(refresh_token: str) -> dict[str, str]:
-    return {
+def _refresh_headers(refresh_token: str, *, origin: str | None = None) -> dict[str, str]:
+    headers = {
         "accept": VENDOR,
         "content-type": VENDOR,
         "cookie": f"{REFRESH_COOKIE_NAME}={refresh_token}",
     }
+    if origin:
+        headers["origin"] = origin
+    return headers
 
 
 def _refresh_cookie_from_response(response) -> str:
@@ -749,14 +753,59 @@ def test_refresh_token_rotation_blocks_reuse():
     with TestClient(app) as client:
         user = _register_user(client)
 
-        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
         assert first_refresh.status_code == 200
         assert first_refresh.headers["content-type"].startswith(VENDOR)
         new_refresh_token = _refresh_cookie_from_response(first_refresh)
         assert new_refresh_token != user["refresh"]
 
-        second_refresh_same_token = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        second_refresh_same_token = client.post(
+            "/api/auth/refresh",
+            headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN),
+        )
         _assert_refresh_reuse_detected_problem(second_refresh_same_token)
+
+
+def test_refresh_with_allowed_origin_succeeds():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+
+
+def test_refresh_with_disallowed_origin_returns_canonical_403():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin="https://evil.example"))
+        assert response.status_code == 403
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == ORIGIN_NOT_ALLOWED_TYPE
+        assert body["title"] == FORBIDDEN_TITLE
+        assert body["status"] == 403
+
+
+def test_refresh_without_origin_denied_when_mode_is_deny(monkeypatch):
+    monkeypatch.setattr(auth_router.settings, "auth_refresh_missing_origin_mode", "deny")
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        assert response.status_code == 403
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["type"] == ORIGIN_NOT_ALLOWED_TYPE
+        assert body["title"] == FORBIDDEN_TITLE
+        assert body["status"] == 403
+
+
+def test_refresh_without_origin_allowed_when_mode_is_allow_trusted(monkeypatch):
+    monkeypatch.setattr(auth_router.settings, "auth_refresh_missing_origin_mode", "allow_trusted")
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
 
 
 def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):

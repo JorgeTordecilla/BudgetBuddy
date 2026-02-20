@@ -286,8 +286,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
               examples:
-                canonical:
+                refresh-revoked:
                   $ref: '#/components/examples/Problem403RefreshRevoked'
+                refresh-reuse-detected:
+                  $ref: '#/components/examples/Problem403RefreshReuseDetected'
+                origin-not-allowed:
+                  $ref: '#/components/examples/Problem403OriginNotAllowed'
         '429':
           description: Too Many Requests
           headers:
@@ -2172,6 +2176,9 @@ components:
   - type: https://api.budgetbuddy.dev/problems/refresh-reuse-detected
     title: Refresh token reuse detected
     status: 403
+  - type: https://api.budgetbuddy.dev/problems/origin-not-allowed
+    title: Forbidden
+    status: 403
   - type: https://api.budgetbuddy.dev/problems/account-archived
     title: Account is archived
     status: 409
@@ -2987,6 +2994,20 @@ components:
         title: Refresh token revoked
         status: 403
         detail: Refresh session has been revoked.
+    Problem403RefreshReuseDetected:
+      summary: Canonical 403 refresh reuse detected
+      value:
+        type: https://api.budgetbuddy.dev/problems/refresh-reuse-detected
+        title: Refresh token reuse detected
+        status: 403
+        detail: Refresh token was already used and rotated.
+    Problem403OriginNotAllowed:
+      summary: Canonical 403 origin not allowed
+      value:
+        type: https://api.budgetbuddy.dev/problems/origin-not-allowed
+        title: Forbidden
+        status: 403
+        detail: Origin is not allowed for refresh.
     Problem406:
       summary: Canonical 406 error
       value:

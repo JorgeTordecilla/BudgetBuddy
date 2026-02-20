@@ -24,7 +24,13 @@ from app.core.security import (
 from app.dependencies import utcnow
 from app.dependencies import get_current_user
 from app.db import get_db
-from app.errors import rate_limited_error, refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
+from app.errors import (
+    origin_not_allowed_error,
+    rate_limited_error,
+    refresh_revoked_error,
+    refresh_reuse_detected_error,
+    unauthorized_error,
+)
 from app.models import RefreshToken, User
 from app.repositories import SQLAlchemyRefreshTokenRepository, SQLAlchemyUserRepository
 from app.schemas import AuthSessionResponse, LoginRequest, RegisterRequest, UserOut
@@ -91,6 +97,19 @@ def _create_session_payload(user: User) -> dict:
 
 def _refresh_cookie_value(request: Request) -> str:
     return request.cookies.get(settings.refresh_cookie_name, "").strip()
+
+
+def _enforce_refresh_origin_policy(request: Request) -> None:
+    if settings.refresh_cookie_samesite != "none":
+        return
+    origin = request.headers.get("origin", "").strip()
+    if origin:
+        if origin in settings.auth_refresh_allowed_origins:
+            return
+        raise origin_not_allowed_error("Origin is not allowed for refresh")
+    if settings.auth_refresh_missing_origin_mode == "allow_trusted":
+        return
+    raise origin_not_allowed_error("Origin header is required for refresh in current mode")
 
 
 def _is_expired(refresh_row: RefreshToken) -> bool:
@@ -199,6 +218,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     refresh_token = _refresh_cookie_value(request)
     token_key = hash_refresh_token(refresh_token) if refresh_token else "missing-cookie"
     _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{_client_ip(request)}")
+    _enforce_refresh_origin_policy(request)
 
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
