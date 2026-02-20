@@ -386,6 +386,10 @@ def test_cors_cookie_cross_site_contract_notes_exist():
     assert "Access-Control-Allow-Credentials" in description
     assert "GET,POST,PATCH,DELETE,OPTIONS" in description
     assert "X-Request-Id,Retry-After" in description
+    assert "X-Content-Type-Options" in description
+    assert "Referrer-Policy" in description
+    assert "Cross-Origin-Opener-Policy" in description
+    assert "Content-Security-Policy" in description
 
 
 def test_audit_contract_mappings_exist():

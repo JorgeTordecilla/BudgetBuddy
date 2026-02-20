@@ -24,6 +24,16 @@ Fail-fast rules already enforced by startup:
 - `ENV=production` rejects `DEBUG=true`
 - `BUDGETBUDDY_CORS_ORIGINS` must not contain `*` in production
 - `REFRESH_COOKIE_SAMESITE=none` requires `REFRESH_COOKIE_SECURE=true`
+- CORS remains credentials-enabled with explicit allowlist; exposed headers are limited to `X-Request-Id` and `Retry-After`
+
+### 1.3 Security response headers
+
+API responses enforce baseline browser-facing security headers:
+
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: no-referrer`
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'`
 
 ### 1.2 Connectivity and readiness
 

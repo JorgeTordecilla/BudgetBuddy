@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.core.constants import API_PREFIX, PROBLEM_JSON, VENDOR_JSON
 from app.core.config import settings
 from app.core.errors import APIError, ProblemDetails, register_exception_handlers
+from app.core.http_security import apply_security_headers
 from app.db import get_migration_revision_state, is_database_ready
 from app.dependencies import enforce_accept_header, enforce_content_type
 from app.routers.accounts import router as accounts_router
@@ -107,6 +108,7 @@ async def contract_guards(request: Request, call_next):
             media_type=PROBLEM_JSON,
             headers=headers,
         )
+        apply_security_headers(response)
         _log_access(exc.status)
         return response
     try:
@@ -115,6 +117,7 @@ async def contract_guards(request: Request, call_next):
         _log_access(500)
         raise
     response.headers[REQUEST_ID_HEADER] = request_id
+    apply_security_headers(response)
     _log_access(response.status_code)
     return response
 

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.constants import PROBLEM_JSON
+from app.core.http_security import apply_security_headers
 
 
 class APIError(Exception):
@@ -90,7 +91,7 @@ def _problem_response(
         headers["X-Request-Id"] = request_id
     if extra_headers:
         headers.update(extra_headers)
-    return JSONResponse(status_code=status, content=body, media_type=PROBLEM_JSON, headers=headers)
+    return apply_security_headers(JSONResponse(status_code=status, content=body, media_type=PROBLEM_JSON, headers=headers))
 
 
 def register_exception_handlers(app) -> None:

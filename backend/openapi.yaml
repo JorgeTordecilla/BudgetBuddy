@@ -11,6 +11,9 @@ info:
     true`, allowed methods `GET,POST,PATCH,DELETE,OPTIONS`, allowed headers `Authorization,Content-Type,Accept,X-Request-Id`,
     and exposed headers `X-Request-Id,Retry-After`.
 
+    Baseline API security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+    `Cross-Origin-Opener-Policy: same-origin`, and `Content-Security-Policy: default-src ''none''; frame-ancestors ''none''; base-uri ''none''`.
+
     '
 servers:
 - url: /api

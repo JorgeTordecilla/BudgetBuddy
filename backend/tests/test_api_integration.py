@@ -65,6 +65,16 @@ REFRESH_COOKIE_NAME = "bb_refresh"
 CORS_DEV_ORIGIN = "http://localhost:5173"
 
 
+def _assert_security_headers_present(response):
+    assert response.headers.get("x-content-type-options") == "nosniff"
+    assert response.headers.get("referrer-policy") == "no-referrer"
+    assert response.headers.get("cross-origin-opener-policy") == "same-origin"
+    assert (
+        response.headers.get("content-security-policy")
+        == "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    )
+
+
 def _register_user(client: TestClient):
     username = f"u_{uuid.uuid4().hex[:8]}"
     payload = {
@@ -446,6 +456,7 @@ def test_success_response_includes_request_id_header():
         response = client.get("/api/healthz")
         assert response.status_code == 200
         _assert_request_id_header_present(response)
+        _assert_security_headers_present(response)
 
 
 def test_client_supplied_request_id_is_propagated():
@@ -579,6 +590,7 @@ def test_error_response_includes_request_id_header():
         response = client.get("/api/accounts", headers={"accept": VENDOR})
         assert response.status_code == 401
         _assert_request_id_header_present(response)
+        _assert_security_headers_present(response)
 
 
 def test_access_token_with_non_string_subject_returns_401():
@@ -747,6 +759,18 @@ def test_cors_headers_present_on_auth_login_for_allowed_origin():
         expose_headers = response.headers.get("access-control-expose-headers", "").lower()
         assert "x-request-id" in expose_headers
         assert "retry-after" in expose_headers
+
+
+def test_cors_disallowed_origin_does_not_get_allow_origin_header():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": user["password"]},
+            headers={"accept": VENDOR, "content-type": VENDOR, "origin": "https://evil.example"},
+        )
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") is None
 
 
 def test_refresh_token_rotation_blocks_reuse():
