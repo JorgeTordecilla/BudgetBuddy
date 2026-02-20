@@ -33,17 +33,18 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/X-Request-Id'
+            Set-Cookie:
+              $ref: '#/components/headers/Set-Cookie-Refresh'
           content:
             application/vnd.budgetbuddy.v1+json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/AuthSessionResponse'
               example:
                 user:
                   id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
                   username: demo_user
                   currency_code: USD
                 access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
-                refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
                 access_token_expires_in: 900
         '400':
           description: Invalid request
@@ -2175,31 +2176,6 @@ components:
           - COP
           - EUR
           - MXN
-    AuthResponse:
-      type: object
-      required:
-      - user
-      - access_token
-      - refresh_token
-      - access_token_expires_in
-      properties:
-        user:
-          $ref: '#/components/schemas/User'
-        access_token:
-          type: string
-        refresh_token:
-          type: string
-        access_token_expires_in:
-          type: integer
-          description: Seconds until access token expiration
-      example:
-        user:
-          id: 2a4b0e6d-924d-4df0-bc22-9e639da60bcb
-          username: demo_user
-          currency_code: USD
-        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access
-        refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh
-        access_token_expires_in: 900
     AuthSessionResponse:
       type: object
       required:

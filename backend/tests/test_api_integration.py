@@ -72,12 +72,20 @@ def _register_user(client: TestClient):
     r = client.post("/api/auth/register", json=payload, headers={"accept": VENDOR, "content-type": VENDOR})
     assert r.status_code == 201
     assert r.headers["content-type"].startswith(VENDOR)
+    register_cookie_header = r.headers.get("set-cookie", "")
+    assert f"{REFRESH_COOKIE_NAME}=" in register_cookie_header
+    assert "HttpOnly" in register_cookie_header
+    assert "Secure" in register_cookie_header
+    assert "samesite=none" in register_cookie_header.lower()
+    assert "Path=/api/auth" in register_cookie_header
+    assert "Max-Age=" in register_cookie_header
     body = r.json()
+    assert "refresh_token" not in body
     return {
         "username": username,
         "password": payload["password"],
         "access": body["access_token"],
-        "refresh": body["refresh_token"],
+        "refresh": _refresh_cookie_from_response(r),
     }
 
 

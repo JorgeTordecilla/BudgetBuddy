@@ -1,15 +1,22 @@
 ## ADDED Requirements
 
 ### Requirement: User registration
-The backend MUST implement `POST /auth/register` with schema validation for `RegisterRequest`, user creation, and `AuthResponse` return semantics.
+The backend MUST implement `POST /auth/register` with schema validation for `RegisterRequest`, user creation, and auth-session response semantics.
 
 #### Scenario: Register success
 - **WHEN** a valid unique username, password, and currency_code are submitted
-- **THEN** the API SHALL return `201` with `AuthResponse` including `user`, `access_token`, `refresh_token`, and `access_token_expires_in`
+- **THEN** the API SHALL return `201` vendor JSON with `user`, `access_token`, and `access_token_expires_in`, SHALL NOT include `refresh_token` in the body, and SHALL set `bb_refresh` cookie
 
 #### Scenario: Register duplicate username
 - **WHEN** the username already exists
 - **THEN** the API SHALL return `409` as `ProblemDetails`
+
+### Requirement: Registration emits refresh cookie and session payload
+Auth session management MUST treat registration as a session bootstrap flow equivalent to login.
+
+#### Scenario: Register sets refresh cookie and returns access token payload
+- **WHEN** `POST /auth/register` succeeds
+- **THEN** the API SHALL persist refresh-token state server-side, set `bb_refresh` cookie, and return access-token session payload without exposing refresh token in JSON
 
 ### Requirement: User login
 The backend MUST implement `POST /auth/login` validating credentials, returning access-token auth payload fields, and issuing refresh state via `bb_refresh` cookie.
@@ -123,4 +130,11 @@ Adding `GET /me` MUST NOT change existing auth session endpoint semantics.
 #### Scenario: Existing auth flows remain unchanged
 - **WHEN** register/login/refresh/logout flows execute after introducing `GET /me`
 - **THEN** statuses, payload shapes, and cookie/session behaviors for those endpoints SHALL remain unchanged
+
+### Requirement: Registration change is additive to existing auth behavior
+Changing register payload shape MUST NOT alter login/refresh/logout runtime semantics.
+
+#### Scenario: Existing auth lifecycle remains behaviorally unchanged
+- **WHEN** login/refresh/logout flows execute after register-shape alignment
+- **THEN** statuses, payloads, and cookie behavior for those endpoints SHALL remain unchanged
 

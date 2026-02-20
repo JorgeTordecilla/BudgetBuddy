@@ -100,6 +100,7 @@ def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
         headers={"accept": VENDOR, "content-type": VENDOR},
     )
     _assert_contract(register, "/auth/register", "post")
+    register_refresh_cookie = _refresh_cookie_from_response(register)
 
     login = client.post(
         "/api/auth/login",
@@ -110,7 +111,7 @@ def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
 
     refresh = client.post(
         "/api/auth/refresh",
-        headers=_refresh_headers(register.json()["refresh_token"]),
+        headers=_refresh_headers(register_refresh_cookie),
     )
     _assert_contract(refresh, "/auth/refresh", "post")
     return refresh.json()["access_token"], _refresh_cookie_from_response(refresh)
@@ -298,20 +299,25 @@ def test_auth_rate_limit_contract_mappings_exist():
 
 
 def test_auth_cookie_transport_contract_mappings_exist():
+    register_post = SPEC["paths"]["/auth/register"]["post"]
     login_post = SPEC["paths"]["/auth/login"]["post"]
     refresh_post = SPEC["paths"]["/auth/refresh"]["post"]
     logout_post = SPEC["paths"]["/auth/logout"]["post"]
 
+    assert "requestBody" in register_post
     assert "requestBody" in login_post
     assert "requestBody" not in refresh_post
     assert "requestBody" not in logout_post
 
+    assert "Set-Cookie" in register_post["responses"]["201"].get("headers", {})
     assert "Set-Cookie" in login_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in refresh_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in logout_post["responses"]["204"].get("headers", {})
 
+    register_schema_ref = register_post["responses"]["201"]["content"][VENDOR]["schema"]["$ref"]
     login_schema_ref = login_post["responses"]["200"]["content"][VENDOR]["schema"]["$ref"]
     refresh_schema_ref = refresh_post["responses"]["200"]["content"][VENDOR]["schema"]["$ref"]
+    assert register_schema_ref.endswith("/AuthSessionResponse")
     assert login_schema_ref.endswith("/AuthSessionResponse")
     assert refresh_schema_ref.endswith("/AuthSessionResponse")
 

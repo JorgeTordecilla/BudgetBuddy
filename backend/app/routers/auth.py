@@ -27,7 +27,7 @@ from app.db import get_db
 from app.errors import rate_limited_error, refresh_revoked_error, refresh_reuse_detected_error, unauthorized_error
 from app.models import RefreshToken, User
 from app.repositories import SQLAlchemyRefreshTokenRepository, SQLAlchemyUserRepository
-from app.schemas import AuthResponse, AuthSessionResponse, LoginRequest, RegisterRequest, UserOut
+from app.schemas import AuthSessionResponse, LoginRequest, RegisterRequest, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 session_router = APIRouter(tags=["auth"])
@@ -79,15 +79,6 @@ def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -
     )
     if not allowed:
         raise rate_limited_error("Too many requests, retry later", retry_after=retry_after)
-
-
-def _create_auth_payload(user: User, refresh_token: str) -> dict:
-    return AuthResponse(
-        user=UserOut.model_validate(user),
-        access_token=create_access_token(user.id),
-        refresh_token=refresh_token,
-        access_token_expires_in=settings.access_token_expires_in,
-    ).model_dump()
 
 
 def _create_session_payload(user: User) -> dict:
@@ -174,7 +165,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     )
     refresh_repo.add(refresh)
     db.commit()
-    return vendor_response(_create_auth_payload(user, refresh_token), status_code=201)
+    response = vendor_response(_create_session_payload(user), status_code=201)
+    set_refresh_cookie(response, refresh_token)
+    return response
 
 
 @router.post("/login")
