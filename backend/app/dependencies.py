@@ -64,7 +64,12 @@ def _accepts_vendor_or_problem(accept: str) -> bool:
 def enforce_accept_header(request: Request) -> None:
     if not request.url.path.startswith(API_PREFIX):
         return
-    if request.url.path in {f"{API_PREFIX}/health", f"{API_PREFIX}/openapi.json"}:
+    if request.url.path in {
+        f"{API_PREFIX}/health",
+        f"{API_PREFIX}/healthz",
+        f"{API_PREFIX}/readyz",
+        f"{API_PREFIX}/openapi.json",
+    }:
         return
 
     accept = request.headers.get("accept", "*/*")
@@ -78,7 +83,12 @@ def enforce_accept_header(request: Request) -> None:
 def enforce_content_type(request: Request) -> None:
     if request.method not in _BODY_METHODS:
         return
-    if request.url.path in {f"{API_PREFIX}/health", f"{API_PREFIX}/openapi.json"}:
+    if request.url.path in {
+        f"{API_PREFIX}/health",
+        f"{API_PREFIX}/healthz",
+        f"{API_PREFIX}/readyz",
+        f"{API_PREFIX}/openapi.json",
+    }:
         return
 
     content_type = _parse_media_type(request.headers.get("content-type", ""))

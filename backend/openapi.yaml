@@ -17,6 +17,60 @@ servers:
 security:
 - BearerAuth: []
 paths:
+  /healthz:
+    get:
+      security: []
+      summary: Liveness probe
+      description: Returns process liveness without checking external dependencies.
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/ProbeHealthResponse'
+              example:
+                status: ok
+                version: '1'
+  /readyz:
+    get:
+      security: []
+      summary: Readiness probe
+      description: Returns readiness for serving traffic based on dependency checks.
+      responses:
+        '200':
+          description: Ready
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/ProbeReadinessResponse'
+              example:
+                status: ready
+                version: '1'
+                checks:
+                  db: ok
+                  schema: skip
+        '503':
+          description: Not Ready
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/ProbeReadinessResponse'
+              example:
+                status: not_ready
+                version: '1'
+                checks:
+                  db: fail
+                  schema: skip
   /auth/register:
     post:
       security: []
@@ -2179,6 +2233,63 @@ components:
         title: Too Many Requests
         status: 429
         detail: Too many requests. Retry after the interval in Retry-After.
+    ProbeHealthResponse:
+      type: object
+      required:
+      - status
+      - version
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+        version:
+          type: string
+      example:
+        status: ok
+        version: '1'
+    ProbeReadinessChecks:
+      type: object
+      required:
+      - db
+      - schema
+      properties:
+        db:
+          type: string
+          enum:
+          - ok
+          - fail
+        schema:
+          type: string
+          enum:
+          - ok
+          - fail
+          - skip
+      example:
+        db: ok
+        schema: skip
+    ProbeReadinessResponse:
+      type: object
+      required:
+      - status
+      - version
+      - checks
+      properties:
+        status:
+          type: string
+          enum:
+          - ready
+          - not_ready
+        version:
+          type: string
+        checks:
+          $ref: '#/components/schemas/ProbeReadinessChecks'
+      example:
+        status: ready
+        version: '1'
+        checks:
+          db: ok
+          schema: skip
     User:
       type: object
       required:

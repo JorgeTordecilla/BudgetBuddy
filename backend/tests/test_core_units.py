@@ -147,6 +147,8 @@ def test_dependency_guards_and_current_user_paths(monkeypatch):
     enforce_accept_header(_request("/health", headers={"accept": "application/xml"}))
     # API docs/health bypass.
     enforce_accept_header(_request("/api/health", headers={"accept": "application/xml"}))
+    enforce_accept_header(_request("/api/healthz", headers={"accept": "application/xml"}))
+    enforce_accept_header(_request("/api/readyz", headers={"accept": "application/xml"}))
     enforce_content_type(_request("/api/openapi.json", method="POST", headers={"content-type": "text/plain"}))
     # Non-body methods bypass.
     enforce_content_type(_request("/api/accounts", method="GET", headers={"content-type": "text/plain"}))

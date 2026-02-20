@@ -6,7 +6,7 @@ client = TestClient(app)
 
 
 def test_rejects_invalid_accept_header():
-    response = client.get("/api/health", headers={"accept": "application/xml"})
+    response = client.get("/api/healthz", headers={"accept": "application/xml"})
     assert response.status_code == 200
 
 

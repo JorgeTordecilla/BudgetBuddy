@@ -12,6 +12,7 @@ from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 from fastapi.testclient import TestClient
 
 import app.routers.auth as auth_router
+import app.main as app_main
 from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
 from app.core.security import hash_refresh_token
@@ -437,7 +438,7 @@ def test_content_type_rejects_partial_media_type_match():
 
 def test_success_response_includes_request_id_header():
     with TestClient(app) as client:
-        response = client.get("/api/health")
+        response = client.get("/api/healthz")
         assert response.status_code == 200
         _assert_request_id_header_present(response)
 
@@ -445,9 +446,42 @@ def test_success_response_includes_request_id_header():
 def test_client_supplied_request_id_is_propagated():
     with TestClient(app) as client:
         request_id = "req-hu10-propagation-001"
-        response = client.get("/api/health", headers={REQUEST_ID_HEADER: request_id})
+        response = client.get("/api/healthz", headers={REQUEST_ID_HEADER: request_id})
         assert response.status_code == 200
         assert response.headers[REQUEST_ID_HEADER] == request_id
+
+
+def test_healthz_returns_liveness_payload():
+    with TestClient(app) as client:
+        response = client.get("/api/healthz")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+        assert body["status"] == "ok"
+        assert isinstance(body["version"], str)
+
+
+def test_readyz_returns_200_when_database_ready():
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+        assert body["status"] == "ready"
+        assert isinstance(body["version"], str)
+        assert body["checks"] == {"db": "ok", "schema": "skip"}
+
+
+def test_readyz_returns_503_when_database_not_ready(monkeypatch):
+    monkeypatch.setattr(app_main, "is_database_ready", lambda: False)
+    with TestClient(app) as client:
+        response = client.get("/api/readyz")
+        assert response.status_code == 503
+        assert response.headers["content-type"].startswith(VENDOR)
+        body = response.json()
+        assert body["status"] == "not_ready"
+        assert isinstance(body["version"], str)
+        assert body["checks"] == {"db": "fail", "schema": "skip"}
 
 
 def test_error_response_includes_request_id_header():

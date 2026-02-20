@@ -44,3 +44,17 @@ Secrets are never logged:
 - `JWT_SECRET`
 - raw token values
 - credential material
+
+## Health And Readiness Probes
+
+Use infrastructure probes against the API-prefixed endpoints:
+
+```bash
+curl -i http://localhost:8000/api/healthz
+curl -i http://localhost:8000/api/readyz
+```
+
+Expected behavior:
+
+- `GET /api/healthz`: returns `200` when process is alive, without DB checks.
+- `GET /api/readyz`: returns `200` when DB is reachable, otherwise `503`.

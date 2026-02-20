@@ -8,9 +8,10 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.core.constants import API_PREFIX, PROBLEM_JSON
+from app.core.constants import API_PREFIX, PROBLEM_JSON, VENDOR_JSON
 from app.core.config import settings
 from app.core.errors import APIError, ProblemDetails, register_exception_handlers
+from app.db import is_database_ready
 from app.dependencies import enforce_accept_header, enforce_content_type
 from app.routers.accounts import router as accounts_router
 from app.routers.analytics import router as analytics_router
@@ -58,6 +59,9 @@ def load_spec():
     return yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 
 
+API_VERSION = str(load_spec().get("info", {}).get("version", "unknown"))
+
+
 @app.middleware("http")
 async def contract_guards(request: Request, call_next):
     incoming_request_id = request.headers.get(REQUEST_ID_HEADER, "").strip()
@@ -103,6 +107,30 @@ app.include_router(api_router, prefix=API_PREFIX)
 @app.get(f"{API_PREFIX}/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
+
+
+@app.get(f"{API_PREFIX}/healthz")
+def healthz():
+    return JSONResponse(
+        content={"status": "ok", "version": API_VERSION},
+        media_type=VENDOR_JSON,
+    )
+
+
+@app.get(f"{API_PREFIX}/readyz")
+def readyz():
+    checks = {"db": "ok", "schema": "skip"}
+    if not is_database_ready():
+        checks["db"] = "fail"
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "version": API_VERSION, "checks": checks},
+            media_type=VENDOR_JSON,
+        )
+    return JSONResponse(
+        content={"status": "ready", "version": API_VERSION, "checks": checks},
+        media_type=VENDOR_JSON,
+    )
 
 
 @app.get(f"{API_PREFIX}/openapi.json", include_in_schema=False)
