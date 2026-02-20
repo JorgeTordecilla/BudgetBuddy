@@ -38,6 +38,7 @@ class Settings:
     auth_rate_limit_lock_seconds: int
     migrations_strict: bool
     cors_origins: list[str]
+    log_level: str
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "").strip()
@@ -75,6 +76,11 @@ class Settings:
         else:
             self.migrations_strict = _env_bool("MIGRATIONS_STRICT", self.runtime_env == "production")
         self.cors_origins = _env_csv_list("BUDGETBUDDY_CORS_ORIGINS", ["http://localhost:5173"])
+        log_level_raw = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+        allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if log_level_raw not in allowed_log_levels:
+            raise ValueError("LOG_LEVEL must be one of DEBUG, INFO, WARNING, ERROR, CRITICAL")
+        self.log_level = log_level_raw
         if self.refresh_cookie_samesite == "none" and not self.refresh_cookie_secure:
             raise ValueError("REFRESH_COOKIE_SECURE must be true when REFRESH_COOKIE_SAMESITE is 'none'")
 
@@ -102,6 +108,7 @@ class Settings:
             "refresh_cookie_samesite": self.refresh_cookie_samesite,
             "refresh_cookie_domain_configured": self.refresh_cookie_domain is not None,
             "migrations_strict": self.migrations_strict,
+            "log_level": self.log_level,
         }
 
 

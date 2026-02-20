@@ -452,6 +452,32 @@ def test_client_supplied_request_id_is_propagated():
         assert response.headers[REQUEST_ID_HEADER] == request_id
 
 
+def test_access_log_includes_required_fields_for_each_request(caplog):
+    with TestClient(app) as client, caplog.at_level(logging.INFO, logger="app.access"):
+        response = client.get("/api/healthz")
+        assert response.status_code == 200
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.access"]
+    assert messages
+    assert any("request_id=" in message for message in messages)
+    assert any("method=GET" in message for message in messages)
+    assert any("path=/api/healthz" in message for message in messages)
+    assert any("status_code=200" in message for message in messages)
+    assert any("duration_ms=" in message for message in messages)
+    assert any("user_id=-" in message for message in messages)
+
+
+def test_access_log_includes_authenticated_user_id(caplog):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        with caplog.at_level(logging.INFO, logger="app.access"):
+            response = client.get("/api/me", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+            assert response.status_code == 200
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.access"]
+    assert any("path=/api/me" in message and "user_id=" in message and "user_id=-" not in message for message in messages)
+
+
 def test_healthz_returns_liveness_payload():
     with TestClient(app) as client:
         response = client.get("/api/healthz")

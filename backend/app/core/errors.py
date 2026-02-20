@@ -5,6 +5,7 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.core.config import settings
 from app.core.constants import PROBLEM_JSON
 
 
@@ -119,10 +120,18 @@ def register_exception_handlers(app) -> None:
     @app.exception_handler(Exception)
     async def generic_error_handler(request: Request, exc: Exception):
         request_id = getattr(request.state, "request_id", "")
-        _LOGGER.exception(
-            "unhandled_error request_id=%s path=%s",
-            request_id,
-            request.url.path,
-            exc_info=exc,
-        )
+        if settings.runtime_env == "production":
+            _LOGGER.error(
+                "unhandled_error request_id=%s path=%s error=%s",
+                request_id,
+                request.url.path,
+                exc.__class__.__name__,
+            )
+        else:
+            _LOGGER.exception(
+                "unhandled_error request_id=%s path=%s",
+                request_id,
+                request.url.path,
+                exc_info=exc,
+            )
         return _problem_response(500, "Internal Server Error", "An unexpected error occurred", request)

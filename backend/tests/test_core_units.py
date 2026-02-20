@@ -158,24 +158,29 @@ def test_dependency_guards_and_current_user_paths(monkeypatch):
     with pytest.raises(APIError):
         enforce_content_type(_request("/api/accounts", method="POST", headers={"content-type": "text/plain"}))
 
+    request = _request("/api/me")
     with pytest.raises(APIError):
-        get_current_user(authorization="", db=_DB())
+        get_current_user(request=request, authorization="", db=_DB())
 
     monkeypatch.setattr("app.dependencies.decode_access_token", lambda _: (_ for _ in ()).throw(ValueError("bad")))
     with pytest.raises(APIError):
-        get_current_user(authorization="Bearer token", db=_DB())
+        get_current_user(request=request, authorization="Bearer token", db=_DB())
 
     monkeypatch.setattr("app.dependencies.decode_access_token", lambda _: {})
     with pytest.raises(APIError):
-        get_current_user(authorization="Bearer token", db=_DB())
+        get_current_user(request=request, authorization="Bearer token", db=_DB())
 
     monkeypatch.setattr("app.dependencies.decode_access_token", lambda _: {"sub": "u1"})
     with pytest.raises(APIError):
-        get_current_user(authorization="Bearer token", db=_DB(user=None))
+        get_current_user(request=request, authorization="Bearer token", db=_DB(user=None))
 
     user = SimpleNamespace(id="u1")
-    resolved = get_current_user(authorization="Bearer token", db=_DB(user=user))
+    resolved = get_current_user(request=request, authorization="Bearer token", db=_DB(user=user))
     assert resolved.id == "u1"
+    request.state.user_id = None
+    resolved_with_request = get_current_user(request=request, authorization="Bearer token", db=_DB(user=user))
+    assert resolved_with_request.id == "u1"
+    assert request.state.user_id == "u1"
 
 
 def test_api_error_logging_includes_structured_operational_fields(caplog):
@@ -269,6 +274,20 @@ def test_settings_migrations_strict_can_be_explicitly_overridden(monkeypatch):
     assert settings.migrations_strict is True
 
 
+def test_settings_rejects_invalid_log_level(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("LOG_LEVEL", "VERBOSE")
+    with pytest.raises(ValueError, match="LOG_LEVEL must be one of"):
+        Settings()
+
+
+def test_settings_uses_valid_log_level(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("LOG_LEVEL", "debug")
+    settings = Settings()
+    assert settings.log_level == "DEBUG"
+
+
 def test_get_migration_revision_state_handles_internal_errors(monkeypatch):
     monkeypatch.setattr(
         "app.db.session.ScriptDirectory.from_config",
@@ -292,6 +311,48 @@ def test_startup_logs_config_without_secret_leakage(caplog):
     assert any("config loaded" in message for message in messages)
     assert not any("test-jwt-secret" in message for message in messages)
     assert not any("JWT_SECRET" in message for message in messages)
+
+
+def test_generic_error_logging_includes_stacktrace_outside_production(monkeypatch, caplog):
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.middleware("http")
+    async def inject_request_id(request, call_next):
+        request.state.request_id = "req-unit-500-dev"
+        return await call_next(request)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("fail-dev")
+
+    monkeypatch.setattr("app.core.errors.settings.runtime_env", "development")
+    with TestClient(app, raise_server_exceptions=False) as client, caplog.at_level(logging.ERROR, logger="app.errors"):
+        response = client.get("/boom")
+    assert response.status_code == 500
+    assert any(record.exc_info for record in caplog.records if record.name == "app.errors")
+
+
+def test_generic_error_logging_hides_stacktrace_in_production(monkeypatch, caplog):
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.middleware("http")
+    async def inject_request_id(request, call_next):
+        request.state.request_id = "req-unit-500-prod"
+        return await call_next(request)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("fail-prod")
+
+    monkeypatch.setattr("app.core.errors.settings.runtime_env", "production")
+    with TestClient(app, raise_server_exceptions=False) as client, caplog.at_level(logging.ERROR, logger="app.errors"):
+        response = client.get("/boom")
+    assert response.status_code == 500
+    app_error_records = [record for record in caplog.records if record.name == "app.errors"]
+    assert app_error_records
+    assert all(record.exc_info is None for record in app_error_records)
 
 
 def test_repository_protocol_shapes_are_implemented():

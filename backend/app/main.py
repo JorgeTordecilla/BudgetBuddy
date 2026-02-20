@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+import time
 import uuid
 from contextlib import asynccontextmanager
 
@@ -24,6 +25,9 @@ from app.routers.transactions import router as transactions_router
 
 logger = logging.getLogger("app.startup")
 readiness_logger = logging.getLogger("app.readiness")
+access_logger = logging.getLogger("app.access")
+
+logging.getLogger().setLevel(getattr(logging, settings.log_level, logging.INFO))
 
 
 @asynccontextmanager
@@ -66,9 +70,24 @@ API_VERSION = str(load_spec().get("info", {}).get("version", "unknown"))
 
 @app.middleware("http")
 async def contract_guards(request: Request, call_next):
+    started_at = time.perf_counter()
     incoming_request_id = request.headers.get(REQUEST_ID_HEADER, "").strip()
     request_id = incoming_request_id or str(uuid.uuid4())
     request.state.request_id = request_id
+
+    def _log_access(status_code: int) -> None:
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        user_id = getattr(request.state, "user_id", None)
+        access_logger.info(
+            "request_id=%s method=%s path=%s status_code=%s duration_ms=%s user_id=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            status_code,
+            duration_ms,
+            user_id or "-",
+        )
+
     try:
         enforce_accept_header(request)
         enforce_content_type(request)
@@ -82,14 +101,21 @@ async def contract_guards(request: Request, call_next):
         )
         headers = {REQUEST_ID_HEADER: request_id}
         headers.update(exc.headers)
-        return JSONResponse(
+        response = JSONResponse(
             status_code=exc.status,
             content=body,
             media_type=PROBLEM_JSON,
             headers=headers,
         )
-    response = await call_next(request)
+        _log_access(exc.status)
+        return response
+    try:
+        response = await call_next(request)
+    except Exception:
+        _log_access(500)
+        raise
     response.headers[REQUEST_ID_HEADER] = request_id
+    _log_access(response.status_code)
     return response
 
 register_exception_handlers(app)

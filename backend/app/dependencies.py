@@ -97,6 +97,7 @@ def enforce_content_type(request: Request) -> None:
 
 
 def get_current_user(
+    request: Request,
     authorization: str = Header(default=""),
     db: Session = Depends(get_db),
 ) -> User:
@@ -119,6 +120,7 @@ def get_current_user(
     user = SQLAlchemyUserRepository(db).get_by_id(user_id)
     if not user:
         raise unauthorized_error("Access token is invalid or expired")
+    request.state.user_id = user.id
     return user
 
 
