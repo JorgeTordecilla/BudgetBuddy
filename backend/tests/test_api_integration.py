@@ -487,6 +487,7 @@ def test_auth_lifecycle_and_204_logout():
         )
         assert login.status_code == 200
         assert login.headers["content-type"].startswith(VENDOR)
+        _assert_request_id_header_present(login)
         login_cookie_header = login.headers.get("set-cookie", "")
         assert f"{REFRESH_COOKIE_NAME}=" in login_cookie_header
         assert "HttpOnly" in login_cookie_header
@@ -502,15 +503,18 @@ def test_auth_lifecycle_and_204_logout():
         )
         assert bad_login.status_code == 401
         assert bad_login.headers["content-type"].startswith(PROBLEM)
+        _assert_request_id_header_present(bad_login)
 
         refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert refresh.status_code == 200
+        _assert_request_id_header_present(refresh)
         assert "refresh_token" not in refresh.json()
         rotated_cookie = _refresh_cookie_from_response(refresh)
         assert rotated_cookie != user["refresh"]
 
         logout = client.post("/api/auth/logout", headers=_refresh_headers(rotated_cookie))
         assert logout.status_code == 204
+        _assert_request_id_header_present(logout)
         assert logout.text == ""
         logout_cookie_header = logout.headers.get("set-cookie", "")
         assert f"{REFRESH_COOKIE_NAME}=" in logout_cookie_header

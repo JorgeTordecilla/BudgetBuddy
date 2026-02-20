@@ -313,6 +313,22 @@ def test_auth_cookie_transport_contract_mappings_exist():
     assert "Set-Cookie" in login_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in refresh_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in logout_post["responses"]["204"].get("headers", {})
+    assert "X-Request-Id" in login_post["responses"]["200"].get("headers", {})
+    assert "X-Request-Id" in login_post["responses"]["400"].get("headers", {})
+    assert "X-Request-Id" in login_post["responses"]["401"].get("headers", {})
+    assert "X-Request-Id" in login_post["responses"]["406"].get("headers", {})
+    assert "X-Request-Id" in login_post["responses"]["429"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["200"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["400"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["401"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["403"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["406"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["429"].get("headers", {})
+    assert "X-Request-Id" in logout_post["responses"]["204"].get("headers", {})
+    assert "X-Request-Id" in logout_post["responses"]["400"].get("headers", {})
+    assert "X-Request-Id" in logout_post["responses"]["401"].get("headers", {})
+    assert "X-Request-Id" in logout_post["responses"]["403"].get("headers", {})
+    assert "X-Request-Id" in logout_post["responses"]["406"].get("headers", {})
 
     register_schema_ref = register_post["responses"]["201"]["content"][VENDOR]["schema"]["$ref"]
     login_schema_ref = login_post["responses"]["200"]["content"][VENDOR]["schema"]["$ref"]

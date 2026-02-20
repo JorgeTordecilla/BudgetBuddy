@@ -90,6 +90,8 @@ paths:
         '200':
           description: OK
           headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
             Set-Cookie:
               $ref: '#/components/headers/Set-Cookie-Refresh'
           content:
@@ -105,6 +107,9 @@ paths:
                 access_token_expires_in: 900
         '400':
           description: Invalid request
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -114,6 +119,9 @@ paths:
                   $ref: '#/components/examples/Problem400InvalidRequest'
         '401':
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -124,6 +132,8 @@ paths:
         '429':
           description: Too Many Requests
           headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
             Retry-After:
               $ref: '#/components/headers/Retry-After'
           content:
@@ -135,6 +145,9 @@ paths:
                   $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -150,6 +163,8 @@ paths:
         '200':
           description: OK
           headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
             Set-Cookie:
               $ref: '#/components/headers/Set-Cookie-Refresh'
           content:
@@ -165,6 +180,9 @@ paths:
                 access_token_expires_in: 900
         '400':
           description: Invalid request
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -174,6 +192,9 @@ paths:
                   $ref: '#/components/examples/Problem400InvalidRequest'
         '401':
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -183,6 +204,9 @@ paths:
                   $ref: '#/components/examples/Problem401'
         '403':
           description: Forbidden
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -193,6 +217,8 @@ paths:
         '429':
           description: Too Many Requests
           headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
             Retry-After:
               $ref: '#/components/headers/Retry-After'
           content:
@@ -204,6 +230,9 @@ paths:
                   $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -219,10 +248,15 @@ paths:
         '204':
           description: No Content
           headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
             Set-Cookie:
               $ref: '#/components/headers/Set-Cookie-Refresh-Cleared'
         '400':
           description: Invalid request
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -232,6 +266,9 @@ paths:
                   $ref: '#/components/examples/Problem400InvalidRequest'
         '401':
           description: Unauthorized
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -241,6 +278,9 @@ paths:
                   $ref: '#/components/examples/Problem401'
         '403':
           description: Forbidden
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
@@ -250,6 +290,9 @@ paths:
                   $ref: '#/components/examples/Problem403'
         '406':
           description: Not Acceptable
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/problem+json:
               schema:
