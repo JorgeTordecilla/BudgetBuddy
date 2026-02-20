@@ -1,7 +1,7 @@
 # Deployment Notes (Neon)
 
 1. Set `DATABASE_URL` with Neon connection string and `sslmode=require`.
-2. Apply schema changes only through Alembic migrations (for example, `alembic upgrade head` from `backend/`).
+2. Apply schema changes only through Alembic migrations (from `backend/`: `.venv\Scripts\python.exe -m alembic upgrade head`).
 3. Configure `JWT_SECRET`, token TTL env vars, and deploy API service.
 4. Run smoke tests: auth register/login/refresh/logout, CRUD resources, analytics endpoints.
 
