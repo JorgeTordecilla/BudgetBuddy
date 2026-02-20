@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
+from app.core.config import Settings
 from app.core.errors import APIError, register_exception_handlers
 from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.security import (
@@ -64,6 +65,18 @@ class _DB:
 
     def scalar(self, _):
         return self._user
+
+
+def _set_minimum_config_env(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./unit-test.db")
+    monkeypatch.setenv("JWT_SECRET", "unit-test-secret")
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "http://localhost:5173")
+    monkeypatch.setenv("REFRESH_COOKIE_NAME", "bb_refresh")
+    monkeypatch.setenv("REFRESH_COOKIE_PATH", "/api/auth")
+    monkeypatch.setenv("REFRESH_COOKIE_SAMESITE", "none")
+    monkeypatch.setenv("REFRESH_COOKIE_SECURE", "true")
 
 
 def test_cursor_helpers_roundtrip_and_errors():
@@ -192,6 +205,56 @@ def test_api_error_logging_includes_structured_operational_fields(caplog):
     assert any("path=/boom" in message for message in messages)
     assert any("status=401" in message for message in messages)
     assert any("problem_type=https://api.budgetbuddy.dev/problems/unauthorized" in message for message in messages)
+
+
+def test_settings_fail_fast_for_missing_critical_database_url(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        Settings()
+
+
+def test_settings_fail_fast_for_cookie_coherence(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("REFRESH_COOKIE_SAMESITE", "none")
+    monkeypatch.setenv("REFRESH_COOKIE_SECURE", "false")
+    with pytest.raises(ValueError, match="REFRESH_COOKIE_SECURE must be true when REFRESH_COOKIE_SAMESITE is 'none'"):
+        Settings()
+
+
+def test_settings_fail_fast_for_production_insecure_configuration(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("DEBUG", "true")
+    with pytest.raises(ValueError, match="DEBUG must be false in production"):
+        Settings()
+
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "*")
+    with pytest.raises(ValueError, match="must not contain '\\*' in production"):
+        Settings()
+
+
+def test_settings_fail_fast_for_production_missing_explicit_cookie_vars(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.delenv("REFRESH_COOKIE_PATH", raising=False)
+    with pytest.raises(ValueError, match="REFRESH_COOKIE_PATH must be explicitly configured in production"):
+        Settings()
+
+
+def test_startup_logs_config_without_secret_leakage(caplog):
+    from app.main import app
+
+    with caplog.at_level(logging.INFO, logger="app.startup"):
+        with TestClient(app) as client:
+            response = client.get("/api/health")
+            assert response.status_code == 200
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.startup"]
+    assert any("config loaded" in message for message in messages)
+    assert not any("test-jwt-secret" in message for message in messages)
+    assert not any("JWT_SECRET" in message for message in messages)
 
 
 def test_repository_protocol_shapes_are_implemented():

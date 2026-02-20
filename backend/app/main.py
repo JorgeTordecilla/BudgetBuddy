@@ -1,5 +1,7 @@
 from pathlib import Path
+import logging
 import uuid
+from contextlib import asynccontextmanager
 
 import yaml
 from fastapi import APIRouter, FastAPI, Request
@@ -19,7 +21,26 @@ from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+logger = logging.getLogger("app.startup")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    safe = settings.safe_log_fields()
+    logger.info(
+        "config loaded env=%s debug=%s db_scheme=%s cors_origins=%s refresh_cookie_secure=%s refresh_cookie_samesite=%s refresh_cookie_domain_configured=%s",
+        safe["env"],
+        safe["debug"],
+        safe["database_scheme"],
+        safe["cors_origins_count"],
+        safe["refresh_cookie_secure"],
+        safe["refresh_cookie_samesite"],
+        safe["refresh_cookie_domain_configured"],
+    )
+    yield
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

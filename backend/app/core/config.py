@@ -20,6 +20,8 @@ def _env_csv_list(name: str, default: list[str]) -> list[str]:
 class Settings:
     database_url: str
     jwt_secret: str
+    runtime_env: str
+    debug: bool
     access_token_expires_in: int
     refresh_token_expires_days: int
     refresh_token_ttl_seconds: int
@@ -37,10 +39,18 @@ class Settings:
     cors_origins: list[str]
 
     def __init__(self) -> None:
-        self.database_url = os.getenv("DATABASE_URL", "sqlite:///./budgetbuddy.db")
+        self.database_url = os.getenv("DATABASE_URL", "").strip()
+        if not self.database_url:
+            raise ValueError("DATABASE_URL must be configured")
+
         self.jwt_secret = os.getenv("JWT_SECRET", "").strip()
         if not self.jwt_secret or self.jwt_secret == "change-me":
             raise ValueError("JWT_SECRET must be configured and must not use the default value")
+
+        env_raw = (os.getenv("ENV", os.getenv("APP_ENV", "development")) or "development").strip().lower()
+        self.runtime_env = env_raw or "development"
+        self.debug = _env_bool("DEBUG", False)
+
         self.access_token_expires_in = int(os.getenv("ACCESS_TOKEN_EXPIRES_IN", "900"))
         self.refresh_token_expires_days = int(os.getenv("REFRESH_TOKEN_EXPIRES_DAYS", "30"))
         default_refresh_ttl = str(self.refresh_token_expires_days * 24 * 60 * 60)
@@ -59,8 +69,33 @@ class Settings:
         self.auth_rate_limit_lock_enabled = _env_bool("AUTH_RATE_LIMIT_LOCK_ENABLED", False)
         self.auth_rate_limit_lock_seconds = int(os.getenv("AUTH_RATE_LIMIT_LOCK_SECONDS", "300"))
         self.cors_origins = _env_csv_list("BUDGETBUDDY_CORS_ORIGINS", ["http://localhost:5173"])
-        if "*" in self.cors_origins:
-            raise ValueError("BUDGETBUDDY_CORS_ORIGINS must not contain '*' when credentials are enabled")
+        if self.refresh_cookie_samesite == "none" and not self.refresh_cookie_secure:
+            raise ValueError("REFRESH_COOKIE_SECURE must be true when REFRESH_COOKIE_SAMESITE is 'none'")
+
+        if self.runtime_env == "production":
+            if self.debug:
+                raise ValueError("DEBUG must be false in production")
+            if "*" in self.cors_origins:
+                raise ValueError("BUDGETBUDDY_CORS_ORIGINS must not contain '*' in production")
+            if os.getenv("BUDGETBUDDY_CORS_ORIGINS") is None:
+                raise ValueError("BUDGETBUDDY_CORS_ORIGINS must be explicitly configured in production")
+            if not self.refresh_cookie_secure:
+                raise ValueError("REFRESH_COOKIE_SECURE must be true in production")
+            for var in ("REFRESH_COOKIE_NAME", "REFRESH_COOKIE_PATH", "REFRESH_COOKIE_SAMESITE", "REFRESH_COOKIE_SECURE"):
+                if os.getenv(var) is None:
+                    raise ValueError(f"{var} must be explicitly configured in production")
+
+    def safe_log_fields(self) -> dict[str, object]:
+        db_scheme = self.database_url.split("://", 1)[0] if "://" in self.database_url else "unknown"
+        return {
+            "env": self.runtime_env,
+            "debug": self.debug,
+            "database_scheme": db_scheme,
+            "cors_origins_count": len(self.cors_origins),
+            "refresh_cookie_secure": self.refresh_cookie_secure,
+            "refresh_cookie_samesite": self.refresh_cookie_samesite,
+            "refresh_cookie_domain_configured": self.refresh_cookie_domain is not None,
+        }
 
 
 settings = Settings()
