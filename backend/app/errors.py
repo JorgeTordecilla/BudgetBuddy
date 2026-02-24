@@ -77,6 +77,10 @@ RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
 RATE_LIMITED_TITLE = "Too Many Requests"
 RATE_LIMITED_STATUS = 429
 
+SERVICE_UNAVAILABLE_TYPE = "https://api.budgetbuddy.dev/problems/service-unavailable"
+SERVICE_UNAVAILABLE_TITLE = "Service Unavailable"
+SERVICE_UNAVAILABLE_STATUS = 503
+
 
 def unauthorized_error(detail: str | None = None) -> APIError:
     return APIError(
@@ -257,4 +261,13 @@ def rate_limited_error(detail: str | None = None, retry_after: int | None = None
         detail=detail,
         type_=RATE_LIMITED_TYPE,
         headers=headers,
+    )
+
+
+def service_unavailable_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=SERVICE_UNAVAILABLE_STATUS,
+        title=SERVICE_UNAVAILABLE_TITLE,
+        detail=detail,
+        type_=SERVICE_UNAVAILABLE_TYPE,
     )

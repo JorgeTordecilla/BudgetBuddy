@@ -295,6 +295,18 @@ paths:
                   $ref: '#/components/examples/Problem403RefreshReuseDetected'
                 origin-not-allowed:
                   $ref: '#/components/examples/Problem403OriginNotAllowed'
+        '503':
+          description: Service Unavailable
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem503ServiceUnavailable'
         '429':
           description: Too Many Requests
           headers:
@@ -2254,6 +2266,9 @@ components:
   - type: https://api.budgetbuddy.dev/problems/rate-limited
     title: Too Many Requests
     status: 429
+  - type: https://api.budgetbuddy.dev/problems/service-unavailable
+    title: Service Unavailable
+    status: 503
   schemas:
     ProblemDetails:
       type: object
@@ -3089,6 +3104,13 @@ components:
         title: Too Many Requests
         status: 429
         detail: Too many requests. Retry after the interval in Retry-After.
+    Problem503ServiceUnavailable:
+      summary: Canonical 503 service unavailable
+      value:
+        type: https://api.budgetbuddy.dev/problems/service-unavailable
+        title: Service Unavailable
+        status: 503
+        detail: Service temporarily unavailable, please retry.
 
 
 

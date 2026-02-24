@@ -20,6 +20,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+import app.db.session as db_session
 from app.dependencies import _accepts_vendor_or_problem, enforce_accept_header, enforce_content_type, get_current_user
 from app.db import SessionLocal, get_migration_revision_state
 from app.models import Account, Budget, Category, RefreshToken, Transaction, User
@@ -302,6 +303,57 @@ def test_settings_rejects_non_numeric_transactions_export_rate_limit(monkeypatch
     monkeypatch.setenv("TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE", "fast")
     with pytest.raises(ValueError, match="TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE"):
         Settings()
+
+
+def test_settings_rejects_invalid_db_pool_recycle_seconds(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("DB_POOL_RECYCLE_SECONDS", "0")
+    with pytest.raises(ValueError, match="DB_POOL_RECYCLE_SECONDS"):
+        Settings()
+
+
+def test_build_engine_applies_pool_resilience_for_non_sqlite(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_create_engine(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(db_session, "create_engine", fake_create_engine)
+    monkeypatch.setattr(db_session.settings, "database_url", "postgresql+psycopg://user:pass@localhost/db")
+    monkeypatch.setattr(db_session.settings, "db_pool_pre_ping", True)
+    monkeypatch.setattr(db_session.settings, "db_pool_recycle_seconds", 180)
+
+    db_session._build_engine()
+
+    kwargs = captured["kwargs"]
+    assert captured["url"] == "postgresql+psycopg://user:pass@localhost/db"
+    assert kwargs["future"] is True
+    assert kwargs["connect_args"] == {}
+    assert kwargs["pool_pre_ping"] is True
+    assert kwargs["pool_recycle"] == 180
+
+
+def test_build_engine_keeps_sqlite_behavior(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_create_engine(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(db_session, "create_engine", fake_create_engine)
+    monkeypatch.setattr(db_session.settings, "database_url", "sqlite:///./unit-test.db")
+
+    db_session._build_engine()
+
+    kwargs = captured["kwargs"]
+    assert captured["url"] == "sqlite:///./unit-test.db"
+    assert kwargs["future"] is True
+    assert kwargs["connect_args"] == {"check_same_thread": False}
+    assert "pool_pre_ping" not in kwargs
+    assert "pool_recycle" not in kwargs
 
 
 def test_settings_refresh_origin_missing_mode_defaults_by_environment(monkeypatch):

@@ -11,6 +11,7 @@ from http.cookies import SimpleCookie
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 import app.routers.auth as auth_router
 import app.main as app_main
@@ -49,6 +50,8 @@ IMPORT_BATCH_LIMIT_EXCEEDED_TYPE = "https://api.budgetbuddy.dev/problems/import-
 IMPORT_BATCH_LIMIT_EXCEEDED_TITLE = "Import batch limit exceeded"
 RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
 RATE_LIMITED_TITLE = "Too Many Requests"
+SERVICE_UNAVAILABLE_TYPE = "https://api.budgetbuddy.dev/problems/service-unavailable"
+SERVICE_UNAVAILABLE_TITLE = "Service Unavailable"
 BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate"
 BUDGET_DUPLICATE_TITLE = "Budget already exists"
 CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned"
@@ -278,6 +281,15 @@ def _assert_refresh_reuse_detected_problem(response):
 def _assert_request_id_header_present(response):
     assert REQUEST_ID_HEADER in response.headers
     assert response.headers[REQUEST_ID_HEADER].strip() != ""
+
+
+def _assert_service_unavailable_problem(response):
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == SERVICE_UNAVAILABLE_TYPE
+    assert body["title"] == SERVICE_UNAVAILABLE_TITLE
+    assert body["status"] == 503
 
 
 def _assert_category_archived_problem(response):
@@ -796,6 +808,40 @@ def test_refresh_with_allowed_origin_succeeds():
         response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
         assert response.status_code == 200
         assert response.headers["content-type"].startswith(VENDOR)
+
+
+def test_refresh_retries_once_after_transient_operational_error(monkeypatch):
+    original_get_by_hash = auth_router.SQLAlchemyRefreshTokenRepository.get_by_hash
+    failed_once = {"value": False}
+
+    def flaky_get_by_hash(self, token_hash: str):
+        if not failed_once["value"]:
+            failed_once["value"] = True
+            raise OperationalError("SELECT refresh_tokens", {"token_hash": token_hash}, Exception("transient"))
+        return original_get_by_hash(self, token_hash)
+
+    monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", flaky_get_by_hash)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(VENDOR)
+        assert failed_once["value"] is True
+
+
+def test_refresh_returns_canonical_503_after_repeated_operational_error(monkeypatch):
+    def failing_get_by_hash(self, token_hash: str):
+        raise OperationalError("SELECT refresh_tokens", {"token_hash": token_hash}, Exception("transient"))
+
+    monkeypatch.setattr(auth_router.SQLAlchemyRefreshTokenRepository, "get_by_hash", failing_get_by_hash)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        _assert_service_unavailable_problem(response)
+        assert "traceback" not in response.text.lower()
+        assert "sqlalchemy" not in response.text.lower()
 
 
 def test_refresh_with_disallowed_origin_returns_canonical_403():

@@ -601,3 +601,11 @@ The HTTP contract MUST keep browser-readable response headers limited to require
 #### Scenario: Credentialed CORS behavior remains explicit
 - **WHEN** allowed origins perform cross-site requests with credentials
 - **THEN** responses SHALL include `Access-Control-Allow-Credentials: true`
+
+### Requirement: Refresh endpoint documents transient operational failure behavior
+Refresh contract MUST preserve rotation and replay-protection semantics while also documenting deterministic transient operational failure behavior.
+
+#### Scenario: Refresh documents transient operational failure response
+- **WHEN** `POST /auth/refresh` contract is reviewed
+- **THEN** OpenAPI SHALL document canonical `503` ProblemDetails for transient database connectivity failure
+

@@ -191,4 +191,11 @@ Blocked origin checks for refresh MUST produce a stable ProblemDetails mapping.
 #### Scenario: Origin guard details remain sanitized
 - **WHEN** origin check fails
 - **THEN** `detail` SHALL avoid leaking internal policy or stacktrace internals
+## Requirements
+### Requirement: Canonical service-unavailable ProblemDetails identity is documented
+The API contract MUST provide canonical `service-unavailable` ProblemDetails identity with exact `type`, `title`, and `status`.
+
+#### Scenario: Catalog includes canonical service unavailable identity
+- **WHEN** transient operational errors are documented
+- **THEN** the catalog SHALL include canonical `503` entry (`service-unavailable`) with stable `type`, `title`, and `status`
 

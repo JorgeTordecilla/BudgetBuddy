@@ -1,10 +1,12 @@
 from datetime import UTC, datetime, timedelta
+import logging
 from threading import Lock
 from weakref import WeakValueDictionary
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import and_, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.audit import emit_audit_event
@@ -29,6 +31,7 @@ from app.errors import (
     rate_limited_error,
     refresh_revoked_error,
     refresh_reuse_detected_error,
+    service_unavailable_error,
     unauthorized_error,
 )
 from app.models import RefreshToken, User
@@ -40,6 +43,7 @@ session_router = APIRouter(tags=["auth"])
 _USER_LOCKS_GUARD = Lock()
 _USER_LOCKS: WeakValueDictionary[str, Lock] = WeakValueDictionary()
 _AUTH_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
+_LOGGER = logging.getLogger("app.auth")
 
 
 def _user_lock(user_id: str) -> Lock:
@@ -172,6 +176,24 @@ def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToke
     return refresh_row
 
 
+def _refresh_read_or_503(db: Session, read_fn, *, request: Request):
+    for attempt in (1, 2):
+        try:
+            return read_fn()
+        except OperationalError as exc:
+            db.rollback()
+            request_id = getattr(request.state, "request_id", "")
+            _LOGGER.warning(
+                "auth_refresh_db_operational_error request_id=%s attempt=%s path=%s error=%s",
+                request_id,
+                attempt,
+                request.url.path,
+                exc.__class__.__name__,
+            )
+            if attempt == 2:
+                raise service_unavailable_error("Service temporarily unavailable, please retry")
+
+
 @router.post("/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     user_repo = SQLAlchemyUserRepository(db)
@@ -234,13 +256,13 @@ def refresh(request: Request, db: Session = Depends(get_db)):
         raise unauthorized_error("Refresh token is invalid or expired")
 
     token_hash = hash_refresh_token(refresh_token)
-    refresh_row = refresh_repo.get_by_hash(token_hash)
+    refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
     if not refresh_row:
         raise unauthorized_error("Refresh token is invalid or expired")
 
     user_id = refresh_row.user_id
     with _user_lock(user_id):
-        refresh_row = refresh_repo.get_by_hash(token_hash)
+        refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
         if not refresh_row:
             raise unauthorized_error("Refresh token is invalid or expired")
         if _is_expired(refresh_row):
@@ -248,13 +270,13 @@ def refresh(request: Request, db: Session = Depends(get_db)):
         if refresh_row.revoked_at is not None:
             _raise_revoked_or_reuse(refresh_repo, refresh_row, db=db, request=request)
 
-        user = user_repo.get_by_id(refresh_row.user_id)
+        user = _refresh_read_or_503(db, lambda: user_repo.get_by_id(refresh_row.user_id), request=request)
         if not user:
             raise unauthorized_error("Refresh token is invalid or expired")
 
         _, revoked = _revoke_refresh_token(db, refresh_row)
         if not revoked:
-            current_row = refresh_repo.get_by_hash(token_hash)
+            current_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
             if not current_row or _is_expired(current_row):
                 raise unauthorized_error("Refresh token is invalid or expired")
             _raise_revoked_or_reuse(refresh_repo, current_row, db=db, request=request)

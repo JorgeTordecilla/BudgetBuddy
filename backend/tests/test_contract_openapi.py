@@ -16,6 +16,8 @@ BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-i
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 RATE_LIMITED_TYPE = "https://api.budgetbuddy.dev/problems/rate-limited"
 RATE_LIMITED_TITLE = "Too Many Requests"
+SERVICE_UNAVAILABLE_TYPE = "https://api.budgetbuddy.dev/problems/service-unavailable"
+SERVICE_UNAVAILABLE_TITLE = "Service Unavailable"
 ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
 ORIGIN_NOT_ALLOWED_TITLE = "Forbidden"
 CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
@@ -299,6 +301,9 @@ def test_auth_rate_limit_contract_mappings_exist():
     assert rate_limited[0]["title"] == RATE_LIMITED_TITLE
     assert rate_limited[0]["status"] == 429
 
+    assert "503" in refresh_responses
+    assert "application/problem+json" in refresh_responses["503"]["content"]
+
 
 def test_transactions_rate_limit_contract_mappings_exist():
     import_responses = SPEC["paths"]["/transactions/import"]["post"]["responses"]
@@ -336,6 +341,7 @@ def test_auth_cookie_transport_contract_mappings_exist():
     assert "X-Request-Id" in refresh_post["responses"]["400"].get("headers", {})
     assert "X-Request-Id" in refresh_post["responses"]["401"].get("headers", {})
     assert "X-Request-Id" in refresh_post["responses"]["403"].get("headers", {})
+    assert "X-Request-Id" in refresh_post["responses"]["503"].get("headers", {})
     assert "X-Request-Id" in refresh_post["responses"]["406"].get("headers", {})
     assert "X-Request-Id" in refresh_post["responses"]["429"].get("headers", {})
     assert "X-Request-Id" in logout_post["responses"]["204"].get("headers", {})
@@ -370,6 +376,8 @@ def test_auth_cookie_transport_contract_mappings_exist():
     refresh_forbidden_examples = refresh_post["responses"]["403"]["content"][PROBLEM]["examples"]
     assert "origin-not-allowed" in refresh_forbidden_examples
     assert refresh_forbidden_examples["origin-not-allowed"]["$ref"].endswith("/Problem403OriginNotAllowed")
+    refresh_503_examples = refresh_post["responses"]["503"]["content"][PROBLEM]["examples"]
+    assert refresh_503_examples["canonical"]["$ref"].endswith("/Problem503ServiceUnavailable")
 
 
 def test_origin_not_allowed_problem_catalog_mapping_exists():
@@ -378,6 +386,14 @@ def test_origin_not_allowed_problem_catalog_mapping_exists():
     assert len(origin_not_allowed) == 1
     assert origin_not_allowed[0]["title"] == ORIGIN_NOT_ALLOWED_TITLE
     assert origin_not_allowed[0]["status"] == 403
+
+
+def test_service_unavailable_problem_catalog_mapping_exists():
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+    service_unavailable = [item for item in catalog if item["type"] == SERVICE_UNAVAILABLE_TYPE]
+    assert len(service_unavailable) == 1
+    assert service_unavailable[0]["title"] == SERVICE_UNAVAILABLE_TITLE
+    assert service_unavailable[0]["status"] == 503
 
 
 def test_cors_cookie_cross_site_contract_notes_exist():

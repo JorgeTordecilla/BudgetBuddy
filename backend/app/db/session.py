@@ -15,8 +15,16 @@ class Base(DeclarativeBase):
 
 
 def _build_engine():
-    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-    return create_engine(settings.database_url, future=True, connect_args=connect_args)
+    is_sqlite = settings.database_url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    engine_kwargs: dict[str, object] = {
+        "future": True,
+        "connect_args": connect_args,
+    }
+    if not is_sqlite:
+        engine_kwargs["pool_pre_ping"] = settings.db_pool_pre_ping
+        engine_kwargs["pool_recycle"] = settings.db_pool_recycle_seconds
+    return create_engine(settings.database_url, **engine_kwargs)
 
 
 engine = _build_engine()

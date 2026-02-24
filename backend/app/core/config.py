@@ -60,6 +60,8 @@ class Settings:
     bootstrap_demo_username: str
     bootstrap_demo_password: str
     bootstrap_demo_currency_code: str
+    db_pool_pre_ping: bool
+    db_pool_recycle_seconds: int
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "").strip()
@@ -123,6 +125,8 @@ class Settings:
             raise ValueError("BOOTSTRAP_DEMO_PASSWORD must be configured when BOOTSTRAP_CREATE_DEMO_USER is true")
         if len(self.bootstrap_demo_currency_code) != 3:
             raise ValueError("BOOTSTRAP_DEMO_CURRENCY_CODE must be a 3-letter code")
+        self.db_pool_pre_ping = _env_bool("DB_POOL_PRE_PING", True)
+        self.db_pool_recycle_seconds = _env_positive_int("DB_POOL_RECYCLE_SECONDS", "240")
         log_level_raw = os.getenv("LOG_LEVEL", "INFO").strip().upper()
         allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if log_level_raw not in allowed_log_levels:
@@ -161,6 +165,8 @@ class Settings:
             "bootstrap_allow_prod": self.bootstrap_allow_prod,
             "bootstrap_create_demo_user": self.bootstrap_create_demo_user,
             "bootstrap_seed_minimal_data": self.bootstrap_seed_minimal_data,
+            "db_pool_pre_ping": self.db_pool_pre_ping,
+            "db_pool_recycle_seconds": self.db_pool_recycle_seconds,
         }
 
 
