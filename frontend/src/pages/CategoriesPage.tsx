@@ -228,7 +228,7 @@ export default function CategoriesPage() {
         <td className="px-3 py-2">{category.note ?? "-"}</td>
         <td className="px-3 py-2">{category.archived_at ? "Archived" : "Active"}</td>
         <td className="px-3 py-2 text-right">
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(category)}>
               Edit
             </Button>
@@ -289,18 +289,20 @@ export default function CategoriesPage() {
           ) : items.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">No categories found.</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left">
-                <tr>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Note</th>
-                  <th className="px-3 py-2">State</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>{tableRows}</tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="min-w-[620px] w-full text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr>
+                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2">Note</th>
+                    <th className="px-3 py-2">State</th>
+                    <th className="px-3 py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>{tableRows}</tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

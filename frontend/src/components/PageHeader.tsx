@@ -27,7 +27,7 @@ export default function PageHeader({
         {children}
       </div>
       {actionLabel && onAction ? (
-        <Button type="button" onClick={onAction} disabled={actionDisabled}>
+        <Button type="button" className="w-full sm:w-auto" onClick={onAction} disabled={actionDisabled}>
           {actionLabel}
         </Button>
       ) : null}

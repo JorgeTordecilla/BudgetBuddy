@@ -22,10 +22,11 @@ export default function AppShell() {
   return (
     <div className="min-h-screen">
       <header className="border-b bg-card/70 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
             <span className="text-lg font-semibold">BudgetBuddy</span>
-            <nav className="flex items-center gap-2" aria-label="Main">
+              <nav className="flex flex-wrap items-center gap-2" aria-label="Main">
               {appLinks.map((link) => (
                 <NavLink
                   key={link.to}
@@ -42,12 +43,13 @@ export default function AppShell() {
               ))}
             </nav>
           </div>
-          <Button type="button" variant="outline" onClick={handleLogout}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleLogout}>
             Logout
           </Button>
         </div>
+        </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <Outlet />
       </main>
     </div>
