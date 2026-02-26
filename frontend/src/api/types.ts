@@ -75,3 +75,45 @@ export type CategoryUpdate = {
   note?: string | null;
   archived_at?: string | null;
 };
+
+export type TransactionType = "income" | "expense";
+
+export type Transaction = {
+  id: string;
+  type: TransactionType;
+  account_id: string;
+  category_id: string;
+  amount_cents: number;
+  date: string;
+  merchant?: string | null;
+  note?: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransactionsListResponse = {
+  items: Transaction[];
+  next_cursor: string | null;
+};
+
+export type TransactionCreate = {
+  type: TransactionType;
+  account_id: string;
+  category_id: string;
+  amount_cents: number;
+  date: string;
+  merchant?: string;
+  note?: string;
+};
+
+export type TransactionUpdate = {
+  type?: TransactionType;
+  account_id?: string;
+  category_id?: string;
+  amount_cents?: number;
+  date?: string;
+  merchant?: string | null;
+  note?: string | null;
+  archived_at?: string | null;
+};

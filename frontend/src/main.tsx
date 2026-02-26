@@ -7,6 +7,7 @@ import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
 import AccountsPage from "@/pages/AccountsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
+import TransactionsPage from "@/pages/TransactionsPage";
 import AppShell from "@/routes/AppShell";
 import Dashboard from "@/routes/Dashboard";
 import Login from "@/routes/Login";
@@ -26,7 +27,8 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/app/dashboard" replace /> },
       { path: "dashboard", element: <Dashboard /> },
       { path: "accounts", element: <AccountsPage /> },
-      { path: "categories", element: <CategoriesPage /> }
+      { path: "categories", element: <CategoriesPage /> },
+      { path: "transactions", element: <TransactionsPage /> }
     ]
   }
 ]);

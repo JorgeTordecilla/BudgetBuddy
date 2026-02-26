@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 const appLinks = [
   { to: "/app/dashboard", label: "Dashboard" },
   { to: "/app/accounts", label: "Accounts" },
-  { to: "/app/categories", label: "Categories" }
+  { to: "/app/categories", label: "Categories" },
+  { to: "/app/transactions", label: "Transactions" }
 ];
 
 export default function AppShell() {
