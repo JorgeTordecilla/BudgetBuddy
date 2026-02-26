@@ -8,6 +8,7 @@ const appLinks = [
   { to: "/app/dashboard", label: "Dashboard" },
   { to: "/app/accounts", label: "Accounts" },
   { to: "/app/categories", label: "Categories" },
+  { to: "/app/budgets", label: "Budgets" },
   { to: "/app/transactions", label: "Transactions" }
 ];
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapTransactionProblem } from "@/api/problemMessages";
+import { mapBudgetProblem, mapTransactionProblem } from "@/api/problemMessages";
 
 describe("mapTransactionProblem", () => {
   it("maps category-type-mismatch to deterministic detail", () => {
@@ -73,5 +73,57 @@ describe("mapTransactionProblem", () => {
       "Failed to load transactions"
     );
     expect(mapped.title).toBe("Failed to load transactions");
+  });
+});
+
+describe("mapBudgetProblem", () => {
+  it("maps budget duplicate to deterministic detail", () => {
+    const mapped = mapBudgetProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/budget-duplicate",
+        title: "Budget already exists",
+        status: 409
+      },
+      409,
+      "Failed to save budget"
+    );
+
+    expect(mapped.detail).toBe("A budget already exists for that month and category.");
+  });
+
+  it("maps category archived and not-owned conflicts to deterministic detail", () => {
+    const archived = mapBudgetProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/category-archived",
+        title: "Category is archived",
+        status: 409
+      },
+      409,
+      "Failed to save budget"
+    );
+    const notOwned = mapBudgetProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/category-not-owned",
+        title: "Category not owned",
+        status: 409
+      },
+      409,
+      "Failed to save budget"
+    );
+
+    expect(archived.detail).toBe("Selected category is not available. Choose another.");
+    expect(notOwned.detail).toBe("Selected category is not available. Choose another.");
+  });
+
+  it("uses fallback status titles for missing budget problem payload", () => {
+    const mapped = mapBudgetProblem(null, 429, "Failed to load budgets");
+    expect(mapped.title).toBe("Too Many Requests");
+    expect(mapped.status).toBe(429);
+  });
+
+  it("maps unauthorized status to canonical title", () => {
+    const mapped = mapBudgetProblem(null, 401, "Failed to load budgets");
+    expect(mapped.title).toBe("Unauthorized");
+    expect(mapped.status).toBe(401);
   });
 });

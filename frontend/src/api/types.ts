@@ -117,3 +117,30 @@ export type TransactionUpdate = {
   note?: string | null;
   archived_at?: string | null;
 };
+
+export type Budget = {
+  id: string;
+  month: string;
+  category_id: string;
+  limit_cents: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetListResponse = {
+  items: Budget[];
+};
+
+export type BudgetCreate = {
+  month: string;
+  category_id: string;
+  limit_cents: number;
+};
+
+export type BudgetUpdate = {
+  month?: string;
+  category_id?: string;
+  limit_cents?: number;
+  archived_at?: string | null;
+};

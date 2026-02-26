@@ -5,6 +5,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 
 import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
+import BudgetsPage from "@/features/budgets/BudgetsPage";
 import AccountsPage from "@/pages/AccountsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import TransactionsPage from "@/pages/TransactionsPage";
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       { path: "dashboard", element: <Dashboard /> },
       { path: "accounts", element: <AccountsPage /> },
       { path: "categories", element: <CategoriesPage /> },
+      { path: "budgets", element: <BudgetsPage /> },
       { path: "transactions", element: <TransactionsPage /> }
     ]
   }
