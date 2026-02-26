@@ -19,7 +19,7 @@ export default function ProblemBanner({ problem, onClose }: ProblemBannerProps) 
   const title = problem.title || fallbackTitle;
 
   return (
-    <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+    <div role="alert" aria-live="assertive" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <p className="font-semibold">{title}</p>

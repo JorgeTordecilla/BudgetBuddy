@@ -44,6 +44,7 @@ describe("shared components", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -82,6 +83,7 @@ describe("shared components", () => {
       />
     );
 
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -92,6 +94,7 @@ describe("shared components", () => {
     const onClose = vi.fn();
     const problem: ProblemDetails = { type: "about:blank", title: "", status: 406 };
     render(<ProblemBanner problem={problem} onClose={onClose} />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText("Client contract error")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(onClose).toHaveBeenCalledTimes(1);

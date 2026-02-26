@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "@/auth/AuthContext";
 import { useAuth } from "@/auth/useAuth";
 
-const mockLogin = vi.fn(async () => {
+const mockLogin = vi.fn(async (_username: string, _password: string) => {
   const user = { id: "u1", username: "demo", currency_code: "USD" };
   return { user, access_token: "token-1", access_token_expires_in: 900 };
 });
@@ -92,4 +92,3 @@ describe("AuthProvider", () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 });
-

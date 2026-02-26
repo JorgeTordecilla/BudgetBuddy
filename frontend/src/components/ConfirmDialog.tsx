@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
@@ -20,16 +22,29 @@ export default function ConfirmDialog({
   onCancel,
   onConfirm
 }: ConfirmDialogProps) {
+  const id = useId();
+
   if (!open) {
     return null;
   }
 
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 py-6 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 py-6 backdrop-blur-sm"
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <CardTitle id={titleId} className="text-lg">
+            {title}
+          </CardTitle>
+          <CardDescription id={descriptionId}>{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={confirming}>
