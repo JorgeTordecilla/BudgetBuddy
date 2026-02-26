@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  Project: BudgetBuddy backend (contract-first).
+  Project: BudgetBuddy contract-first platform (backend + frontend).
   Primary API contract source: backend/openapi.yaml.
   Mirror contract for OpenSpec reference: openspec/specs/openapi.yaml.
 
@@ -11,6 +11,9 @@ context: |
   - SQLAlchemy 2.x
   - Postgres (Neon in production), SQLite in tests
   - Pydantic v2
+  - React + TypeScript (frontend)
+  - React Router + TanStack Query + Tailwind (frontend)
+  - Vitest + Testing Library (frontend tests)
 
   API contract rules:
   - Success payload media type: application/vnd.budgetbuddy.v1+json
@@ -26,17 +29,32 @@ context: |
   - Keep implementation aligned with OpenAPI and OpenSpec specs
   - Run tests from backend/.venv
   - Coverage target: >= 90% for app package
+  - For frontend changes run: npm run test, npm run test:coverage, npm run build
+  - Frontend quality target: >= 85% global coverage and >= 90% in critical flows
+  - No flaky tests allowed before archive
+
+  Frontend global policy:
+  - Prefer enterprise-grade scalable design decisions for each new frontend spec.
+  - Document architecture boundaries and state strategy in design.md.
+  - Keep API-client behavior contract-strict and ProblemDetails-aware.
+  - UX/UI should be innovative and high quality without sacrificing accessibility.
+  - Each frontend spec must define testable WHEN/THEN scenarios for states, accessibility, and responsive behavior.
 
 rules:
   proposal:
     - Reference impacted OpenAPI paths and components explicitly.
     - Include backwards-compatibility and media-type impact.
+    - For frontend changes, include affected user flows, route impacts, and UX quality goals.
   design:
     - Document error taxonomy and canonical ProblemDetails constants.
     - Describe how changes preserve contract-first behavior.
+    - For frontend changes, document architecture boundaries and cache/invalidation strategy.
+    - For frontend changes, explain accessibility and responsive decisions.
   specs:
     - Use clear requirement names and scenario language (WHEN/THEN).
     - Prefer incremental MODIFIED requirements over full rewrites.
+    - For frontend changes, encode loading/empty/success/error UX and error semantics as requirements.
   tasks:
     - Include implementation, tests, and verification steps.
     - Mark coverage/test command to run from backend with .venv activated.
+    - For frontend changes, always include unit + integration + smoke test tasks with commands.
