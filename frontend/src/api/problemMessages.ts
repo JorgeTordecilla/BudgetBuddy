@@ -5,6 +5,7 @@ const ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-arch
 const CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived";
 const BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate";
 const CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned";
+const INVALID_DATE_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/invalid-date-range";
 
 const STATUS_FALLBACK_TITLE: Record<number, string> = {
   400: "Invalid request",
@@ -69,6 +70,27 @@ export function mapBudgetProblem(problem: ProblemDetails | null, status: number,
     return {
       ...normalized,
       detail: normalized.detail ?? "Selected category is not available. Choose another."
+    };
+  }
+
+  return {
+    ...normalized,
+    title: normalized.title || STATUS_FALLBACK_TITLE[normalized.status] || fallbackTitle
+  };
+}
+
+export function mapAnalyticsProblem(problem: ProblemDetails | null, status: number, fallbackTitle: string): ProblemDetails {
+  const normalized: ProblemDetails = problem ?? {
+    type: "about:blank",
+    title: STATUS_FALLBACK_TITLE[status] ?? fallbackTitle,
+    status
+  };
+
+  if (normalized.type === INVALID_DATE_RANGE_TYPE) {
+    return {
+      ...normalized,
+      title: normalized.title || "Invalid date range",
+      detail: normalized.detail ?? "The start date must be on or before the end date."
     };
   }
 

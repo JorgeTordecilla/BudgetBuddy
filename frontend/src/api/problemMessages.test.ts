@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapBudgetProblem, mapTransactionProblem } from "@/api/problemMessages";
+import { mapAnalyticsProblem, mapBudgetProblem, mapTransactionProblem } from "@/api/problemMessages";
 
 describe("mapTransactionProblem", () => {
   it("maps category-type-mismatch to deterministic detail", () => {
@@ -125,5 +125,28 @@ describe("mapBudgetProblem", () => {
     const mapped = mapBudgetProblem(null, 401, "Failed to load budgets");
     expect(mapped.title).toBe("Unauthorized");
     expect(mapped.status).toBe(401);
+  });
+});
+
+describe("mapAnalyticsProblem", () => {
+  it("maps invalid-date-range to deterministic detail", () => {
+    const mapped = mapAnalyticsProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/invalid-date-range",
+        title: "",
+        status: 400
+      },
+      400,
+      "Failed to load analytics"
+    );
+
+    expect(mapped.title).toBe("Invalid date range");
+    expect(mapped.detail).toBe("The start date must be on or before the end date.");
+  });
+
+  it("maps status fallback titles for analytics", () => {
+    expect(mapAnalyticsProblem(null, 401, "Failed").title).toBe("Unauthorized");
+    expect(mapAnalyticsProblem(null, 406, "Failed").title).toBe("Client contract error");
+    expect(mapAnalyticsProblem(null, 429, "Failed").title).toBe("Too Many Requests");
   });
 });

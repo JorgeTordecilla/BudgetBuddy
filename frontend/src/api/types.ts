@@ -144,3 +144,28 @@ export type BudgetUpdate = {
   limit_cents?: number;
   archived_at?: string | null;
 };
+
+export type AnalyticsByMonthItem = {
+  month: string;
+  income_total_cents: number;
+  expense_total_cents: number;
+  budget_spent_cents?: number;
+  budget_limit_cents?: number;
+};
+
+export type AnalyticsByMonthResponse = {
+  items: AnalyticsByMonthItem[];
+};
+
+export type AnalyticsByCategoryItem = {
+  category_id: string;
+  category_name: string;
+  income_total_cents: number;
+  expense_total_cents: number;
+  budget_spent_cents?: number;
+  budget_limit_cents?: number;
+};
+
+export type AnalyticsByCategoryResponse = {
+  items: AnalyticsByCategoryItem[];
+};

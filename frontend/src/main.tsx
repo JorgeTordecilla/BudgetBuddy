@@ -5,6 +5,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 
 import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
+import AnalyticsPage from "@/features/analytics/AnalyticsPage";
 import BudgetsPage from "@/features/budgets/BudgetsPage";
 import AccountsPage from "@/pages/AccountsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/app/dashboard" replace /> },
       { path: "dashboard", element: <Dashboard /> },
+      { path: "analytics", element: <AnalyticsPage /> },
       { path: "accounts", element: <AccountsPage /> },
       { path: "categories", element: <CategoriesPage /> },
       { path: "budgets", element: <BudgetsPage /> },

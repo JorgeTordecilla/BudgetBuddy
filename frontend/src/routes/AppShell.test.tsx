@@ -98,6 +98,7 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByRole("link", { name: "Accounts" })).toHaveAttribute("href", "/app/accounts");
+    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("href", "/app/analytics");
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/app/categories");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/app/budgets");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute("href", "/app/transactions");
@@ -184,6 +185,42 @@ describe("AppShell", () => {
     );
 
     expect(await screen.findByText("Budgets content")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+  });
+
+  it("renders analytics route under RequireAuth and AppShell", async () => {
+    render(
+      <AuthContext.Provider
+        value={{
+          apiClient: apiClientStub,
+          user: { id: "u1", username: "demo", currency_code: "USD" },
+          accessToken: "token",
+          isAuthenticated: true,
+          isBootstrapping: false,
+          login: async () => undefined,
+          logout: async () => undefined,
+          bootstrapSession: async () => true
+        }}
+      >
+        <MemoryRouter initialEntries={["/app/analytics"]}>
+          <Routes>
+            <Route
+              path="/app"
+              element={(
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              )}
+            >
+              <Route path="analytics" element={<div>Analytics content</div>} />
+            </Route>
+            <Route path="/login" element={<div>Login page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    expect(await screen.findByText("Analytics content")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 });

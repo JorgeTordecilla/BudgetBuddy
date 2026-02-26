@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const appLinks = [
   { to: "/app/dashboard", label: "Dashboard" },
+  { to: "/app/analytics", label: "Analytics" },
   { to: "/app/accounts", label: "Accounts" },
   { to: "/app/categories", label: "Categories" },
   { to: "/app/budgets", label: "Budgets" },
