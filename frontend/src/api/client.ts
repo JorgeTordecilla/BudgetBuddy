@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "@/config";
-import type { AuthSessionResponse, User } from "@/api/types";
+import type { AuthSessionResponse, ProblemDetails, User } from "@/api/types";
 
-const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
+export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 
 type AuthBindings = {
   getAccessToken: () => string | null;
@@ -19,6 +19,8 @@ type RequestOptions = {
   auth?: boolean;
   retryOn401?: boolean;
 };
+
+const PROBLEM_MEDIA_TYPE = "application/problem+json";
 
 function requestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -46,6 +48,18 @@ function logFailureDev(requestIdValue: string, response: Response): void {
       status: response.status,
       statusText: response.statusText
     });
+  }
+}
+
+export async function readProblemDetails(response: Response): Promise<ProblemDetails | null> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes(PROBLEM_MEDIA_TYPE)) {
+    return null;
+  }
+  try {
+    return (await response.clone().json()) as ProblemDetails;
+  } catch {
+    return null;
   }
 }
 
@@ -140,3 +154,5 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     }
   };
 }
+
+export type ApiClient = ReturnType<typeof createApiClient>;

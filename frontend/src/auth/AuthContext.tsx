@@ -1,9 +1,11 @@
 import { createContext, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { createApiClient } from "@/api/client";
+import type { ApiClient } from "@/api/client";
 import type { User } from "@/api/types";
 
 type AuthContextValue = {
+  apiClient: ApiClient;
   user: User | null;
   accessToken: string | null;
   isAuthenticated: boolean;
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = useMemo(
     () => ({
+      apiClient: client,
       user: session.user,
       accessToken: session.accessToken,
       isAuthenticated: Boolean(session.accessToken),
@@ -76,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       bootstrapSession
     }),
-    [session.user, session.accessToken, isBootstrapping, login, logout, bootstrapSession]
+    [client, session.user, session.accessToken, isBootstrapping, login, logout, bootstrapSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

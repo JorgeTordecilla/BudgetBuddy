@@ -2,8 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
 import RequireAuth from "@/routes/RequireAuth";
+
+const apiClientStub = {} as ApiClient;
 
 function renderWithAuth(value: Parameters<typeof AuthContext.Provider>[0]["value"]) {
   return render(
@@ -28,6 +31,7 @@ function renderWithAuth(value: Parameters<typeof AuthContext.Provider>[0]["value
 describe("RequireAuth", () => {
   it("renders protected content when authenticated", () => {
     renderWithAuth({
+      apiClient: apiClientStub,
       user: { id: "u1", username: "demo", currency_code: "USD" },
       accessToken: "token",
       isAuthenticated: true,
@@ -42,6 +46,7 @@ describe("RequireAuth", () => {
   it("redirects to login when bootstrap fails", async () => {
     const bootstrapSession = vi.fn(async () => false);
     renderWithAuth({
+      apiClient: apiClientStub,
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -54,4 +59,3 @@ describe("RequireAuth", () => {
     expect(bootstrapSession).toHaveBeenCalledTimes(1);
   });
 });
-

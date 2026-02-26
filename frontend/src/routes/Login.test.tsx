@@ -2,8 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
 import Login from "@/routes/Login";
+
+const apiClientStub = {} as ApiClient;
 
 describe("Login route", () => {
   it("submits credentials and redirects to protected page", async () => {
@@ -12,6 +15,7 @@ describe("Login route", () => {
     render(
       <AuthContext.Provider
         value={{
+          apiClient: apiClientStub,
           user: null,
           accessToken: null,
           isAuthenticated: false,
@@ -42,6 +46,7 @@ describe("Login route", () => {
     render(
       <AuthContext.Provider
         value={{
+          apiClient: apiClientStub,
           user: { id: "u1", username: "demo", currency_code: "USD" },
           accessToken: "token",
           isAuthenticated: true,
@@ -69,6 +74,7 @@ describe("Login route", () => {
     render(
       <AuthContext.Provider
         value={{
+          apiClient: apiClientStub,
           user: null,
           accessToken: null,
           isAuthenticated: false,

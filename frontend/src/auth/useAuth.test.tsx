@@ -4,8 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import { AuthContext } from "@/auth/AuthContext";
 import { useAuth } from "@/auth/useAuth";
+import type { ApiClient } from "@/api/client";
+
+const apiClientStub = {} as ApiClient;
 
 const value = {
+  apiClient: apiClientStub,
   user: null,
   accessToken: null,
   isAuthenticated: false,
