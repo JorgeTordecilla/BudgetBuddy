@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
@@ -76,8 +76,24 @@ function normalizeOptional(value: string): string | null {
 export default function TransactionsPage() {
   const { apiClient, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
+  const initialFilters = useMemo<TransactionFilters>(() => {
+    const paramsType = searchParams.get("type");
+    const normalizedType = paramsType === "income" || paramsType === "expense" ? paramsType : "all";
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    const hasValidDateRange = Boolean(from && to && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to);
+    return {
+      ...DEFAULT_FILTERS,
+      type: normalizedType,
+      accountId: searchParams.get("account_id") ?? "",
+      categoryId: searchParams.get("category_id") ?? "",
+      from: hasValidDateRange ? (from as string) : DEFAULT_FILTERS.from,
+      to: hasValidDateRange ? (to as string) : DEFAULT_FILTERS.to
+    };
+  }, [searchParams]);
+  const [filters, setFilters] = useState<TransactionFilters>(initialFilters);
   const [items, setItems] = useState<Transaction[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);

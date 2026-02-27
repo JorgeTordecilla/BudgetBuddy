@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -60,7 +61,14 @@ function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
 export default function BudgetsPage() {
   const { apiClient, user } = useAuth();
   const queryClient = useQueryClient();
-  const initialMonth = currentMonth();
+  const [searchParams] = useSearchParams();
+  const initialMonth = useMemo(() => {
+    const month = searchParams.get("month");
+    if (month && isValidMonth(month)) {
+      return month;
+    }
+    return currentMonth();
+  }, [searchParams]);
   const [draftFrom, setDraftFrom] = useState(initialMonth);
   const [draftTo, setDraftTo] = useState(initialMonth);
   const [appliedRange, setAppliedRange] = useState({ from: initialMonth, to: initialMonth });

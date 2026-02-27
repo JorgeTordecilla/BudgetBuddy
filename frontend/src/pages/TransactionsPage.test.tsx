@@ -38,13 +38,13 @@ vi.mock("@/api/transactions", () => ({
 
 const apiClientStub = {} as ApiClient;
 
-function renderPage() {
+function renderPage(initialEntries = ["/app/transactions"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
 
   return render(
-    <MemoryRouter initialEntries={["/app/transactions"]}>
+    <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider
           value={{
@@ -377,6 +377,20 @@ describe("TransactionsPage", () => {
           includeArchived: true
         })
       )
+    );
+  });
+
+  it("prefills filters from valid query params", async () => {
+    renderPage(["/app/transactions?from=2026-02-01&to=2026-02-28&type=income"]);
+    await screen.findByText("Market");
+
+    expect(listTransactions).toHaveBeenCalledWith(
+      apiClientStub,
+      expect.objectContaining({
+        type: "income",
+        from: "2026-02-01",
+        to: "2026-02-28"
+      })
     );
   });
 

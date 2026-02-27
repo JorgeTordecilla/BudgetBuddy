@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
 import { ApiProblemError } from "@/api/problem";
@@ -15,27 +16,29 @@ vi.mock("@/api/analytics", () => ({
 
 const apiClientStub = {} as ApiClient;
 
-function renderPage() {
+function renderPage(initialEntries = ["/app/analytics"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: { id: "u1", username: "demo", currency_code: "USD" },
-          accessToken: "token",
-          isAuthenticated: true,
-          isBootstrapping: false,
-          login: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => true
-        }}
-      >
-        <AnalyticsPage />
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider
+          value={{
+            apiClient: apiClientStub,
+            user: { id: "u1", username: "demo", currency_code: "USD" },
+            accessToken: "token",
+            isAuthenticated: true,
+            isBootstrapping: false,
+            login: async () => undefined,
+            logout: async () => undefined,
+            bootstrapSession: async () => true
+          }}
+        >
+          <AnalyticsPage />
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -112,6 +115,14 @@ describe("AnalyticsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(screen.getByText("From date must be on or before To date.")).toBeInTheDocument();
+  });
+
+  it("uses valid URL query range as initial applied range", async () => {
+    renderPage(["/app/analytics?from=2026-02-01&to=2026-02-28"]);
+
+    await waitFor(() =>
+      expect(getAnalyticsByMonth).toHaveBeenCalledWith(apiClientStub, { from: "2026-02-01", to: "2026-02-28" })
+    );
   });
 
   it("shows retry-after hint on 429 response", async () => {

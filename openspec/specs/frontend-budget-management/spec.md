@@ -27,6 +27,16 @@ The frontend SHALL expose a protected budgets page under the authenticated app s
 - **THEN** frontend SHALL sort items by month descending
 - **AND** frontend SHALL use category label ascending as a stable tie-breaker.
 
+#### Scenario: Budgets route accepts initial month from URL query
+- **WHEN** user navigates to `/app/budgets?month=<YYYY-MM>`
+- **THEN** frontend SHALL initialize both `from` and `to` range controls using that month when valid
+- **AND** initial budgets request SHALL use the URL-provided month range.
+
+#### Scenario: Invalid month query falls back safely
+- **WHEN** `month` query param is absent or invalid
+- **THEN** frontend SHALL fallback to existing current-month default behavior
+- **AND** SHALL avoid issuing invalid month-range requests during initialization.
+
 ### Requirement: Budget create and update flows must be contract-strict
 The frontend SHALL support budget creation and partial updates using vendor media type and integer-cents payloads.
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { ApiProblemError } from "@/api/errors";
 import type { AnalyticsByCategoryItem, AnalyticsByMonthItem } from "@/api/types";
@@ -24,10 +25,19 @@ function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsB
 
 export default function AnalyticsPage() {
   const { apiClient, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialRange = useMemo(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (from && to && isValidDateRange(from, to)) {
+      return { from, to };
+    }
+    return defaultAnalyticsRange();
+  }, [searchParams]);
   const [showBudgetOverlay, setShowBudgetOverlay] = useState(true);
   const [metric, setMetric] = useState<MetricType>("expense");
-  const [draftRange, setDraftRange] = useState(defaultAnalyticsRange);
-  const [appliedRange, setAppliedRange] = useState(defaultAnalyticsRange);
+  const [draftRange, setDraftRange] = useState(initialRange);
+  const [appliedRange, setAppliedRange] = useState(initialRange);
   const [rangeError, setRangeError] = useState<string | null>(null);
 
   const rangeValid = isValidDateRange(appliedRange.from, appliedRange.to);

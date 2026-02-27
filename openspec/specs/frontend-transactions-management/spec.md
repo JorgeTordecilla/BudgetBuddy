@@ -23,6 +23,16 @@ The frontend SHALL expose a protected transactions experience under the private 
 - **THEN** it SHALL call `GET /transactions` with vendor `Accept` header and auth context
 - **AND** it SHALL support cursor-based pagination using `next_cursor`.
 
+#### Scenario: Transactions route accepts initial filters from URL query
+- **WHEN** user navigates to `/app/transactions` with valid query params (`from`, `to`, `type`, optional `account_id`, optional `category_id`)
+- **THEN** frontend SHALL initialize filters from URL values
+- **AND** initial transactions list request SHALL use the URL-provided filters.
+
+#### Scenario: Invalid query filters fall back safely
+- **WHEN** URL query params are invalid or unsupported
+- **THEN** frontend SHALL fallback to existing default filter values
+- **AND** SHALL avoid emitting invalid list requests from initialization.
+
 ### Requirement: Transaction create and update flows must follow contract
 The frontend SHALL support creating and updating transactions with deterministic payload and response handling.
 

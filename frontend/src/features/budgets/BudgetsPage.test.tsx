@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import type { ApiClient } from "@/api/client";
 import { archiveBudget, createBudget, listBudgets, updateBudget } from "@/api/budgets";
@@ -22,27 +23,29 @@ vi.mock("@/api/categories", () => ({
 
 const apiClientStub = {} as ApiClient;
 
-function renderPage() {
+function renderPage(initialEntries = ["/app/budgets"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: { id: "u1", username: "demo", currency_code: "USD" },
-          accessToken: "token",
-          isAuthenticated: true,
-          isBootstrapping: false,
-          login: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => true
-        }}
-      >
-        <BudgetsPage />
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider
+          value={{
+            apiClient: apiClientStub,
+            user: { id: "u1", username: "demo", currency_code: "USD" },
+            accessToken: "token",
+            isAuthenticated: true,
+            isBootstrapping: false,
+            login: async () => undefined,
+            logout: async () => undefined,
+            bootstrapSession: async () => true
+          }}
+        >
+          <BudgetsPage />
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -140,6 +143,13 @@ describe("BudgetsPage", () => {
 
     await waitFor(() => expect(listBudgets).toHaveBeenCalledTimes(2));
     expect(listBudgets).toHaveBeenLastCalledWith(apiClientStub, { from: "2026-01", to: "2026-04" });
+  });
+
+  it("prefills month range from valid query param", async () => {
+    renderPage(["/app/budgets?month=2026-01"]);
+    await screen.findByText("2026-03");
+
+    expect(listBudgets).toHaveBeenCalledWith(apiClientStub, { from: "2026-01", to: "2026-01" });
   });
 
   it("sorts budgets by month descending", async () => {

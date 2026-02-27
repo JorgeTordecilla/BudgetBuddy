@@ -19,6 +19,16 @@ The frontend SHALL expose an authenticated analytics page under the app shell an
 - `GET /analytics/by-category?from=<YYYY-MM-DD>&to=<YYYY-MM-DD>`
 - **AND** the UI SHALL render explicit loading, empty, success, and error states.
 
+#### Scenario: Analytics route accepts initial range from URL query
+- **WHEN** user navigates to `/app/analytics?from=<YYYY-MM-DD>&to=<YYYY-MM-DD>`
+- **THEN** frontend SHALL initialize draft and applied range state from query params when valid
+- **AND** initial analytics requests SHALL use that URL-provided range.
+
+#### Scenario: Invalid URL range falls back safely
+- **WHEN** URL query params are missing or invalid for analytics date range
+- **THEN** frontend SHALL fallback to existing default range behavior
+- **AND** SHALL avoid issuing invalid-date requests during initialization.
+
 ### Requirement: Monthly analytics trend must render income, expense, and budget overlay context
 The frontend SHALL present monthly trend data with deterministic cents formatting and budget overlay indicators.
 
