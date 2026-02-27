@@ -7,6 +7,7 @@ import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
 import AnalyticsPage from "@/features/analytics/AnalyticsPage";
 import BudgetsPage from "@/features/budgets/BudgetsPage";
+import TransactionsImportPage from "@/features/transactions/import/TransactionsImportPage";
 import AccountsPage from "@/pages/AccountsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import TransactionsPage from "@/pages/TransactionsPage";
@@ -32,7 +33,8 @@ const router = createBrowserRouter([
       { path: "accounts", element: <AccountsPage /> },
       { path: "categories", element: <CategoriesPage /> },
       { path: "budgets", element: <BudgetsPage /> },
-      { path: "transactions", element: <TransactionsPage /> }
+      { path: "transactions", element: <TransactionsPage /> },
+      { path: "transactions/import", element: <TransactionsImportPage /> }
     ]
   }
 ]);

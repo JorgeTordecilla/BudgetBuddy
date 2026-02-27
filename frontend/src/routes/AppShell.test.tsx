@@ -223,4 +223,40 @@ describe("AppShell", () => {
     expect(await screen.findByText("Analytics content")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
+
+  it("renders import route under RequireAuth and AppShell", async () => {
+    render(
+      <AuthContext.Provider
+        value={{
+          apiClient: apiClientStub,
+          user: { id: "u1", username: "demo", currency_code: "USD" },
+          accessToken: "token",
+          isAuthenticated: true,
+          isBootstrapping: false,
+          login: async () => undefined,
+          logout: async () => undefined,
+          bootstrapSession: async () => true
+        }}
+      >
+        <MemoryRouter initialEntries={["/app/transactions/import"]}>
+          <Routes>
+            <Route
+              path="/app"
+              element={(
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              )}
+            >
+              <Route path="transactions/import" element={<div>Import content</div>} />
+            </Route>
+            <Route path="/login" element={<div>Login page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    expect(await screen.findByText("Import content")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+  });
 });

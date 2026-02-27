@@ -23,6 +23,11 @@ describe("shared components", () => {
     expect(screen.queryByRole("button", { name: "New" })).not.toBeInTheDocument();
   });
 
+  it("renders custom actions when provided", () => {
+    render(<PageHeader title="Accounts" actions={<button type="button">Custom</button>} />);
+    expect(screen.getByRole("button", { name: "Custom" })).toBeInTheDocument();
+  });
+
   it("renders title-only page header", () => {
     render(<PageHeader title="Accounts" />);
     expect(screen.getByRole("heading", { name: "Accounts" })).toBeInTheDocument();

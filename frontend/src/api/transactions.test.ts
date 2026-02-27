@@ -5,20 +5,48 @@ import { ApiProblemError } from "@/api/problem";
 import {
   archiveTransaction,
   createTransaction,
+  importTransactions,
   listTransactions,
   restoreTransaction,
   updateTransaction
 } from "@/api/transactions";
 
+type SessionBinding = { accessToken: string | null };
+
 function makeClient(fetchImpl: typeof fetch) {
+  const binding: SessionBinding = { accessToken: "access-123" };
   return createApiClient(
     {
-      getAccessToken: () => "access-123",
-      setSession: () => undefined,
-      clearSession: () => undefined
+      getAccessToken: () => binding.accessToken,
+      setSession: (next) => {
+        binding.accessToken = next.accessToken;
+      },
+      clearSession: () => {
+        binding.accessToken = null;
+      }
     },
     { fetchImpl, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
   );
+}
+
+function makeClientWithSpies(fetchImpl: typeof fetch) {
+  const binding: SessionBinding = { accessToken: "access-123" };
+  const setSession = vi.fn((next: { accessToken: string }) => {
+    binding.accessToken = next.accessToken;
+  });
+  const clearSession = vi.fn(() => {
+    binding.accessToken = null;
+  });
+
+  const client = createApiClient(
+    {
+      getAccessToken: () => binding.accessToken,
+      setSession,
+      clearSession
+    },
+    { fetchImpl, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+  );
+  return { client, setSession, clearSession };
 }
 
 describe("transactions api wrappers", () => {
@@ -164,6 +192,36 @@ describe("transactions api wrappers", () => {
     } satisfies Partial<ApiProblemError>);
   });
 
+  it("imports transactions with contract path", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          created_count: 1,
+          failed_count: 1,
+          failures: [{ index: 1, message: "invalid item" }]
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const client = makeClient(fetchMock);
+    const result = await importTransactions(client, {
+      mode: "partial",
+      items: [
+        {
+          type: "expense",
+          account_id: "a1",
+          category_id: "c1",
+          amount_cents: 1200,
+          date: "2026-02-01"
+        }
+      ]
+    });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/transactions/import");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(result.created_count).toBe(1);
+  });
+
   it("omits optional query params when using defaults", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ items: [], next_cursor: null }), {
@@ -228,5 +286,77 @@ describe("transactions api wrappers", () => {
     await expect(archiveTransaction(makeClient(archiveFetch), "t1")).rejects.toMatchObject({
       status: 403
     } satisfies Partial<ApiProblemError>);
+
+    const importFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/import-batch-limit-exceeded",
+          title: "Import limit exceeded",
+          status: 400
+        }),
+        { status: 400, headers: { "content-type": "application/problem+json" } }
+      )
+    );
+    await expect(
+      importTransactions(makeClient(importFetch), {
+        mode: "partial",
+        items: [
+          {
+            type: "expense",
+            account_id: "a1",
+            category_id: "c1",
+            amount_cents: 100,
+            date: "2026-02-01"
+          }
+        ]
+      })
+    ).rejects.toMatchObject({ status: 400 } satisfies Partial<ApiProblemError>);
+  });
+
+  it("retries import once after 401 using refresh flow", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: { id: "u1", username: "demo", currency_code: "USD" },
+            access_token: "access-456",
+            access_token_expires_in: 900
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            created_count: 1,
+            failed_count: 0,
+            failures: []
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+
+    const { client, setSession, clearSession } = makeClientWithSpies(fetchMock);
+    const response = await importTransactions(client, {
+      mode: "partial",
+      items: [
+        {
+          type: "expense",
+          account_id: "a1",
+          category_id: "c1",
+          amount_cents: 100,
+          date: "2026-02-01"
+        }
+      ]
+    });
+
+    expect(response.created_count).toBe(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/transactions/import");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/auth/refresh");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/transactions/import");
+    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
   });
 });

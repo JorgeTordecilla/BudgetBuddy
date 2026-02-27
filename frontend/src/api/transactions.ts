@@ -4,6 +4,8 @@ import { ApiProblemError } from "@/api/problem";
 import type {
   Transaction,
   TransactionCreate,
+  TransactionImportRequest,
+  TransactionImportResult,
   TransactionsListResponse,
   TransactionType,
   TransactionUpdate
@@ -87,4 +89,15 @@ export async function archiveTransaction(client: ApiClient, transactionId: strin
 
 export async function restoreTransaction(client: ApiClient, transactionId: string): Promise<Transaction> {
   return updateTransaction(client, transactionId, { archived_at: null });
+}
+
+export async function importTransactions(client: ApiClient, payload: TransactionImportRequest): Promise<TransactionImportResult> {
+  const response = await client.request("/transactions/import", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_import_failed");
+  }
+  return (await response.json()) as TransactionImportResult;
 }

@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
@@ -66,6 +67,7 @@ function normalizeOptional(value: string): string | null {
 
 export default function TransactionsPage() {
   const { apiClient } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
   const [items, setItems] = useState<Transaction[]>([]);
@@ -77,6 +79,8 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Transaction | null>(null);
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const moreActionsRef = useRef<HTMLDivElement | null>(null);
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -209,6 +213,31 @@ export default function TransactionsPage() {
   useEffect(() => {
     setPageProblem(null);
   }, [filters]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!moreActionsRef.current) {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof Node && !moreActionsRef.current.contains(target)) {
+        setMoreActionsOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMoreActionsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   function setField(field: keyof TransactionFormState, value: string) {
     setFormState((previous) => {
@@ -393,8 +422,42 @@ export default function TransactionsPage() {
       <PageHeader
         title="Transactions"
         description="Create, update, restore, and archive transactions with contract-safe behavior."
-        actionLabel="New transaction"
-        onAction={openCreateModal}
+        actions={(
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+            <Button type="button" onClick={openCreateModal}>
+              New transaction
+            </Button>
+            <div className="relative" ref={moreActionsRef}>
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="More options"
+                onClick={() => setMoreActionsOpen((current) => !current)}
+                className="h-10 w-10 px-0 text-xl leading-none"
+              >
+                ⋮
+              </Button>
+              {moreActionsOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border bg-card p-2 shadow-lg">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mb-2 w-full justify-start"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    navigate("/app/transactions/import");
+                  }}
+                >
+                  Import
+                </Button>
+                <Button type="button" variant="outline" className="w-full justify-start" disabled>
+                  Export (coming soon)
+                </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
       >
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
           <label className="inline-flex items-center gap-2">

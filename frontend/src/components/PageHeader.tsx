@@ -8,6 +8,7 @@ type PageHeaderProps = {
   actionLabel?: string;
   onAction?: () => void;
   actionDisabled?: boolean;
+  actions?: ReactNode;
   children?: ReactNode;
 };
 
@@ -17,6 +18,7 @@ export default function PageHeader({
   actionLabel,
   onAction,
   actionDisabled = false,
+  actions,
   children
 }: PageHeaderProps) {
   return (
@@ -26,11 +28,11 @@ export default function PageHeader({
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         {children}
       </div>
-      {actionLabel && onAction ? (
+      {actions ?? (actionLabel && onAction ? (
         <Button type="button" className="w-full sm:w-auto" onClick={onAction} disabled={actionDisabled}>
           {actionLabel}
         </Button>
-      ) : null}
+      ) : null)}
     </header>
   );
 }

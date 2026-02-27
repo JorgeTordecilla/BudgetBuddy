@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -40,22 +41,27 @@ function renderPage() {
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: { id: "u1", username: "demo", currency_code: "USD" },
-          accessToken: "token",
-          isAuthenticated: true,
-          isBootstrapping: false,
-          login: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => true
-        }}
-      >
-        <TransactionsPage />
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={["/app/transactions"]}>
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider
+          value={{
+            apiClient: apiClientStub,
+            user: { id: "u1", username: "demo", currency_code: "USD" },
+            accessToken: "token",
+            isAuthenticated: true,
+            isBootstrapping: false,
+            login: async () => undefined,
+            logout: async () => undefined,
+            bootstrapSession: async () => true
+          }}
+        >
+          <Routes>
+            <Route path="/app/transactions" element={<TransactionsPage />} />
+            <Route path="/app/transactions/import" element={<div>Import page</div>} />
+          </Routes>
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -359,5 +365,23 @@ describe("TransactionsPage", () => {
         })
       )
     );
+  });
+
+  it("shows a compact more-options menu trigger in the page header", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    expect(screen.getByRole("button", { name: "New transaction" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
+  });
+
+  it("navigates to import page from the more-options menu", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+
+    expect(await screen.findByText("Import page")).toBeInTheDocument();
   });
 });

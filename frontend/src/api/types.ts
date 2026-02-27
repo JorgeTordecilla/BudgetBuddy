@@ -118,6 +118,25 @@ export type TransactionUpdate = {
   archived_at?: string | null;
 };
 
+export type TransactionImportMode = "partial" | "all_or_nothing";
+
+export type TransactionImportRequest = {
+  mode: TransactionImportMode;
+  items: TransactionCreate[];
+};
+
+export type TransactionImportFailure = {
+  index: number;
+  message: string;
+  problem?: ProblemDetails;
+};
+
+export type TransactionImportResult = {
+  created_count: number;
+  failed_count: number;
+  failures: TransactionImportFailure[];
+};
+
 export type Budget = {
   id: string;
   month: string;
