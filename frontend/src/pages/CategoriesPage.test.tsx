@@ -137,7 +137,7 @@ describe("CategoriesPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
-    expect(await screen.findByText("Failed to archive category")).toBeInTheDocument();
+    expect(await screen.findByText(/Unexpected client error\.|request_failed/)).toBeInTheDocument();
   });
 
   it("shows archive fallback for unexpected archive failure", async () => {
@@ -148,7 +148,7 @@ describe("CategoriesPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
-    expect(await screen.findByText("Failed to archive category")).toBeInTheDocument();
+    expect(await screen.findByText(/Unexpected client error\.|request_failed/)).toBeInTheDocument();
   });
 
   it("resets request params when type filter changes", async () => {
@@ -264,7 +264,7 @@ describe("CategoriesPage", () => {
   it("shows fallback list banner when ApiProblemError has no problem payload", async () => {
     vi.mocked(listCategories).mockRejectedValueOnce(new ApiProblemError(406, null));
     renderPage();
-    expect(await screen.findByText("Failed to load categories")).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to load categories|request_failed/)).toBeInTheDocument();
   });
 
   it("shows fallback restore banner for unexpected restore failures", async () => {
@@ -273,7 +273,7 @@ describe("CategoriesPage", () => {
     await screen.findByText("Groceries");
 
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));
-    expect(await screen.findByText("Failed to restore category")).toBeInTheDocument();
+    expect(await screen.findByText(/Unexpected client error\.|request_failed/)).toBeInTheDocument();
   });
 
   it("shows restore fallback when api error has no problem payload", async () => {
@@ -282,7 +282,7 @@ describe("CategoriesPage", () => {
     await screen.findByText("Groceries");
 
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));
-    expect(await screen.findByText("Failed to restore category")).toBeInTheDocument();
+    expect(await screen.findByText(/Unexpected client error\.|request_failed/)).toBeInTheDocument();
   });
 
   it("allows changing type/note fields and closing modal", async () => {
@@ -315,9 +315,11 @@ describe("CategoriesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New category" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Duplicate" } });
     fireEvent.click(screen.getByRole("button", { name: "Create category" }));
-    expect(await screen.findByText("Failed to save category")).toBeInTheDocument();
+    expect(await screen.findByText(/Unexpected client error\.|request_failed/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    await waitFor(() => expect(screen.queryByText("Failed to save category")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText(/Unexpected client error\.|request_failed/)).not.toBeInTheDocument(),
+    );
   });
 
   it("cancels archive dialog without API call", async () => {

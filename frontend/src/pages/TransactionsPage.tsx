@@ -4,8 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
-import { mapTransactionProblem } from "@/api/problemMessages";
-import { ApiProblemError } from "@/api/problem";
+import { ApiProblemError } from "@/api/errors";
 import {
   archiveTransaction,
   createTransaction,
@@ -23,8 +22,8 @@ import type {
 } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import ProblemBanner from "@/components/ProblemBanner";
 import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
 import TransactionRowActions from "@/components/transactions/TransactionRowActions";
 import { appendCursorPage } from "@/lib/pagination";
@@ -82,8 +81,8 @@ export default function TransactionsPage() {
   const [items, setItems] = useState<Transaction[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
-  const [pageProblem, setPageProblem] = useState<ProblemDetails | null>(null);
-  const [formProblem, setFormProblem] = useState<ProblemDetails | null>(null);
+  const [pageProblem, setPageProblem] = useState<unknown | null>(null);
+  const [formProblem, setFormProblem] = useState<unknown | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Transaction | null>(null);
@@ -104,20 +103,17 @@ export default function TransactionsPage() {
   ] as const;
   const isDateRangeInvalid = Boolean(filters.from && filters.to && filters.from > filters.to);
 
-  function toProblemDetails(error: unknown, title: string): ProblemDetails {
-    if (error instanceof ApiProblemError) {
-      return mapTransactionProblem(error.problem, error.status, title);
-    }
-    return {
-      type: "about:blank",
-      title,
-      status: 500,
-      detail: "Unexpected client error."
-    };
+  function toLocalProblem(problem: ProblemDetails): ApiProblemError {
+    return new ApiProblemError(problem, {
+      httpStatus: problem.status,
+      requestId: null,
+      retryAfter: null
+    });
   }
 
   const accountsQuery = useQuery({
     queryKey: ["accounts-options"],
+    meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listAccounts(apiClient, {
         includeArchived: false,
@@ -127,6 +123,7 @@ export default function TransactionsPage() {
 
   const categoriesQuery = useQuery({
     queryKey: ["categories-options"],
+    meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listCategories(apiClient, {
         includeArchived: false,
@@ -137,6 +134,7 @@ export default function TransactionsPage() {
 
   const transactionsQuery = useQuery({
     queryKey,
+    meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listTransactions(apiClient, {
         includeArchived: filters.includeArchived,
@@ -150,6 +148,7 @@ export default function TransactionsPage() {
   });
 
   const loadMoreMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: (cursor: string) =>
       listTransactions(apiClient, {
         includeArchived: filters.includeArchived,
@@ -167,11 +166,12 @@ export default function TransactionsPage() {
       setNextCursor(response.next_cursor);
     },
     onError: (error) => {
-      setPageProblem(toProblemDetails(error, "Failed to load transactions"));
+      setPageProblem(error);
     }
   });
 
   const saveMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: async (payload: TransactionCreate | TransactionUpdate) => {
       if (editing) {
         await updateTransaction(apiClient, editing.id, payload);
@@ -185,11 +185,12 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
     onError: (error) => {
-      setFormProblem(toProblemDetails(error, "Failed to save transaction"));
+      setFormProblem(error);
     }
   });
 
   const archiveMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: (transactionId: string) => archiveTransaction(apiClient, transactionId),
     onSuccess: async () => {
       setArchiveTarget(null);
@@ -197,22 +198,24 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
     onError: (error) => {
-      setPageProblem(toProblemDetails(error, "Failed to archive transaction"));
+      setPageProblem(error);
     }
   });
 
   const restoreMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: (transactionId: string) => restoreTransaction(apiClient, transactionId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       await queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
     onError: (error) => {
-      setPageProblem(toProblemDetails(error, "Failed to restore transaction"));
+      setPageProblem(error);
     }
   });
 
   const exportMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: () =>
       exportTransactionsCsv(apiClient, {
         type: filters.type,
@@ -228,7 +231,7 @@ export default function TransactionsPage() {
       setMoreActionsOpen(false);
     },
     onError: (error) => {
-      setPageProblem(toProblemDetails(error, "Export failed"));
+      setPageProblem(error);
     }
   });
 
@@ -242,7 +245,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     if (transactionsQuery.error) {
-      setPageProblem(toProblemDetails(transactionsQuery.error, "Failed to load transactions"));
+      setPageProblem(transactionsQuery.error);
     }
   }, [transactionsQuery.error]);
 
@@ -310,21 +313,21 @@ export default function TransactionsPage() {
   function buildCreatePayload(): TransactionCreate | null {
     const amount = Number(formState.amountCents);
     if (!Number.isInteger(amount) || amount <= 0) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
         detail: "amount_cents must be an integer greater than zero."
-      });
+      }));
       return null;
     }
     if (!formState.accountId || !formState.categoryId || !formState.date) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid request",
         status: 400,
         detail: "type, account, category, amount, and date are required."
-      });
+      }));
       return null;
     }
     return {
@@ -355,12 +358,12 @@ export default function TransactionsPage() {
     if (formState.amountCents !== String(editing.amount_cents)) {
       const amount = Number(formState.amountCents);
       if (!Number.isInteger(amount) || amount <= 0) {
-        setFormProblem({
+        setFormProblem(toLocalProblem({
           type: "about:blank",
           title: "Invalid amount",
           status: 400,
           detail: "amount_cents must be an integer greater than zero."
-        });
+        }));
         return null;
       }
       payload.amount_cents = amount;
@@ -377,12 +380,12 @@ export default function TransactionsPage() {
       payload.note = note;
     }
     if (Object.keys(payload).length === 0) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "No changes",
         status: 400,
         detail: "Update requires at least one changed field."
-      });
+      }));
       return null;
     }
     return payload;
@@ -597,6 +600,7 @@ export default function TransactionsPage() {
             <span className="inline-flex h-9 items-center gap-2 rounded-md border border-transparent px-1">
               <input
                 type="checkbox"
+                aria-label="Show archived"
                 checked={filters.includeArchived}
                 onChange={(event) =>
                   setFilters((previous) => ({
@@ -614,7 +618,7 @@ export default function TransactionsPage() {
         ) : null}
       </div>
 
-      <ProblemBanner problem={pageProblem} onClose={() => setPageProblem(null)} />
+      {pageProblem ? <ProblemDetailsInline error={pageProblem} onRetry={() => void transactionsQuery.refetch()} /> : null}
 
       <Card>
         <CardContent className="p-0">

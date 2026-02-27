@@ -1,6 +1,5 @@
 import type { ApiClient } from "@/api/client";
-import { readProblemDetails } from "@/api/client";
-import { ApiProblemError } from "@/api/problem";
+import { throwApiError } from "@/api/errors";
 import type { Budget, BudgetCreate, BudgetListResponse, BudgetUpdate } from "@/api/types";
 
 export type ListBudgetsParams = {
@@ -19,7 +18,7 @@ export async function listBudgets(client: ApiClient, params: ListBudgetsParams):
   const query = buildBudgetsQuery(params);
   const response = await client.request(`/budgets?${query}`, { method: "GET" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_list_failed");
+    await throwApiError(response, "budgets_list_failed");
   }
   return (await response.json()) as BudgetListResponse;
 }
@@ -30,7 +29,7 @@ export async function createBudget(client: ApiClient, payload: BudgetCreate): Pr
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_create_failed");
+    await throwApiError(response, "budgets_create_failed");
   }
   return (await response.json()) as Budget;
 }
@@ -38,7 +37,7 @@ export async function createBudget(client: ApiClient, payload: BudgetCreate): Pr
 export async function getBudget(client: ApiClient, budgetId: string): Promise<Budget> {
   const response = await client.request(`/budgets/${budgetId}`, { method: "GET" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_get_failed");
+    await throwApiError(response, "budgets_get_failed");
   }
   return (await response.json()) as Budget;
 }
@@ -49,7 +48,7 @@ export async function updateBudget(client: ApiClient, budgetId: string, payload:
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_update_failed");
+    await throwApiError(response, "budgets_update_failed");
   }
   return (await response.json()) as Budget;
 }
@@ -57,6 +56,6 @@ export async function updateBudget(client: ApiClient, budgetId: string, payload:
 export async function archiveBudget(client: ApiClient, budgetId: string): Promise<void> {
   const response = await client.request(`/budgets/${budgetId}`, { method: "DELETE" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_archive_failed");
+    await throwApiError(response, "budgets_archive_failed");
   }
 }

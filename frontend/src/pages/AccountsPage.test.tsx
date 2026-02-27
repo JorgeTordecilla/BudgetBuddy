@@ -242,7 +242,7 @@ describe("AccountsPage", () => {
     fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
-    expect(await screen.findByText("Failed to save account")).toBeInTheDocument();
+    expect(await screen.findByText("request_failed")).toBeInTheDocument();
   });
 
   it("shows fallback banner when archive fails unexpectedly", async () => {
@@ -264,7 +264,7 @@ describe("AccountsPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
-    expect(await screen.findByText("Failed to archive account")).toBeInTheDocument();
+    expect(await screen.findByText("request_failed")).toBeInTheDocument();
   });
 
   it("hides archive action for archived accounts", async () => {
@@ -318,9 +318,9 @@ describe("AccountsPage", () => {
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Duplicate" } });
     fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    expect(await screen.findByText("Failed to save account")).toBeInTheDocument();
+    expect(await screen.findByText("request_failed")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    await waitFor(() => expect(screen.queryByText("Failed to save account")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("request_failed")).not.toBeInTheDocument());
   });
 
   it("cancels archive dialog without API call", async () => {

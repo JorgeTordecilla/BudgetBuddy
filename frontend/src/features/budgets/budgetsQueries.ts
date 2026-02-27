@@ -19,6 +19,7 @@ export function useBudgetsList(apiClient: ApiClient, range: BudgetsRange, enable
   return useQuery({
     queryKey: budgetsKeys.list(range),
     enabled,
+    meta: { skipGlobalErrorToast: true },
     queryFn: () => listBudgets(apiClient, range),
     placeholderData: (previous) => previous
   });
@@ -28,6 +29,7 @@ export function useBudgetDetail(apiClient: ApiClient, budgetId: string, enabled:
   return useQuery({
     queryKey: budgetsKeys.detail(budgetId),
     enabled,
+    meta: { skipGlobalErrorToast: true },
     queryFn: () => getBudget(apiClient, budgetId)
   });
 }

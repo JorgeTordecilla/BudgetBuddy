@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 
-import type { Category, ProblemDetails } from "@/api/types";
+import type { Category } from "@/api/types";
 import ModalForm from "@/components/ModalForm";
-import ProblemBanner from "@/components/ProblemBanner";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 
 export type BudgetFormState = {
   month: string;
@@ -21,9 +21,8 @@ type Props = {
   submitting: boolean;
   state: BudgetFormState;
   categories: Category[];
-  problem: ProblemDetails | null;
+  problem: unknown | null;
   fieldErrors: BudgetFieldErrors;
-  onDismissProblem: () => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldChange: (field: keyof BudgetFormState, value: string) => void;
@@ -41,7 +40,6 @@ export default function BudgetFormModal({
   categories,
   problem,
   fieldErrors,
-  onDismissProblem,
   onClose,
   onSubmit,
   onFieldChange
@@ -95,7 +93,7 @@ export default function BudgetFormModal({
           />
           {fieldErrors.limit ? <p className="text-xs text-destructive">{fieldErrors.limit}</p> : null}
         </label>
-        <ProblemBanner problem={problem} onClose={onDismissProblem} />
+        {problem ? <ProblemDetailsInline error={problem} /> : null}
       </div>
     </ModalForm>
   );

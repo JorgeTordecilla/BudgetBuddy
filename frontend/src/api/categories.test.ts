@@ -149,9 +149,8 @@ describe("categories api wrappers", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("oops", { status: 500 }));
     const client = makeClient(fetchMock);
     await expect(archiveCategory(client, "c1")).rejects.toMatchObject({
-      name: "ApiProblemError",
-      status: 500,
-      problem: null
+      name: "ApiUnknownError",
+      status: 500
     });
   });
 });

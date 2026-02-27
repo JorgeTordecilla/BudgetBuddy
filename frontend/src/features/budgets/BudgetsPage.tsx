@@ -4,13 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { archiveBudget, createBudget, updateBudget } from "@/api/budgets";
 import { listCategories } from "@/api/categories";
-import { mapBudgetProblem } from "@/api/problemMessages";
-import { ApiProblemError } from "@/api/problem";
+import { ApiProblemError } from "@/api/errors";
 import type { Budget, BudgetCreate, BudgetUpdate, Category, ProblemDetails } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import ProblemBanner from "@/components/ProblemBanner";
 import { useBudgetsList, invalidateBudgetCaches } from "@/features/budgets/budgetsQueries";
 import BudgetFormModal, { type BudgetFormState } from "@/features/budgets/components/BudgetFormModal";
 import BudgetsTable from "@/features/budgets/components/BudgetsTable";
@@ -37,16 +36,12 @@ function currentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function toProblemDetails(error: unknown, title: string): ProblemDetails {
-  if (error instanceof ApiProblemError) {
-    return mapBudgetProblem(error.problem, error.status, title);
-  }
-  return {
-    type: "about:blank",
-    title,
-    status: 500,
-    detail: "Unexpected client error."
-  };
+function toLocalProblem(problem: ProblemDetails): ApiProblemError {
+  return new ApiProblemError(problem, {
+    httpStatus: problem.status,
+    requestId: null,
+    retryAfter: null
+  });
 }
 
 function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
@@ -72,8 +67,8 @@ export default function BudgetsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Budget | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Budget | null>(null);
-  const [pageProblem, setPageProblem] = useState<ProblemDetails | null>(null);
-  const [formProblem, setFormProblem] = useState<ProblemDetails | null>(null);
+  const [pageProblem, setPageProblem] = useState<unknown | null>(null);
+  const [formProblem, setFormProblem] = useState<unknown | null>(null);
   const [formFieldErrors, setFormFieldErrors] = useState<BudgetFieldErrors>({});
   const [formState, setFormState] = useState<BudgetFormState>(EMPTY_FORM);
 
@@ -102,8 +97,8 @@ export default function BudgetsPage() {
       await invalidateBudgetCaches(queryClient, editing?.id);
     },
     onError: (error) => {
-      const problem = toProblemDetails(error, "Failed to save budget");
-      setFormProblem(problem);
+      const problem = error instanceof ApiProblemError ? error.problem : null;
+      setFormProblem(error);
       setFormFieldErrors(mapFieldErrors(problem));
     }
   });
@@ -116,22 +111,22 @@ export default function BudgetsPage() {
       await invalidateBudgetCaches(queryClient, targetId);
     },
     onError: (error) => {
-      setPageProblem(toProblemDetails(error, "Failed to archive budget"));
+      setPageProblem(error);
     }
   });
 
   useEffect(() => {
     if (!rangeIsValid) {
-      setPageProblem({
+      setPageProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid date range",
         status: 400,
         detail: "Use YYYY-MM and ensure from is not later than to."
-      });
+      }));
       return;
     }
     if (budgetsQuery.error) {
-      setPageProblem(toProblemDetails(budgetsQuery.error, "Failed to load budgets"));
+      setPageProblem(budgetsQuery.error);
       return;
     }
     setPageProblem(null);
@@ -163,12 +158,12 @@ export default function BudgetsPage() {
 
   function applyRange() {
     if (!isValidMonthRange(draftFrom, draftTo)) {
-      setPageProblem({
+      setPageProblem(toLocalProblem({
         type: BUDGET_MONTH_INVALID_TYPE,
         title: "Invalid date range",
         status: 400,
         detail: "Use YYYY-MM and ensure from is not later than to."
-      });
+      }));
       return;
     }
     setPageProblem(null);
@@ -190,12 +185,12 @@ export default function BudgetsPage() {
 
   function buildCreatePayload(): BudgetCreate | null {
     if (!isValidMonth(formState.month) || !formState.categoryId) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: BUDGET_MONTH_INVALID_TYPE,
         title: "Invalid request",
         status: 400,
         detail: "month and category are required and month must be YYYY-MM."
-      });
+      }));
       if (!isValidMonth(formState.month)) {
         setFormFieldErrors((previous) => ({ ...previous, month: "Month must use YYYY-MM format." }));
       }
@@ -203,12 +198,12 @@ export default function BudgetsPage() {
     }
     const limitCents = parseLimitInputToCents(formState.limit);
     if (!limitCents) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: `${MONEY_AMOUNT_PREFIX}invalid`,
         title: "Invalid limit",
         status: 400,
         detail: "Limit must be a positive amount with up to two decimals."
-      });
+      }));
       setFormFieldErrors((previous) => ({ ...previous, limit: "Limit must be a positive amount with up to two decimals." }));
       return null;
     }
@@ -226,12 +221,12 @@ export default function BudgetsPage() {
     const payload: BudgetUpdate = {};
     if (formState.month !== editing.month) {
       if (!isValidMonth(formState.month)) {
-        setFormProblem({
+        setFormProblem(toLocalProblem({
           type: BUDGET_MONTH_INVALID_TYPE,
           title: "Invalid month",
           status: 400,
           detail: "month must use YYYY-MM format."
-        });
+        }));
         setFormFieldErrors((previous) => ({ ...previous, month: "Month must use YYYY-MM format." }));
         return null;
       }
@@ -239,24 +234,24 @@ export default function BudgetsPage() {
     }
     if (formState.categoryId !== editing.category_id) {
       if (!formState.categoryId) {
-        setFormProblem({
+        setFormProblem(toLocalProblem({
           type: "about:blank",
           title: "Invalid request",
           status: 400,
           detail: "category is required."
-        });
+        }));
         return null;
       }
       payload.category_id = formState.categoryId;
     }
     const parsedLimit = parseLimitInputToCents(formState.limit);
     if (!parsedLimit) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: `${MONEY_AMOUNT_PREFIX}invalid`,
         title: "Invalid limit",
         status: 400,
         detail: "Limit must be a positive amount with up to two decimals."
-      });
+      }));
       setFormFieldErrors((previous) => ({ ...previous, limit: "Limit must be a positive amount with up to two decimals." }));
       return null;
     }
@@ -264,12 +259,12 @@ export default function BudgetsPage() {
       payload.limit_cents = parsedLimit;
     }
     if (Object.keys(payload).length === 0) {
-      setFormProblem({
+      setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "No changes",
         status: 400,
         detail: "Update requires at least one changed field."
-      });
+      }));
       return null;
     }
     return payload;
@@ -356,7 +351,7 @@ export default function BudgetsPage() {
         </div>
       </PageHeader>
 
-      <ProblemBanner problem={pageProblem} onClose={() => setPageProblem(null)} />
+      {pageProblem ? <ProblemDetailsInline error={pageProblem} onRetry={() => void budgetsQuery.refetch()} /> : null}
 
       <Card>
         <CardContent className="p-0">
@@ -384,7 +379,6 @@ export default function BudgetsPage() {
         categories={categories}
         problem={formProblem}
         fieldErrors={formFieldErrors}
-        onDismissProblem={() => setFormProblem(null)}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         onFieldChange={setFormField}

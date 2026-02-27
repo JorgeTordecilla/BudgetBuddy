@@ -2,28 +2,14 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { mapTransactionProblem } from "@/api/problemMessages";
-import { ApiProblemError } from "@/api/problem";
 import { importTransactions } from "@/api/transactions";
-import type { ProblemDetails, TransactionImportMode, TransactionImportRequest, TransactionImportResult } from "@/api/types";
+import type { TransactionImportMode, TransactionImportRequest, TransactionImportResult } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import ProblemBanner from "@/components/ProblemBanner";
 import { parseImportInput } from "@/features/transactions/import/parseImportInput";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
-
-function toProblemDetails(error: unknown, title: string): ProblemDetails {
-  if (error instanceof ApiProblemError) {
-    return mapTransactionProblem(error.problem, error.status, title);
-  }
-  return {
-    type: "about:blank",
-    title,
-    status: 500,
-    detail: "Unexpected client error."
-  };
-}
 
 export default function TransactionsImportPage() {
   const { apiClient } = useAuth();
@@ -34,10 +20,11 @@ export default function TransactionsImportPage() {
   const [payload, setPayload] = useState<TransactionImportRequest | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
-  const [requestProblem, setRequestProblem] = useState<ProblemDetails | null>(null);
+  const [requestProblem, setRequestProblem] = useState<unknown | null>(null);
   const [result, setResult] = useState<TransactionImportResult | null>(null);
 
   const importMutation = useMutation({
+    meta: { skipGlobalErrorToast: true },
     mutationFn: (nextPayload: TransactionImportRequest) => importTransactions(apiClient, nextPayload),
     onSuccess: async (response) => {
       setRequestProblem(null);
@@ -47,7 +34,7 @@ export default function TransactionsImportPage() {
       await queryClient.invalidateQueries({ queryKey: ["budgets"] });
     },
     onError: (error) => {
-      setRequestProblem(toProblemDetails(error, "Import failed"));
+      setRequestProblem(error);
     }
   });
 
@@ -87,7 +74,7 @@ export default function TransactionsImportPage() {
         )}
       />
 
-      <ProblemBanner problem={requestProblem} onClose={() => setRequestProblem(null)} />
+      {requestProblem ? <ProblemDetailsInline error={requestProblem} /> : null}
 
       <Card>
         <CardContent className="space-y-4 p-4">

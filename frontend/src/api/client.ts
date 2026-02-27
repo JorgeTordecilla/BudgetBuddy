@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "@/config";
 import type { AuthSessionResponse, ProblemDetails, User } from "@/api/types";
+import { parseProblemDetails } from "@/api/errors";
 
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 
@@ -20,7 +21,6 @@ type RequestOptions = {
   retryOn401?: boolean;
 };
 
-const PROBLEM_MEDIA_TYPE = "application/problem+json";
 
 function requestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -52,15 +52,7 @@ function logFailureDev(requestIdValue: string, response: Response): void {
 }
 
 export async function readProblemDetails(response: Response): Promise<ProblemDetails | null> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes(PROBLEM_MEDIA_TYPE)) {
-    return null;
-  }
-  try {
-    return (await response.clone().json()) as ProblemDetails;
-  } catch {
-    return null;
-  }
+  return parseProblemDetails(response);
 }
 
 export function createApiClient(bindings: AuthBindings, options: ClientOptions = {}) {

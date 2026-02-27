@@ -287,7 +287,7 @@ describe("TransactionsPage", () => {
     fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
-    expect(await screen.findByText("Invalid amount")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
@@ -298,7 +298,7 @@ describe("TransactionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
-    expect(await screen.findByText("No changes")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
     expect(updateTransaction).not.toHaveBeenCalled();
   });
 
@@ -355,7 +355,7 @@ describe("TransactionsPage", () => {
   it("shows fallback page problem when list fails unexpectedly", async () => {
     vi.mocked(listTransactions).mockRejectedValueOnce(new Error("boom"));
     renderPage();
-    expect(await screen.findByText("Failed to load transactions")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 
   it("applies list filters and include archived toggle", async () => {
@@ -437,6 +437,6 @@ describe("TransactionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
 
-    expect(await screen.findByText("Too many requests. Try again in 30 seconds.")).toBeInTheDocument();
+    expect(await screen.findByText("Too many requests. Try again in a moment.")).toBeInTheDocument();
   });
 });

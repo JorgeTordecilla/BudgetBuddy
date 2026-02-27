@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 
-import { mapAnalyticsProblem } from "@/api/problemMessages";
-import { ApiProblemError } from "@/api/problem";
-import type { AnalyticsByCategoryItem, AnalyticsByMonthItem, ProblemDetails } from "@/api/types";
+import { ApiProblemError } from "@/api/errors";
+import type { AnalyticsByCategoryItem, AnalyticsByMonthItem } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import ProblemBanner from "@/components/ProblemBanner";
 import { useAnalyticsByCategory, useAnalyticsByMonth } from "@/features/analytics/analyticsQueries";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
@@ -14,10 +13,6 @@ import { defaultAnalyticsRange, isValidDateRange } from "@/utils/dates";
 import { formatCents } from "@/utils/money";
 
 type MetricType = "expense" | "income";
-
-type RetryAfterProblem = ProblemDetails & {
-  retryAfter?: string;
-};
 
 function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsByCategoryItem[]) {
   const incomeTotal = monthItems.reduce((sum, row) => sum + row.income_total_cents, 0);
@@ -50,31 +45,7 @@ export default function AnalyticsPage() {
     [monthItems, categoryItems]
   );
 
-  function toProblem(error: unknown, fallbackTitle: string): RetryAfterProblem {
-    if (error instanceof ApiProblemError) {
-      const mapped = mapAnalyticsProblem(error.problem, error.status, fallbackTitle);
-      return {
-        ...mapped,
-        retryAfter: (error as { retryAfter?: string }).retryAfter
-      };
-    }
-    return {
-      type: "about:blank",
-      title: fallbackTitle,
-      status: 500,
-      detail: "Unexpected client error."
-    };
-  }
-
-  const combinedProblem = useMemo(() => {
-    if (monthQuery.error) {
-      return toProblem(monthQuery.error, "Failed to load monthly analytics");
-    }
-    if (categoryQuery.error) {
-      return toProblem(categoryQuery.error, "Failed to load category analytics");
-    }
-    return null;
-  }, [categoryQuery.error, monthQuery.error]);
+  const combinedError = monthQuery.error ?? categoryQuery.error ?? null;
 
   function applyRange() {
     if (!isValidDateRange(draftRange.from, draftRange.to)) {
@@ -85,10 +56,9 @@ export default function AnalyticsPage() {
     setAppliedRange(draftRange);
   }
 
-  const invalidDateRangeProblem =
-    combinedProblem?.type === "https://api.budgetbuddy.dev/problems/invalid-date-range" ? combinedProblem : null;
-
-  const pageProblem = invalidDateRangeProblem ? null : combinedProblem;
+  const hasInvalidDateRangeError =
+    combinedError instanceof ApiProblemError &&
+    combinedError.problem.type === "https://api.budgetbuddy.dev/problems/invalid-date-range";
   const isLoading = monthQuery.isLoading || categoryQuery.isLoading;
 
   return (
@@ -132,18 +102,18 @@ export default function AnalyticsPage() {
       {rangeError ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{rangeError}</div>
       ) : null}
-      {invalidDateRangeProblem ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          {invalidDateRangeProblem.title}
-          {invalidDateRangeProblem.detail ? `: ${invalidDateRangeProblem.detail}` : ""}
-        </div>
+      {combinedError ? (
+        <ProblemDetailsInline
+          error={combinedError}
+          onRetry={() => {
+            void monthQuery.refetch();
+            void categoryQuery.refetch();
+          }}
+        />
       ) : null}
-      {combinedProblem?.status === 429 && combinedProblem.retryAfter ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Try later. Retry-After: {combinedProblem.retryAfter}s.
-        </div>
+      {hasInvalidDateRangeError ? (
+        <p className="text-sm text-muted-foreground">Adjust the range and apply again.</p>
       ) : null}
-      <ProblemBanner problem={pageProblem} onClose={() => undefined} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

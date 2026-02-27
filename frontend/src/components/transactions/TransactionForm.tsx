@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 
-import type { Account, Category, ProblemDetails, TransactionType } from "@/api/types";
+import type { Account, Category, TransactionType } from "@/api/types";
+import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ModalForm from "@/components/ModalForm";
-import ProblemBanner from "@/components/ProblemBanner";
 
 export type TransactionFormState = {
   type: TransactionType;
@@ -22,7 +22,7 @@ type TransactionFormProps = {
   state: TransactionFormState;
   accounts: Account[];
   categories: Category[];
-  problem: ProblemDetails | null;
+  problem: unknown | null;
   onFieldChange: (field: keyof TransactionFormState, value: string) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -137,7 +137,7 @@ export default function TransactionForm({
             rows={3}
           />
         </label>
-        <ProblemBanner problem={problem} />
+        {problem ? <ProblemDetailsInline error={problem} /> : null}
       </div>
     </ModalForm>
   );

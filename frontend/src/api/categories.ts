@@ -1,6 +1,5 @@
 import type { ApiClient } from "@/api/client";
-import { readProblemDetails } from "@/api/client";
-import { ApiProblemError } from "@/api/problem";
+import { throwApiError } from "@/api/errors";
 import type {
   CategoriesListResponse,
   Category,
@@ -35,7 +34,7 @@ export async function listCategories(client: ApiClient, params: ListCategoriesPa
   const query = buildCategoriesQuery(params);
   const response = await client.request(`/categories?${query}`, { method: "GET" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "categories_list_failed");
+    await throwApiError(response, "categories_list_failed");
   }
   return (await response.json()) as CategoriesListResponse;
 }
@@ -46,7 +45,7 @@ export async function createCategory(client: ApiClient, payload: CategoryCreate)
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "categories_create_failed");
+    await throwApiError(response, "categories_create_failed");
   }
   return (await response.json()) as Category;
 }
@@ -57,7 +56,7 @@ export async function updateCategory(client: ApiClient, categoryId: string, payl
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "categories_update_failed");
+    await throwApiError(response, "categories_update_failed");
   }
   return (await response.json()) as Category;
 }
@@ -65,7 +64,7 @@ export async function updateCategory(client: ApiClient, categoryId: string, payl
 export async function archiveCategory(client: ApiClient, categoryId: string): Promise<void> {
   const response = await client.request(`/categories/${categoryId}`, { method: "DELETE" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "categories_archive_failed");
+    await throwApiError(response, "categories_archive_failed");
   }
 }
 

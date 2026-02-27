@@ -1,6 +1,5 @@
 import type { ApiClient } from "@/api/client";
-import { readProblemDetails } from "@/api/client";
-import { ApiProblemError } from "@/api/problem";
+import { throwApiError } from "@/api/errors";
 import type { Account, AccountCreate, AccountsListResponse, AccountUpdate } from "@/api/types";
 
 export type ListAccountsParams = {
@@ -25,7 +24,7 @@ export async function listAccounts(client: ApiClient, params: ListAccountsParams
   const query = buildAccountsQuery(params);
   const response = await client.request(`/accounts?${query}`, { method: "GET" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "accounts_list_failed");
+    await throwApiError(response, "accounts_list_failed");
   }
   return (await response.json()) as AccountsListResponse;
 }
@@ -36,7 +35,7 @@ export async function createAccount(client: ApiClient, payload: AccountCreate): 
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "accounts_create_failed");
+    await throwApiError(response, "accounts_create_failed");
   }
   return (await response.json()) as Account;
 }
@@ -47,7 +46,7 @@ export async function updateAccount(client: ApiClient, accountId: string, payloa
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "accounts_update_failed");
+    await throwApiError(response, "accounts_update_failed");
   }
   return (await response.json()) as Account;
 }
@@ -55,6 +54,6 @@ export async function updateAccount(client: ApiClient, accountId: string, payloa
 export async function archiveAccount(client: ApiClient, accountId: string): Promise<void> {
   const response = await client.request(`/accounts/${accountId}`, { method: "DELETE" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "accounts_archive_failed");
+    await throwApiError(response, "accounts_archive_failed");
   }
 }

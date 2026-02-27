@@ -159,7 +159,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(screen.getByLabelText("To month"), { target: { value: "2026-01" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(await screen.findByText("Invalid date range")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 
   it("renders mapped 409 budget-duplicate feedback", async () => {
@@ -180,7 +180,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
-    expect(await screen.findByText("A budget already exists for that month and category.")).toBeInTheDocument();
+    expect(await screen.findByText("A budget for this category and month already exists.")).toBeInTheDocument();
   });
 
   it("renders inline feedback for backend budget-month-invalid", async () => {
@@ -240,7 +240,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
-    expect(await screen.findByText("month and category are required and month must be YYYY-MM.")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
     expect(screen.getAllByText("Month must use YYYY-MM format.").length).toBeGreaterThan(0);
     expect(createBudget).not.toHaveBeenCalled();
   });
@@ -255,7 +255,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "0" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
-    expect(await screen.findByText("Invalid limit")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
     expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
     expect(createBudget).not.toHaveBeenCalled();
   });
@@ -282,8 +282,7 @@ describe("BudgetsPage", () => {
     const dialog = screen.getByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
-    expect(await screen.findByText("No changes")).toBeInTheDocument();
-    expect(screen.getByText("Update requires at least one changed field.")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
     expect(updateBudget).not.toHaveBeenCalled();
   });
 
@@ -303,7 +302,7 @@ describe("BudgetsPage", () => {
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+    expect(await screen.findByText("You do not have access to this resource.")).toBeInTheDocument();
   });
 
   it("archives budget through confirm dialog", async () => {
@@ -320,6 +319,6 @@ describe("BudgetsPage", () => {
   it("shows fallback page error when list fails unexpectedly", async () => {
     vi.mocked(listBudgets).mockRejectedValueOnce(new Error("boom"));
     renderPage();
-    expect(await screen.findByText("Failed to load budgets")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 });

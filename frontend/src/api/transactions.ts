@@ -1,6 +1,7 @@
 import type { ApiClient } from "@/api/client";
 import { readProblemDetails } from "@/api/client";
-import { ApiProblemError } from "@/api/problem";
+import { ApiProblemError } from "@/api/errors";
+import { throwApiError } from "@/api/errors";
 import type {
   Transaction,
   TransactionCreate,
@@ -86,7 +87,7 @@ export async function listTransactions(client: ApiClient, params: ListTransactio
   const query = buildTransactionsQuery(params);
   const response = await client.request(`/transactions?${query}`, { method: "GET" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_list_failed");
+    await throwApiError(response, "transactions_list_failed");
   }
   return (await response.json()) as TransactionsListResponse;
 }
@@ -97,7 +98,7 @@ export async function createTransaction(client: ApiClient, payload: TransactionC
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_create_failed");
+    await throwApiError(response, "transactions_create_failed");
   }
   return (await response.json()) as Transaction;
 }
@@ -108,7 +109,7 @@ export async function updateTransaction(client: ApiClient, transactionId: string
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_update_failed");
+    await throwApiError(response, "transactions_update_failed");
   }
   return (await response.json()) as Transaction;
 }
@@ -116,7 +117,7 @@ export async function updateTransaction(client: ApiClient, transactionId: string
 export async function archiveTransaction(client: ApiClient, transactionId: string): Promise<void> {
   const response = await client.request(`/transactions/${transactionId}`, { method: "DELETE" });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_archive_failed");
+    await throwApiError(response, "transactions_archive_failed");
   }
 }
 
@@ -130,7 +131,7 @@ export async function importTransactions(client: ApiClient, payload: Transaction
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
-    throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_import_failed");
+    await throwApiError(response, "transactions_import_failed");
   }
   return (await response.json()) as TransactionImportResult;
 }
@@ -157,7 +158,14 @@ export async function exportTransactionsCsv(
           detail: problem?.detail ?? `Too many requests. Try again in ${retryAfter} seconds.`
         }
       : problem;
-    throw new ApiProblemError(response.status, enhancedProblem, "transactions_export_failed");
+    throw new ApiProblemError(
+      enhancedProblem ?? { type: "about:blank", title: "transactions_export_failed", status: response.status },
+      {
+        httpStatus: response.status,
+        requestId: response.headers.get("X-Request-Id"),
+        retryAfter
+      }
+    );
   }
 
   return {

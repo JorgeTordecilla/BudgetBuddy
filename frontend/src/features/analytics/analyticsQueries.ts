@@ -12,6 +12,7 @@ export function useAnalyticsByMonth(apiClient: ApiClient, range: AnalyticsRange,
   return useQuery({
     queryKey: ["analytics", "by-month", { from: range.from, to: range.to }] as const,
     enabled,
+    meta: { skipGlobalErrorToast: true },
     queryFn: () => getAnalyticsByMonth(apiClient, range),
     placeholderData: (previous) => previous
   });
@@ -21,6 +22,7 @@ export function useAnalyticsByCategory(apiClient: ApiClient, range: AnalyticsRan
   return useQuery({
     queryKey: ["analytics", "by-category", { from: range.from, to: range.to }] as const,
     enabled,
+    meta: { skipGlobalErrorToast: true },
     queryFn: () => getAnalyticsByCategory(apiClient, range),
     placeholderData: (previous) => previous
   });

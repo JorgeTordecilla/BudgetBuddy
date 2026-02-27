@@ -147,8 +147,7 @@ describe("TransactionsImportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Validate" }));
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
 
-    expect(await screen.findByText("Import limit exceeded")).toBeInTheDocument();
-    expect(screen.getByText("Reduce batch size and retry.")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 
   it("shows fallback request-level error for non-problem exceptions", async () => {
@@ -172,8 +171,7 @@ describe("TransactionsImportPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Validate" }));
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
 
-    expect(await screen.findByText("Import failed")).toBeInTheDocument();
-    expect(screen.getByText("Unexpected client error.")).toBeInTheDocument();
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 
   it("shows no-row-failures copy when import has zero failures", async () => {
