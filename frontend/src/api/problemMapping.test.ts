@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { ApiProblemError, ApiUnknownError } from "@/api/errors";
 import { resolveProblemUi } from "@/api/problemMapping";
+import { PROBLEM_TYPE_INVALID_DATE_RANGE, PROBLEM_TYPE_UNAUTHORIZED } from "@/api/problemTypes";
 
 describe("resolveProblemUi", () => {
   it("maps known problem types with presentation", () => {
     const error = new ApiProblemError(
       {
-        type: "https://api.budgetbuddy.dev/problems/invalid-date-range",
+        type: PROBLEM_TYPE_INVALID_DATE_RANGE,
         title: "Invalid date range",
         status: 400,
         detail: "From must be before To"
@@ -20,6 +21,22 @@ describe("resolveProblemUi", () => {
     expect(ui.presentation).toBe("inline");
     expect(ui.detail).toBe("From must be before To");
     expect(ui.requestId).toBe("req-10");
+  });
+
+  it("maps unauthorized problem to canonical auth message", () => {
+    const error = new ApiProblemError(
+      {
+        type: PROBLEM_TYPE_UNAUTHORIZED,
+        title: "Unauthorized",
+        status: 401
+      },
+      { httpStatus: 401, requestId: "req-auth-1", retryAfter: null }
+    );
+
+    const ui = resolveProblemUi(error);
+    expect(ui.message).toBe("Your session expired. Please sign in again.");
+    expect(ui.presentation).toBe("toast");
+    expect(ui.requestId).toBe("req-auth-1");
   });
 
   it("uses fallback for unknown problem types", () => {

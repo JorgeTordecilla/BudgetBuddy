@@ -399,4 +399,57 @@ describe("api client refresh behavior", () => {
 
     expect(clearSession).toHaveBeenCalledTimes(1);
   });
+
+  it("clears session on logout even when request fails", async () => {
+    const clearSession = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("network down"));
+    const client = createApiClient(
+      {
+        getAccessToken: () => "access-123",
+        setSession: () => undefined,
+        clearSession
+      },
+      { fetchImpl: fetchMock, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    await expect(client.logout()).rejects.toThrow("network down");
+    expect(clearSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes non-blocking logout feedback with request id on 5xx response", async () => {
+    const clearSession = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/forbidden",
+          title: "Forbidden",
+          status: 500
+        }),
+        {
+          status: 500,
+          headers: {
+            "content-type": "application/problem+json",
+            "X-Request-Id": "req-logout-500"
+          }
+        }
+      )
+    );
+    const client = createApiClient(
+      {
+        getAccessToken: () => "access-123",
+        setSession: () => undefined,
+        clearSession
+      },
+      { fetchImpl: fetchMock, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    await expect(client.logout()).resolves.toBeUndefined();
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(publishProblemToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-logout-500",
+        status: 500
+      })
+    );
+  });
 });

@@ -15,6 +15,7 @@ import { useBudgetsList, invalidateBudgetCaches } from "@/features/budgets/budge
 import BudgetFormModal, { type BudgetFormState } from "@/features/budgets/components/BudgetFormModal";
 import BudgetsTable from "@/features/budgets/components/BudgetsTable";
 import { centsToDecimalInput, isValidMonth, isValidMonthRange, parseLimitInputToCents } from "@/lib/budgets";
+import { normalizeMonthParam } from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 
@@ -61,17 +62,23 @@ function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
 export default function BudgetsPage() {
   const { apiClient, user } = useAuth();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const initialMonth = useMemo(() => {
-    const month = searchParams.get("month");
-    if (month && isValidMonth(month)) {
-      return month;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialRange = useMemo(() => {
+    const from = normalizeMonthParam(searchParams.get("from"));
+    const to = normalizeMonthParam(searchParams.get("to"));
+    if (from && to && isValidMonthRange(from, to)) {
+      return { from, to };
     }
-    return currentMonth();
+    const month = normalizeMonthParam(searchParams.get("month"));
+    if (month && isValidMonth(month)) {
+      return { from: month, to: month };
+    }
+    const current = currentMonth();
+    return { from: current, to: current };
   }, [searchParams]);
-  const [draftFrom, setDraftFrom] = useState(initialMonth);
-  const [draftTo, setDraftTo] = useState(initialMonth);
-  const [appliedRange, setAppliedRange] = useState({ from: initialMonth, to: initialMonth });
+  const [draftFrom, setDraftFrom] = useState(initialRange.from);
+  const [draftTo, setDraftTo] = useState(initialRange.to);
+  const [appliedRange, setAppliedRange] = useState(initialRange);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Budget | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Budget | null>(null);
@@ -122,6 +129,14 @@ export default function BudgetsPage() {
       setPageProblem(error);
     }
   });
+
+  useEffect(() => {
+    setDraftFrom((previous) => (previous === initialRange.from ? previous : initialRange.from));
+    setDraftTo((previous) => (previous === initialRange.to ? previous : initialRange.to));
+    setAppliedRange((previous) =>
+      previous.from === initialRange.from && previous.to === initialRange.to ? previous : initialRange
+    );
+  }, [initialRange]);
 
   useEffect(() => {
     if (!rangeIsValid) {
@@ -175,7 +190,18 @@ export default function BudgetsPage() {
       return;
     }
     setPageProblem(null);
-    setAppliedRange({ from: draftFrom, to: draftTo });
+    const nextRange = { from: draftFrom, to: draftTo };
+    setAppliedRange(nextRange);
+    const nextParams = new URLSearchParams();
+    if (nextRange.from === nextRange.to) {
+      nextParams.set("month", nextRange.from);
+    } else {
+      nextParams.set("from", nextRange.from);
+      nextParams.set("to", nextRange.to);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
   }
 
   function setFormField(field: keyof BudgetFormState, value: string) {

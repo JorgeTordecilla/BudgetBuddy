@@ -49,14 +49,20 @@ Session teardown policy SHALL be explicit and deterministic for refresh failures
 - **AND** SHALL surface a global recoverable error UX.
 
 ### Requirement: Logout must clear auth state and protected query cache
-The frontend logout flow SHALL clear session-sensitive state beyond access token values.
+The frontend logout flow SHALL clear session-sensitive state beyond access token values and SHALL remain deterministic even if server logout fails.
 
 #### Scenario: Manual logout clears cache and session
 - **WHEN** an authenticated user triggers logout
-- **THEN** frontend SHALL call `POST /auth/logout`
+- **THEN** frontend SHALL attempt `POST /auth/logout`
 - **AND** SHALL clear local auth session state
 - **AND** SHALL clear or invalidate protected React Query caches
 - **AND** SHALL route user to `/login`.
+
+#### Scenario: Logout fallback remains deterministic on transport failure
+- **WHEN** `POST /auth/logout` fails due to network/CORS/server error
+- **THEN** frontend SHALL still clear local auth session state
+- **AND** SHALL still route user to `/login`
+- **AND** SHALL expose non-blocking failure feedback for diagnostics.
 
 ### Requirement: Public and protected route guards must honor hydration state
 Route guards SHALL avoid premature redirects while hydration is in progress and avoid showing login screen when session is already recoverable.
@@ -68,7 +74,8 @@ Route guards SHALL avoid premature redirects while hydration is in progress and 
 
 #### Scenario: Login route redirects for restored session
 - **WHEN** user navigates to `/login` and session hydration resolves authenticated
-- **THEN** frontend SHALL redirect to `/app/dashboard` (or intended protected destination)
+- **THEN** frontend SHALL redirect to the intended protected destination from `location.state.from` when valid
+- **AND** SHALL fallback to `/app/dashboard` when destination is absent or invalid
 - **AND** SHALL NOT require credential re-entry.
 
 ### Requirement: Session lifecycle behavior must satisfy frontend quality gates
@@ -98,4 +105,3 @@ Frontend production session behavior MUST remain predictable under cross-site co
 - **WHEN** cross-site refresh-cookie model is documented
 - **THEN** frontend documentation SHALL explicitly mark CSRF strategy as a follow-up security decision
 - **AND** SHALL avoid implying CSRF is already solved by this change.
-

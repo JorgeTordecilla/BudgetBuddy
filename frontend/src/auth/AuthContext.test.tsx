@@ -117,6 +117,19 @@ describe("AuthProvider", () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
+  it("logout clears session state even when api logout fails", async () => {
+    mockLogout.mockRejectedValueOnce(new Error("logout_failed"));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.login("demo", "secret");
+    });
+    await act(async () => {
+      await expect(result.current.logout()).rejects.toThrow("logout_failed");
+    });
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.accessToken).toBeNull();
+  });
+
   it("keeps session unauthenticated when bootstrap refresh is unauthorized", async () => {
     mockRefresh.mockResolvedValueOnce(null);
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -128,5 +141,66 @@ describe("AuthProvider", () => {
     expect(result.current.accessToken).toBeNull();
     expect(result.current.user).toBeNull();
     expect(mockMe).not.toHaveBeenCalled();
+  });
+
+  it("does not repeat refresh immediately after unauthorized bootstrap failure", async () => {
+    mockRefresh.mockResolvedValue(null);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      const first = await result.current.bootstrapSession();
+      expect(first).toBe(false);
+    });
+
+    await act(async () => {
+      const second = await result.current.bootstrapSession();
+      expect(second).toBe(false);
+    });
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockMe).not.toHaveBeenCalled();
+  });
+
+  it("does not loop refresh attempts on transient bootstrap failures", async () => {
+    mockRefresh.mockRejectedValueOnce(new TypeError("network down"));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      const restored = await result.current.bootstrapSession();
+      expect(restored).toBe(false);
+    });
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockMe).not.toHaveBeenCalled();
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it("deduplicates concurrent bootstrap calls to avoid repeated refresh requests", async () => {
+    let resolveRefresh: ((value: RefreshSession | null) => void) | null = null;
+    mockRefresh.mockImplementationOnce(
+      () =>
+        new Promise<RefreshSession | null>((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let first: Promise<boolean>;
+    let second: Promise<boolean>;
+    await act(async () => {
+      first = result.current.bootstrapSession();
+      second = result.current.bootstrapSession();
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+      resolveRefresh?.({
+        user: { id: "u1", username: "demo", currency_code: "USD" },
+        access_token: "token-2",
+        access_token_expires_in: 900
+      });
+      await expect(Promise.all([first!, second!])).resolves.toEqual([true, true]);
+    });
+
+    expect(mockMe).toHaveBeenCalledTimes(1);
+    expect(result.current.isAuthenticated).toBe(true);
   });
 });

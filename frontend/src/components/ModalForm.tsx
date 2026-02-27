@@ -2,6 +2,7 @@ import { useId, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { useDialogA11y } from "@/components/useDialogA11y";
 
 type ModalFormProps = {
   open: boolean;
@@ -25,6 +26,11 @@ export default function ModalForm({
   children
 }: ModalFormProps) {
   const id = useId();
+  const { dialogRef, onKeyDown } = useDialogA11y({
+    open,
+    onDismiss: onClose,
+    dismissDisabled: submitting
+  });
 
   if (!open) {
     return null;
@@ -35,18 +41,12 @@ export default function ModalForm({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          if (!submitting) {
-            onClose();
-          }
-        }
-      }}
+      onKeyDown={onKeyDown}
       tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 py-6 backdrop-blur-sm"
     >

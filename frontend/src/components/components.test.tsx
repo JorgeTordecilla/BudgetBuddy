@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProblemDetails } from "@/api/types";
@@ -74,6 +74,62 @@ describe("shared components", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("traps keyboard focus inside modal form", () => {
+    render(
+      <ModalForm
+        open
+        title="Create"
+        submitLabel="Save"
+        onClose={() => undefined}
+        onSubmit={() => undefined}
+      >
+        <input aria-label="Name" />
+      </ModalForm>
+    );
+
+    const dialog = screen.getByRole("dialog");
+    const nameInput = screen.getByLabelText("Name");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(nameInput).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(saveButton).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(nameInput).toHaveFocus();
+  });
+
+  it("restores focus to trigger when modal form closes", () => {
+    function ModalHarness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open modal
+          </button>
+          <ModalForm
+            open={open}
+            title="Create"
+            submitLabel="Save"
+            onClose={() => setOpen(false)}
+            onSubmit={() => undefined}
+          >
+            <input aria-label="Name" />
+          </ModalForm>
+        </>
+      );
+    }
+
+    render(<ModalHarness />);
+
+    const trigger = screen.getByRole("button", { name: "Open modal" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(trigger).toHaveFocus();
+  });
+
   it("hides modal form and dialog when closed", () => {
     const { rerender } = render(
       <ModalForm open={false} title="Create" submitLabel="Save" onClose={() => undefined} onSubmit={() => undefined}>
@@ -129,6 +185,57 @@ describe("shared components", () => {
 
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores focus to trigger when confirm dialog closes", () => {
+    function ConfirmHarness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open confirm
+          </button>
+          <ConfirmDialog
+            open={open}
+            title="Archive?"
+            description="desc"
+            onCancel={() => setOpen(false)}
+            onConfirm={() => undefined}
+          />
+        </>
+      );
+    }
+
+    render(<ConfirmHarness />);
+
+    const trigger = screen.getByRole("button", { name: "Open confirm" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(trigger).toHaveFocus();
+  });
+
+  it("keeps confirm dialog actions visible on narrow viewport", () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 320
+    });
+    window.dispatchEvent(new Event("resize"));
+
+    render(
+      <ConfirmDialog
+        open
+        title="Archive?"
+        description="desc"
+        onCancel={() => undefined}
+        onConfirm={() => undefined}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeVisible();
   });
 
   it("renders problem banner with fallback and dismiss", () => {

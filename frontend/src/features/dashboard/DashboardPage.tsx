@@ -50,6 +50,11 @@ type TrendPoint = {
   budget: number;
 };
 
+type MoneyDisplayParts = {
+  currency: string | null;
+  amount: string;
+};
+
 function toOverBudgetItems(items: AnalyticsByCategoryItem[]): OverBudgetItem[] {
   return items
     .filter((item) => (item.budget_limit_cents ?? 0) > 0 && (item.budget_spent_cents ?? 0) > (item.budget_limit_cents ?? 0))
@@ -85,6 +90,25 @@ function toTrendPoints(rows: { month: string; expense_total_cents: number; budge
     expense: row.expense_total_cents,
     budget: row.budget_limit_cents ?? 0
   }));
+}
+
+function toMoneyDisplayParts(currencyCode: string, cents: number): MoneyDisplayParts {
+  const parts = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currencyCode
+  }).formatToParts(cents / 100);
+  const currency = parts
+    .filter((part) => part.type === "currency")
+    .map((part) => part.value)
+    .join("");
+  const amount = parts
+    .filter((part) => part.type !== "currency" && part.type !== "literal")
+    .map((part) => part.value)
+    .join("");
+  return {
+    currency: currency || null,
+    amount
+  };
 }
 
 export default function DashboardPage() {
@@ -162,6 +186,15 @@ export default function DashboardPage() {
   const riskCount = overBudgetItems.length + spikes.spikes.length;
   const savingsRate = incomeTotal > 0 ? Math.round((netTotal / incomeTotal) * 100) : null;
   const budgetBufferCents = budgetLimit > 0 ? budgetLimit - budgetSpent : null;
+  const incomeDisplay = useMemo(() => toMoneyDisplayParts(currencyCode, incomeTotal), [currencyCode, incomeTotal]);
+  const expenseDisplay = useMemo(() => toMoneyDisplayParts(currencyCode, expenseTotal), [currencyCode, expenseTotal]);
+  const netDisplay = useMemo(() => toMoneyDisplayParts(currencyCode, netTotal), [currencyCode, netTotal]);
+  const budgetSpentDisplay = useMemo(() => toMoneyDisplayParts(currencyCode, budgetSpent), [currencyCode, budgetSpent]);
+  const budgetLimitDisplay = useMemo(() => toMoneyDisplayParts(currencyCode, budgetLimit), [currencyCode, budgetLimit]);
+  const budgetBufferDisplay = useMemo(
+    () => (budgetBufferCents === null ? null : toMoneyDisplayParts(currencyCode, budgetBufferCents)),
+    [budgetBufferCents, currencyCode]
+  );
   const healthScore = useMemo(() => {
     if (!hasAnyData) {
       return null;
@@ -337,9 +370,24 @@ export default function DashboardPage() {
               </div>
               <div className="rounded-md border bg-muted/20 p-2.5">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget buffer</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {isLoading ? "--" : budgetBufferCents === null ? "N/A" : formatCents(currencyCode, budgetBufferCents)}
-                </p>
+                <div className="mt-1 min-w-0">
+                  {isLoading ? (
+                    <p className="text-[clamp(0.9rem,3vw,1.05rem)] font-semibold leading-tight">--</p>
+                  ) : budgetBufferDisplay === null ? (
+                    <p className="text-[clamp(0.9rem,3vw,1.05rem)] font-semibold leading-tight">N/A</p>
+                  ) : (
+                    <p className="flex min-w-0 flex-col leading-tight">
+                      <span className="block max-w-full whitespace-nowrap text-[clamp(0.72rem,2.8vw,0.98rem)] font-semibold leading-tight tabular-nums">
+                        {budgetBufferDisplay.amount}
+                      </span>
+                      {budgetBufferDisplay.currency ? (
+                        <span className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {budgetBufferDisplay.currency}
+                        </span>
+                      ) : null}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -392,7 +440,10 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight">{isLoading ? "Loading..." : formatCents(currencyCode, incomeTotal)}</p>
+            <div className="flex items-end gap-2">
+              <p className="text-2xl font-semibold tracking-tight tabular-nums">{isLoading ? "Loading..." : incomeDisplay.amount}</p>
+              {!isLoading && incomeDisplay.currency ? <span className="pb-1 text-xs text-muted-foreground">{incomeDisplay.currency}</span> : null}
+            </div>
             <p className="text-xs text-muted-foreground">Current month inflow</p>
           </CardContent>
         </Card>
@@ -401,7 +452,10 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Expense</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight">{isLoading ? "Loading..." : formatCents(currencyCode, expenseTotal)}</p>
+            <div className="flex items-end gap-2">
+              <p className="text-2xl font-semibold tracking-tight tabular-nums">{isLoading ? "Loading..." : expenseDisplay.amount}</p>
+              {!isLoading && expenseDisplay.currency ? <span className="pb-1 text-xs text-muted-foreground">{expenseDisplay.currency}</span> : null}
+            </div>
             <p className="text-xs text-muted-foreground">Current month outflow</p>
           </CardContent>
         </Card>
@@ -410,9 +464,12 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Net</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className={`text-2xl font-semibold tracking-tight ${netTotal < 0 ? "text-destructive" : ""}`}>
-              {isLoading ? "Loading..." : formatCents(currencyCode, netTotal)}
-            </p>
+            <div className="flex items-end gap-2">
+              <p className={`text-2xl font-semibold tracking-tight tabular-nums ${netTotal < 0 ? "text-destructive" : ""}`}>
+                {isLoading ? "Loading..." : netDisplay.amount}
+              </p>
+              {!isLoading && netDisplay.currency ? <span className="pb-1 text-xs text-muted-foreground">{netDisplay.currency}</span> : null}
+            </div>
             <p className="text-xs text-muted-foreground">Income minus expense</p>
           </CardContent>
         </Card>
@@ -423,7 +480,16 @@ export default function DashboardPage() {
           <CardContent>
             {isLoading ? "Loading..." : budgetPercent === null ? "No budgets set" : (
               <div className="space-y-2">
-                <div className="text-lg font-semibold tracking-tight">{`${formatCents(currencyCode, budgetSpent)} / ${formatCents(currencyCode, budgetLimit)}`}</div>
+                <div className="space-y-1">
+                  <div className="flex items-end gap-2">
+                    <p className="text-lg font-semibold tracking-tight tabular-nums">{budgetSpentDisplay.amount}</p>
+                    {budgetSpentDisplay.currency ? <span className="pb-0.5 text-xs text-muted-foreground">{budgetSpentDisplay.currency}</span> : null}
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <p className="text-lg font-semibold tracking-tight tabular-nums">{budgetLimitDisplay.amount}</p>
+                    {budgetLimitDisplay.currency ? <span className="pb-0.5 text-xs text-muted-foreground">{budgetLimitDisplay.currency}</span> : null}
+                  </div>
+                </div>
                 <div className="h-2 rounded-full bg-muted">
                   <div className="h-2 rounded-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, budgetPercent)}%` }} />
                 </div>

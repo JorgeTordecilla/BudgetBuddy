@@ -17,7 +17,7 @@ type AuthContextValue = {
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
-const MAX_SESSION_BOOTSTRAP_ATTEMPTS = 3;
+const BOOTSTRAP_RETRY_COOLDOWN_MS = 10000;
 
 type SessionState = {
   user: User | null;
@@ -30,6 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const tokenRef = useRef<string | null>(null);
   const skipNextBootstrapRef = useRef(false);
+  const bootstrapInFlightRef = useRef<Promise<boolean> | null>(null);
+  const lastBootstrapFailureAtRef = useRef<number | null>(null);
 
   const setSessionState = (next: SessionState) => {
     tokenRef.current = next.accessToken;
@@ -54,12 +56,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string): Promise<void> => {
     const authSession = await client.login(username, password);
     setSessionState({ accessToken: authSession.access_token, user: authSession.user });
+    lastBootstrapFailureAtRef.current = null;
   }, [client]);
 
   const logout = useCallback(async (): Promise<void> => {
     skipNextBootstrapRef.current = true;
-    await client.logout();
-    queryClient.clear();
+    try {
+      await client.logout();
+    } finally {
+      setSessionState({ accessToken: null, user: null });
+      queryClient.clear();
+    }
   }, [client, queryClient]);
 
   const bootstrapSession = useCallback(async (): Promise<boolean> => {
@@ -68,11 +75,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     if (tokenRef.current && session.user) {
+      lastBootstrapFailureAtRef.current = null;
       return true;
     }
-    setIsBootstrapping(true);
-    try {
-      for (let attempt = 1; attempt <= MAX_SESSION_BOOTSTRAP_ATTEMPTS; attempt += 1) {
+    const lastFailureAt = lastBootstrapFailureAtRef.current;
+    if (lastFailureAt && Date.now() - lastFailureAt < BOOTSTRAP_RETRY_COOLDOWN_MS) {
+      return false;
+    }
+    if (bootstrapInFlightRef.current) {
+      return bootstrapInFlightRef.current;
+    }
+
+    const bootstrapPromise = (async (): Promise<boolean> => {
+      setIsBootstrapping(true);
+      try {
         try {
           if (!tokenRef.current) {
             const refreshed = await client.refresh({
@@ -81,22 +97,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
             if (!refreshed?.access_token) {
               setSessionState({ accessToken: null, user: null });
+              lastBootstrapFailureAtRef.current = Date.now();
               return false;
             }
           }
           const meUser = await client.me();
           setSessionState({ accessToken: tokenRef.current, user: meUser });
+          lastBootstrapFailureAtRef.current = null;
           return true;
         } catch {
-          // Intentionally continue until max attempts are reached.
+          lastBootstrapFailureAtRef.current = Date.now();
+          return false;
         }
+      } finally {
+        setIsBootstrapping(false);
+        bootstrapInFlightRef.current = null;
       }
+    })();
 
-      setSessionState({ accessToken: null, user: null });
-      return false;
-    } finally {
-      setIsBootstrapping(false);
-    }
+    bootstrapInFlightRef.current = bootstrapPromise;
+    return bootstrapPromise;
   }, [client, session.user]);
 
   const value: AuthContextValue = useMemo(

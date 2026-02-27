@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ApiProblemError } from "@/api/errors";
@@ -12,6 +12,7 @@ import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { defaultAnalyticsRange, isValidDateRange } from "@/utils/dates";
 import { formatCents } from "@/utils/money";
+import { normalizeIsoDateParam } from "@/lib/queryState";
 
 type MetricType = "expense" | "income";
 
@@ -25,10 +26,10 @@ function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsB
 
 export default function AnalyticsPage() {
   const { apiClient, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialRange = useMemo(() => {
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const from = normalizeIsoDateParam(searchParams.get("from"));
+    const to = normalizeIsoDateParam(searchParams.get("to"));
     if (from && to && isValidDateRange(from, to)) {
       return { from, to };
     }
@@ -39,6 +40,15 @@ export default function AnalyticsPage() {
   const [draftRange, setDraftRange] = useState(initialRange);
   const [appliedRange, setAppliedRange] = useState(initialRange);
   const [rangeError, setRangeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftRange((previous) =>
+      previous.from === initialRange.from && previous.to === initialRange.to ? previous : initialRange
+    );
+    setAppliedRange((previous) =>
+      previous.from === initialRange.from && previous.to === initialRange.to ? previous : initialRange
+    );
+  }, [initialRange]);
 
   const rangeValid = isValidDateRange(appliedRange.from, appliedRange.to);
   const monthQuery = useAnalyticsByMonth(apiClient, appliedRange, rangeValid);
@@ -64,6 +74,12 @@ export default function AnalyticsPage() {
     }
     setRangeError(null);
     setAppliedRange(draftRange);
+    const next = new URLSearchParams();
+    next.set("from", draftRange.from);
+    next.set("to", draftRange.to);
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
   }
 
   const hasInvalidDateRangeError =

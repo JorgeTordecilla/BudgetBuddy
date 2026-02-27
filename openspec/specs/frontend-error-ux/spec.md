@@ -81,7 +81,7 @@ The global error UX rollout SHALL be guarded by unit/component verification and 
 - **AND** coverage SHALL remain at or above frontend project thresholds.
 
 ### Requirement: Global Error / ProblemDetails UX + Request-Id
-Frontend MUST provide a centralized, consistent error experience that preserves support diagnostics through ProblemDetails mapping and request correlation identifiers.
+Frontend MUST provide a centralized, consistent error experience that preserves support diagnostics through ProblemDetails mapping and request correlation identifiers, while avoiding unnecessary operational data exposure in auth-facing UI.
 
 #### Scenario: Root runtime failures are captured by ErrorBoundary
 - **WHEN** a React runtime error escapes page-level handling
@@ -103,3 +103,7 @@ Frontend MUST provide a centralized, consistent error experience that preserves 
 - **THEN** frontend SHALL display a deterministic rate-limit message
 - **AND** SHALL show retry timing guidance when `Retry-After` is present.
 
+#### Scenario: Login UI avoids operational endpoint disclosure in non-development runtime
+- **WHEN** login screen is rendered outside development runtime
+- **THEN** frontend SHALL NOT display internal endpoint or base URL configuration values
+- **AND** error/support messaging SHALL continue to use request-id based diagnostics.

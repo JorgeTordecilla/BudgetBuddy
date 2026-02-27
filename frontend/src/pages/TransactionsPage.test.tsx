@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -391,6 +391,91 @@ describe("TransactionsPage", () => {
         from: "2026-02-01",
         to: "2026-02-28"
       })
+    );
+  });
+
+  it("normalizes invalid URL date range before first fetch", async () => {
+    renderPage(["/app/transactions?from=2026-03-20&to=2026-03-01&type=income"]);
+    await screen.findByText("Market");
+
+    expect(listTransactions).not.toHaveBeenCalledWith(
+      apiClientStub,
+      expect.objectContaining({
+        from: "2026-03-20",
+        to: "2026-03-01"
+      })
+    );
+  });
+
+  it("preserves valid subset for partial URL range params", async () => {
+    renderPage(["/app/transactions?from=2026-03-20&type=income"]);
+    await screen.findByText("Market");
+
+    expect(listTransactions).toHaveBeenCalledWith(
+      apiClientStub,
+      expect.objectContaining({
+        from: "2026-03-20",
+        to: "2026-03-20",
+        type: "income"
+      })
+    );
+  });
+
+  it("resyncs filters when URL query changes after mount", async () => {
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => navigate("/app/transactions?from=2026-02-01&to=2026-02-28&type=income")}
+          >
+            Navigate with filters
+          </button>
+          <TransactionsPage />
+        </>
+      );
+    }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    });
+    render(
+      <MemoryRouter initialEntries={["/app/transactions"]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              apiClient: apiClientStub,
+              user: { id: "u1", username: "demo", currency_code: "USD" },
+              accessToken: "token",
+              isAuthenticated: true,
+              isBootstrapping: false,
+              login: async () => undefined,
+              logout: async () => undefined,
+              bootstrapSession: async () => true
+            }}
+          >
+            <Routes>
+              <Route path="/app/transactions" element={<Harness />} />
+              <Route path="/app/transactions/import" element={<div>Import page</div>} />
+            </Routes>
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "Navigate with filters" }));
+
+    await waitFor(() =>
+      expect(listTransactions).toHaveBeenLastCalledWith(
+        apiClientStub,
+        expect.objectContaining({
+          type: "income",
+          from: "2026-02-01",
+          to: "2026-02-28"
+        })
+      )
     );
   });
 

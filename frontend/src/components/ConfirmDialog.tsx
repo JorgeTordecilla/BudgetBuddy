@@ -2,6 +2,7 @@ import { useId } from "react";
 
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { useDialogA11y } from "@/components/useDialogA11y";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -23,6 +24,11 @@ export default function ConfirmDialog({
   onConfirm
 }: ConfirmDialogProps) {
   const id = useId();
+  const { dialogRef, onKeyDown } = useDialogA11y({
+    open,
+    onDismiss: onCancel,
+    dismissDisabled: confirming
+  });
 
   if (!open) {
     return null;
@@ -33,18 +39,12 @@ export default function ConfirmDialog({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          if (!confirming) {
-            onCancel();
-          }
-        }
-      }}
+      onKeyDown={onKeyDown}
       tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4 py-6 backdrop-blur-sm"
     >

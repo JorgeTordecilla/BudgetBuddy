@@ -5,7 +5,7 @@ Define the frontend contract and behavior for authenticated budget management, i
 ## Requirements
 
 ### Requirement: Authenticated budgets route and range list must be available
-The frontend SHALL expose a protected budgets page under the authenticated app shell and support month-range list retrieval.
+The frontend SHALL expose a protected budgets page under the authenticated app shell, support month-range list retrieval, and keep month/range controls synchronized with URL state.
 
 #### Scenario: Route is available under app shell
 - **WHEN** an authenticated user navigates to `/app/budgets`
@@ -31,6 +31,16 @@ The frontend SHALL expose a protected budgets page under the authenticated app s
 - **WHEN** user navigates to `/app/budgets?month=<YYYY-MM>`
 - **THEN** frontend SHALL initialize both `from` and `to` range controls using that month when valid
 - **AND** initial budgets request SHALL use the URL-provided month range.
+
+#### Scenario: URL month changes after mount resync range
+- **WHEN** query param `month` changes after initial render through navigation
+- **THEN** frontend SHALL resynchronize range controls and applied range from URL
+- **AND** budgets queries SHALL use synchronized month range.
+
+#### Scenario: Applying month range updates URL deterministically
+- **WHEN** user applies a valid month range from budgets controls
+- **THEN** frontend SHALL write normalized query params to URL
+- **AND** copied/reloaded URL SHALL reproduce the same budgets range view.
 
 #### Scenario: Invalid month query falls back safely
 - **WHEN** `month` query param is absent or invalid

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 
 import type { ApiClient } from "@/api/client";
 import { archiveBudget, createBudget, listBudgets, updateBudget } from "@/api/budgets";
@@ -150,6 +150,49 @@ describe("BudgetsPage", () => {
     await screen.findByText("2026-03");
 
     expect(listBudgets).toHaveBeenCalledWith(apiClientStub, { from: "2026-01", to: "2026-01" });
+  });
+
+  it("resyncs month range when URL query changes after mount", async () => {
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button type="button" onClick={() => navigate("/app/budgets?from=2026-01&to=2026-04")}>
+            Navigate with range
+          </button>
+          <BudgetsPage />
+        </>
+      );
+    }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    });
+    render(
+      <MemoryRouter initialEntries={["/app/budgets"]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              apiClient: apiClientStub,
+              user: { id: "u1", username: "demo", currency_code: "USD" },
+              accessToken: "token",
+              isAuthenticated: true,
+              isBootstrapping: false,
+              login: async () => undefined,
+              logout: async () => undefined,
+              bootstrapSession: async () => true
+            }}
+          >
+            <Harness />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("2026-03");
+
+    fireEvent.click(screen.getByRole("button", { name: "Navigate with range" }));
+
+    await waitFor(() => expect(listBudgets).toHaveBeenLastCalledWith(apiClientStub, { from: "2026-01", to: "2026-04" }));
   });
 
   it("sorts budgets by month descending", async () => {

@@ -1,0 +1,10 @@
+export const PROBLEM_TYPE_UNAUTHORIZED = "https://api.budgetbuddy.dev/problems/unauthorized";
+export const PROBLEM_TYPE_FORBIDDEN = "https://api.budgetbuddy.dev/problems/forbidden";
+export const PROBLEM_TYPE_NOT_ACCEPTABLE = "https://api.budgetbuddy.dev/problems/not-acceptable";
+export const PROBLEM_TYPE_INVALID_CURSOR = "https://api.budgetbuddy.dev/problems/invalid-cursor";
+export const PROBLEM_TYPE_INVALID_DATE_RANGE = "https://api.budgetbuddy.dev/problems/invalid-date-range";
+export const PROBLEM_TYPE_RATE_LIMITED = "https://api.budgetbuddy.dev/problems/rate-limited";
+export const PROBLEM_TYPE_ACCOUNT_ARCHIVED = "https://api.budgetbuddy.dev/problems/account-archived";
+export const PROBLEM_TYPE_CATEGORY_ARCHIVED = "https://api.budgetbuddy.dev/problems/category-archived";
+export const PROBLEM_TYPE_CATEGORY_TYPE_MISMATCH = "https://api.budgetbuddy.dev/problems/category-type-mismatch";
+export const PROBLEM_TYPE_BUDGET_DUPLICATE = "https://api.budgetbuddy.dev/problems/budget-duplicate";

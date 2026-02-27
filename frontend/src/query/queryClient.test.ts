@@ -5,6 +5,13 @@ import * as toastStore from "@/components/errors/problemToastStore";
 import { createAppQueryClient } from "@/query/queryClient";
 
 describe("createAppQueryClient global error policy", () => {
+  it("keeps retry disabled by default for queries and mutations", () => {
+    const queryClient = createAppQueryClient();
+    const defaults = queryClient.getDefaultOptions();
+    expect(defaults.queries?.retry).toBe(false);
+    expect(defaults.mutations?.retry).toBe(false);
+  });
+
   it("emits toast for mutation errors with toast presentation", async () => {
     const spy = vi.spyOn(toastStore, "publishProblemToast").mockImplementation(() => undefined);
     const queryClient = createAppQueryClient();

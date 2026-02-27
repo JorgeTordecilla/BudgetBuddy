@@ -2,9 +2,18 @@ import { FormEvent, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
+import { API_BASE_URL, APP_ENV } from "@/config";
+import SessionLoader from "@/components/session/SessionLoader";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { API_BASE_URL } from "@/config";
+function resolveRedirectPath(pathname: string | undefined): string {
+  if (pathname && pathname.startsWith("/app/")) {
+    return pathname;
+  }
+  return "/app/dashboard";
+}
+
+const SHOW_API_BASE = APP_ENV === "development";
 
 export default function Login() {
   const { isAuthenticated, isBootstrapping, login, bootstrapSession } = useAuth();
@@ -15,15 +24,18 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
+  const [bootstrapStarted, setBootstrapStarted] = useState(false);
   const [restoredSession, setRestoredSession] = useState(false);
 
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/app/dashboard";
+  const fromPathname = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const from = resolveRedirectPath(fromPathname);
 
   useEffect(() => {
     if (isAuthenticated || bootstrapAttempted || isBootstrapping) {
       return;
     }
     let active = true;
+    setBootstrapStarted(true);
     bootstrapSession()
       .then((restored) => {
         if (active && restored) {
@@ -33,6 +45,7 @@ export default function Login() {
       .finally(() => {
         if (active) {
           setBootstrapAttempted(true);
+          setBootstrapStarted(false);
         }
       });
 
@@ -56,7 +69,11 @@ export default function Login() {
   }
 
   if (isAuthenticated || restoredSession) {
-    return <Navigate to="/app/dashboard" replace />;
+    return <Navigate to={from} replace />;
+  }
+
+  if (!bootstrapAttempted && (isBootstrapping || bootstrapStarted)) {
+    return <SessionLoader fullScreen message="Checking existing session..." />;
   }
 
   return (
@@ -64,12 +81,12 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome to BudgetBuddy</CardTitle>
-          <CardDescription>Sign in to continue. API base: {API_BASE_URL}</CardDescription>
+          <CardDescription>
+            Sign in to continue.
+            {SHOW_API_BASE ? ` API base: ${API_BASE_URL}` : ""}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {isBootstrapping && !bootstrapAttempted ? (
-            <p className="mb-3 text-sm text-muted-foreground">Checking existing session...</p>
-          ) : null}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <input
               className="w-full rounded-md border px-3 py-2 text-sm"

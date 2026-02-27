@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 
 import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
 import { ApiProblemError } from "@/api/problem";
@@ -122,6 +122,54 @@ describe("AnalyticsPage", () => {
 
     await waitFor(() =>
       expect(getAnalyticsByMonth).toHaveBeenCalledWith(apiClientStub, { from: "2026-02-01", to: "2026-02-28" })
+    );
+  });
+
+  it("resyncs analytics range when URL query changes after mount", async () => {
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => navigate("/app/analytics?from=2026-02-01&to=2026-02-28")}
+          >
+            Navigate with range
+          </button>
+          <AnalyticsPage />
+        </>
+      );
+    }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    });
+    render(
+      <MemoryRouter initialEntries={["/app/analytics"]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              apiClient: apiClientStub,
+              user: { id: "u1", username: "demo", currency_code: "USD" },
+              accessToken: "token",
+              isAuthenticated: true,
+              isBootstrapping: false,
+              login: async () => undefined,
+              logout: async () => undefined,
+              bootstrapSession: async () => true
+            }}
+          >
+            <Harness />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    await screen.findAllByTestId("category-name");
+
+    fireEvent.click(screen.getByRole("button", { name: "Navigate with range" }));
+
+    await waitFor(() =>
+      expect(getAnalyticsByMonth).toHaveBeenLastCalledWith(apiClientStub, { from: "2026-02-01", to: "2026-02-28" })
     );
   });
 

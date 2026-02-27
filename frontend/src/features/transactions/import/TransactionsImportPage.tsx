@@ -8,6 +8,7 @@ import { useAuth } from "@/auth/useAuth";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
 import { parseImportInput } from "@/features/transactions/import/parseImportInput";
+import { invalidateTransactionsAnalyticsAndBudgets } from "@/features/transactions/transactionCache";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 
@@ -29,9 +30,7 @@ export default function TransactionsImportPage() {
     onSuccess: async (response) => {
       setRequestProblem(null);
       setResult(response);
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
-      await queryClient.invalidateQueries({ queryKey: ["budgets"] });
+      await invalidateTransactionsAnalyticsAndBudgets(queryClient);
     },
     onError: (error) => {
       setRequestProblem(error);

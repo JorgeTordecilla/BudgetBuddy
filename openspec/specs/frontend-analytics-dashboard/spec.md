@@ -5,7 +5,7 @@ Define the frontend contract and behavior for authenticated analytics reporting,
 ## Requirements
 
 ### Requirement: Authenticated analytics route and date-range queries must be available
-The frontend SHALL expose an authenticated analytics page under the app shell and load analytics data by an explicit date range.
+The frontend SHALL expose an authenticated analytics page under the app shell, load analytics data by explicit date range, and keep range state synchronized with URL query parameters.
 
 #### Scenario: Route is available under app shell
 - **WHEN** an authenticated user navigates to `/app/analytics`
@@ -23,6 +23,16 @@ The frontend SHALL expose an authenticated analytics page under the app shell an
 - **WHEN** user navigates to `/app/analytics?from=<YYYY-MM-DD>&to=<YYYY-MM-DD>`
 - **THEN** frontend SHALL initialize draft and applied range state from query params when valid
 - **AND** initial analytics requests SHALL use that URL-provided range.
+
+#### Scenario: URL range changes after mount resync state
+- **WHEN** URL query changes after initial render through links, back, or forward navigation
+- **THEN** frontend SHALL resynchronize draft and applied range state from URL
+- **AND** analytics queries SHALL execute using synchronized range.
+
+#### Scenario: Applying range updates URL deterministically
+- **WHEN** user applies a new valid range from analytics controls
+- **THEN** frontend SHALL update URL query params for `from` and `to`
+- **AND** copied/reloaded URL SHALL reproduce the same analytics view.
 
 #### Scenario: Invalid URL range falls back safely
 - **WHEN** URL query params are missing or invalid for analytics date range

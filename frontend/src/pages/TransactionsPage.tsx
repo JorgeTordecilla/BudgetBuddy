@@ -26,7 +26,14 @@ import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
 import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
 import TransactionRowActions from "@/components/transactions/TransactionRowActions";
+import { invalidateTransactionsAndAnalytics } from "@/features/transactions/transactionCache";
 import { appendCursorPage } from "@/lib/pagination";
+import {
+  normalizeBooleanParam,
+  normalizeIdParam,
+  normalizeIsoDateParam,
+  normalizeTransactionTypeParam
+} from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 import { defaultAnalyticsRange } from "@/utils/dates";
@@ -62,6 +69,66 @@ const DEFAULT_FILTERS: TransactionFilters = {
   includeArchived: false
 };
 
+function parseFiltersFromSearchParams(searchParams: URLSearchParams): TransactionFilters {
+  const fromParam = normalizeIsoDateParam(searchParams.get("from"));
+  const toParam = normalizeIsoDateParam(searchParams.get("to"));
+  let from = fromParam ?? DEFAULT_FILTERS.from;
+  let to = toParam ?? DEFAULT_FILTERS.to;
+  if (from > to) {
+    if (fromParam && !toParam) {
+      to = fromParam;
+    } else if (!fromParam && toParam) {
+      from = toParam;
+    } else {
+      from = DEFAULT_FILTERS.from;
+      to = DEFAULT_FILTERS.to;
+    }
+  }
+  return {
+    ...DEFAULT_FILTERS,
+    type: normalizeTransactionTypeParam(searchParams.get("type")),
+    accountId: normalizeIdParam(searchParams.get("account_id")),
+    categoryId: normalizeIdParam(searchParams.get("category_id")),
+    from,
+    to,
+    includeArchived: normalizeBooleanParam(searchParams.get("include_archived"))
+  };
+}
+
+function areFiltersEqual(left: TransactionFilters, right: TransactionFilters): boolean {
+  return (
+    left.type === right.type &&
+    left.accountId === right.accountId &&
+    left.categoryId === right.categoryId &&
+    left.from === right.from &&
+    left.to === right.to &&
+    left.includeArchived === right.includeArchived
+  );
+}
+
+function toSearchParams(filters: TransactionFilters): URLSearchParams {
+  const next = new URLSearchParams();
+  if (filters.type !== "all") {
+    next.set("type", filters.type);
+  }
+  if (filters.accountId) {
+    next.set("account_id", filters.accountId);
+  }
+  if (filters.categoryId) {
+    next.set("category_id", filters.categoryId);
+  }
+  if (filters.from) {
+    next.set("from", filters.from);
+  }
+  if (filters.to) {
+    next.set("to", filters.to);
+  }
+  if (filters.includeArchived) {
+    next.set("include_archived", "true");
+  }
+  return next;
+}
+
 function dedupeById(items: Transaction[]): Transaction[] {
   const map = new Map<string, Transaction>();
   items.forEach((item) => map.set(item.id, item));
@@ -76,23 +143,9 @@ function normalizeOptional(value: string): string | null {
 export default function TransactionsPage() {
   const { apiClient, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const initialFilters = useMemo<TransactionFilters>(() => {
-    const paramsType = searchParams.get("type");
-    const normalizedType = paramsType === "income" || paramsType === "expense" ? paramsType : "all";
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    const hasValidDateRange = Boolean(from && to && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to);
-    return {
-      ...DEFAULT_FILTERS,
-      type: normalizedType,
-      accountId: searchParams.get("account_id") ?? "",
-      categoryId: searchParams.get("category_id") ?? "",
-      from: hasValidDateRange ? (from as string) : DEFAULT_FILTERS.from,
-      to: hasValidDateRange ? (to as string) : DEFAULT_FILTERS.to
-    };
-  }, [searchParams]);
+  const initialFilters = useMemo<TransactionFilters>(() => parseFiltersFromSearchParams(searchParams), [searchParams]);
   const [filters, setFilters] = useState<TransactionFilters>(initialFilters);
   const [items, setItems] = useState<Transaction[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -150,6 +203,7 @@ export default function TransactionsPage() {
 
   const transactionsQuery = useQuery({
     queryKey,
+    enabled: !isDateRangeInvalid,
     meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listTransactions(apiClient, {
@@ -197,8 +251,7 @@ export default function TransactionsPage() {
     },
     onSuccess: async () => {
       setFormOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      await invalidateTransactionsAndAnalytics(queryClient);
     },
     onError: (error) => {
       setFormProblem(error);
@@ -210,8 +263,7 @@ export default function TransactionsPage() {
     mutationFn: (transactionId: string) => archiveTransaction(apiClient, transactionId),
     onSuccess: async () => {
       setArchiveTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      await invalidateTransactionsAndAnalytics(queryClient);
     },
     onError: (error) => {
       setPageProblem(error);
@@ -222,8 +274,7 @@ export default function TransactionsPage() {
     meta: { skipGlobalErrorToast: true },
     mutationFn: (transactionId: string) => restoreTransaction(apiClient, transactionId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      await invalidateTransactionsAndAnalytics(queryClient);
     },
     onError: (error) => {
       setPageProblem(error);
@@ -250,6 +301,22 @@ export default function TransactionsPage() {
       setPageProblem(error);
     }
   });
+
+  useEffect(() => {
+    setFilters((previous) => (areFiltersEqual(previous, initialFilters) ? previous : initialFilters));
+  }, [initialFilters]);
+
+  useEffect(() => {
+    if (isDateRangeInvalid) {
+      return;
+    }
+    const next = toSearchParams(filters);
+    const nextEncoded = next.toString();
+    const currentEncoded = searchParams.toString();
+    if (nextEncoded !== currentEncoded) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [filters, isDateRangeInvalid, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (transactionsQuery.data) {

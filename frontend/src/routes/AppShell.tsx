@@ -18,8 +18,13 @@ export default function AppShell() {
   const { logout } = useAuth();
 
   async function handleLogout() {
-    await logout();
-    navigate("/login", { replace: true });
+    try {
+      await logout();
+    } catch {
+      // Logout transport failures must not block local logout navigation.
+    } finally {
+      navigate("/login", { replace: true });
+    }
   }
 
   return (

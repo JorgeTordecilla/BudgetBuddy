@@ -176,8 +176,17 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       return (await response.json()) as User;
     },
     logout: async (): Promise<void> => {
-      await rawRequest("/auth/logout", { method: "POST" });
-      bindings.clearSession();
+      try {
+        const response = await rawRequest("/auth/logout", { method: "POST" });
+        if (!response.ok) {
+          await publishAuthProblem(response, "Logout failed");
+        }
+      } catch (error) {
+        await publishAuthProblem(error, "Logout failed");
+        throw error;
+      } finally {
+        bindings.clearSession();
+      }
     }
   };
 }

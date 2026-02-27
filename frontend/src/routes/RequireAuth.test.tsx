@@ -72,4 +72,40 @@ describe("RequireAuth", () => {
     await waitFor(() => expect(screen.getByText("Login page")).toBeInTheDocument());
     expect(bootstrapSession).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps protected route inaccessible on history navigation when unauthenticated", async () => {
+    const bootstrapSession = vi.fn(async () => false);
+    render(
+      <AuthContext.Provider
+        value={{
+          apiClient: apiClientStub,
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isBootstrapping: false,
+          login: async () => undefined,
+          logout: async () => undefined,
+          bootstrapSession
+        }}
+      >
+        <MemoryRouter initialEntries={["/login", "/app"]} initialIndex={1}>
+          <Routes>
+            <Route
+              path="/app"
+              element={(
+                <RequireAuth>
+                  <div>Private area</div>
+                </RequireAuth>
+              )}
+            />
+            <Route path="/login" element={<div>Login page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    await waitFor(() => expect(screen.getByText("Login page")).toBeInTheDocument());
+    expect(screen.queryByText("Private area")).not.toBeInTheDocument();
+    expect(bootstrapSession).toHaveBeenCalledTimes(1);
+  });
 });

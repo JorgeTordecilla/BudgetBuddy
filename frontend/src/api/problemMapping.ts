@@ -1,4 +1,16 @@
 import { ApiProblemError, ApiUnknownError, type NormalizedApiError } from "@/api/errors";
+import {
+  PROBLEM_TYPE_ACCOUNT_ARCHIVED,
+  PROBLEM_TYPE_BUDGET_DUPLICATE,
+  PROBLEM_TYPE_CATEGORY_ARCHIVED,
+  PROBLEM_TYPE_CATEGORY_TYPE_MISMATCH,
+  PROBLEM_TYPE_FORBIDDEN,
+  PROBLEM_TYPE_INVALID_CURSOR,
+  PROBLEM_TYPE_INVALID_DATE_RANGE,
+  PROBLEM_TYPE_NOT_ACCEPTABLE,
+  PROBLEM_TYPE_RATE_LIMITED,
+  PROBLEM_TYPE_UNAUTHORIZED
+} from "@/api/problemTypes";
 
 export type ProblemPresentation = "toast" | "inline" | "both";
 
@@ -15,46 +27,46 @@ const UNKNOWN_FALLBACK: ProblemUiEntry = {
 };
 
 const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
-  "https://api.budgetbuddy.dev/problems/unauthorized": {
+  [PROBLEM_TYPE_UNAUTHORIZED]: {
     message: "Your session expired. Please sign in again.",
     presentation: "toast"
   },
-  "https://api.budgetbuddy.dev/problems/forbidden": {
+  [PROBLEM_TYPE_FORBIDDEN]: {
     message: "You do not have access to this resource.",
     presentation: "inline"
   },
-  "https://api.budgetbuddy.dev/problems/not-acceptable": {
+  [PROBLEM_TYPE_NOT_ACCEPTABLE]: {
     message: "Client contract error. Please refresh.",
     presentation: "toast"
   },
-  "https://api.budgetbuddy.dev/problems/invalid-cursor": {
+  [PROBLEM_TYPE_INVALID_CURSOR]: {
     message: "Pagination cursor is invalid. Reload the page.",
     presentation: "inline"
   },
-  "https://api.budgetbuddy.dev/problems/invalid-date-range": {
+  [PROBLEM_TYPE_INVALID_DATE_RANGE]: {
     message: "Invalid date range. 'From' must be before 'To'.",
     presentation: "inline",
     showDetail: true
   },
-  "https://api.budgetbuddy.dev/problems/rate-limited": {
+  [PROBLEM_TYPE_RATE_LIMITED]: {
     message: "Rate limited. Try again later.",
     presentation: "toast"
   },
-  "https://api.budgetbuddy.dev/problems/account-archived": {
+  [PROBLEM_TYPE_ACCOUNT_ARCHIVED]: {
     message: "This account is archived. Restore it to add transactions.",
     presentation: "inline",
     showDetail: true
   },
-  "https://api.budgetbuddy.dev/problems/category-archived": {
+  [PROBLEM_TYPE_CATEGORY_ARCHIVED]: {
     message: "This category is archived. Restore it to use it.",
     presentation: "inline",
     showDetail: true
   },
-  "https://api.budgetbuddy.dev/problems/category-type-mismatch": {
+  [PROBLEM_TYPE_CATEGORY_TYPE_MISMATCH]: {
     message: "Transaction type must match category type.",
     presentation: "inline"
   },
-  "https://api.budgetbuddy.dev/problems/budget-duplicate": {
+  [PROBLEM_TYPE_BUDGET_DUPLICATE]: {
     message: "A budget for this category and month already exists.",
     presentation: "inline"
   }
