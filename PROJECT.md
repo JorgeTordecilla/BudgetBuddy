@@ -92,3 +92,10 @@ Generated SDK outputs:
   - no flaky tests
   - coverage >= 85% global and >= 90% in critical flows
   - OpenSpec artifacts synced with implemented behavior
+
+## Monorepo OpenSpec Governance
+- Use a single OpenSpec source of truth at repository root: `openspec/`.
+- Do not create package-level OpenSpec directories (for example `frontend/openspec`).
+- Frontend and backend changes must both be authored under `openspec/changes/`.
+- Capability names must be domain-prefixed when useful (`frontend-*`, `backend-*`, `shared-*`) to keep ownership clear.
+- Archive and spec sync operations must always run from repository root to avoid drift.
