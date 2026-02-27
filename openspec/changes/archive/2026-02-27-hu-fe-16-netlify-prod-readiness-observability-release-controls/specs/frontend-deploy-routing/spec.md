@@ -1,8 +1,5 @@
-# frontend-deploy-routing Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change hu-fe-14-netlify-prod-readiness. Update Purpose after archive.
-## Requirements
 ### Requirement: Netlify deploy must support SPA deep-link routing
 Frontend deploy configuration SHALL guarantee browser refresh support for app routes handled by React Router and SHALL define deterministic build/publish settings for Netlify.
 
@@ -20,6 +17,8 @@ Frontend deploy configuration SHALL guarantee browser refresh support for app ro
 - **WHEN** frontend deploy config is reviewed
 - **THEN** repository SHALL include `_redirects` or `netlify.toml` with SPA fallback semantics
 - **AND** the fallback rule SHALL be deterministic (`/* /index.html 200` or equivalent).
+
+## ADDED Requirements
 
 ### Requirement: Netlify response security headers must be baseline-hardened
 Frontend hosting configuration SHALL enforce baseline browser security headers for production responses.

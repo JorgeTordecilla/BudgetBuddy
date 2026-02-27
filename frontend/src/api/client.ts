@@ -4,6 +4,7 @@ import { parseProblemDetails, toApiError } from "@/api/errors";
 import { resolveProblemUi } from "@/api/problemMapping";
 import { publishProblemToast } from "@/components/errors/problemToastStore";
 import { setLastRequestId } from "@/state/diagnostics";
+import { captureApiFailure } from "@/observability/runtime";
 
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 
@@ -128,11 +129,22 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       }
     }
 
-    const response = await fetchImpl(`${baseUrl}${path}`, {
-      ...init,
-      headers,
-      credentials: "include"
-    });
+    let response: Response;
+    try {
+      response = await fetchImpl(`${baseUrl}${path}`, {
+        ...init,
+        headers,
+        credentials: "include"
+      });
+    } catch (error) {
+      captureApiFailure({
+        message: error instanceof Error ? error.message : "Network request failed",
+        status: 0,
+        method: (init.method ?? "GET").toUpperCase(),
+        path
+      });
+      throw error;
+    }
     setLastRequestId(response.headers.get("X-Request-Id"));
 
     if (response.status === 401 && retryOn401) {
@@ -149,6 +161,16 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     }
 
     if (!response.ok) {
+      const problem = await readProblemDetails(response);
+      captureApiFailure({
+        message: problem?.title ?? response.statusText ?? "Request failed",
+        status: response.status,
+        method: (init.method ?? "GET").toUpperCase(),
+        path,
+        requestId: response.headers.get("X-Request-Id"),
+        problemType: problem?.type ?? null,
+        problemTitle: problem?.title ?? null
+      });
       logFailureDev(reqId, response);
     }
     return response;

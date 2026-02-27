@@ -244,6 +244,35 @@ describe("api client refresh behavior", () => {
     expect(headers.get("Content-Type")).toBe("application/vnd.budgetbuddy.v1+json");
   });
 
+  it("uses credentials include for login, refresh, and logout", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("bad", { status: 401 }))
+      .mockResolvedValueOnce(new Response("bad", { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = createApiClient(
+      {
+        getAccessToken: () => null,
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      {
+        fetchImpl: fetchMock,
+        baseUrl: "http://test.local/api",
+        onAuthFailure: () => undefined
+      }
+    );
+
+    await expect(client.login("demo", "secret")).rejects.toThrow("login_failed");
+    await client.refresh();
+    await client.logout();
+
+    for (const call of fetchMock.mock.calls) {
+      const init = call[1];
+      expect(init?.credentials).toBe("include");
+    }
+  });
+
   it("adds auth, accept, request id and credentials on protected requests", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("ok", { status: 200 }));
     const client = createApiClient(

@@ -1,8 +1,5 @@
-# frontend-runtime-configuration Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change hu-fe-14-netlify-prod-readiness. Update Purpose after archive.
-## Requirements
 ### Requirement: Frontend runtime configuration must be environment-driven
 The frontend SHALL derive runtime API targets and deployment metadata from explicit `VITE_*` variables, not hardcoded host values.
 

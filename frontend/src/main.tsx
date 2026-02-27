@@ -18,6 +18,7 @@ import Dashboard from "@/routes/Dashboard";
 import Login from "@/routes/Login";
 import RequireAuth from "@/routes/RequireAuth";
 import { createAppQueryClient } from "@/query/queryClient";
+import { initializeObservability } from "@/observability/runtime";
 
 const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/app/dashboard" replace /> },
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
 ]);
 
 const queryClient = createAppQueryClient();
+initializeObservability();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

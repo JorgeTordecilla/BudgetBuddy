@@ -2,6 +2,7 @@ import React, { type ReactNode } from "react";
 
 import { copyToClipboard } from "@/utils/clipboard";
 import { getDiagnosticsSnapshot } from "@/state/diagnostics";
+import { captureRuntimeFailure } from "@/observability/runtime";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -25,8 +26,15 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
     };
   }
 
-  componentDidCatch(_error: Error): void {
+  componentDidCatch(error: Error): void {
     // Fallback UI intentionally handles runtime failures; diagnostics are copied on demand.
+    const snapshot = getDiagnosticsSnapshot();
+    captureRuntimeFailure({
+      message: error.message,
+      requestId: snapshot.lastRequestId,
+      problemType: snapshot.lastProblemType,
+      path: snapshot.lastPath
+    });
   }
 
   private readonly handleTryAgain = (): void => {
