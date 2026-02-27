@@ -22,6 +22,19 @@ export type ListTransactionsParams = {
   limit?: number;
 };
 
+export type ExportTransactionsParams = {
+  type?: TransactionType | "all";
+  accountId?: string;
+  categoryId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type TransactionsCsvExportResponse = {
+  blob: Blob;
+  contentDisposition: string | null;
+};
+
 function buildTransactionsQuery(params: ListTransactionsParams = {}): string {
   const search = new URLSearchParams();
   search.set("include_archived", String(Boolean(params.includeArchived)));
@@ -45,6 +58,26 @@ function buildTransactionsQuery(params: ListTransactionsParams = {}): string {
   }
   if (params.limit && params.limit > 0) {
     search.set("limit", String(params.limit));
+  }
+  return search.toString();
+}
+
+export function buildTransactionsExportQuery(params: ExportTransactionsParams = {}): string {
+  const search = new URLSearchParams();
+  if (params.type && params.type !== "all") {
+    search.set("type", params.type);
+  }
+  if (params.accountId) {
+    search.set("account_id", params.accountId);
+  }
+  if (params.categoryId) {
+    search.set("category_id", params.categoryId);
+  }
+  if (params.from) {
+    search.set("from", params.from);
+  }
+  if (params.to) {
+    search.set("to", params.to);
   }
   return search.toString();
 }
@@ -100,4 +133,35 @@ export async function importTransactions(client: ApiClient, payload: Transaction
     throw new ApiProblemError(response.status, await readProblemDetails(response), "transactions_import_failed");
   }
   return (await response.json()) as TransactionImportResult;
+}
+
+export async function exportTransactionsCsv(
+  client: ApiClient,
+  params: ExportTransactionsParams = {}
+): Promise<TransactionsCsvExportResponse> {
+  const query = buildTransactionsExportQuery(params);
+  const response = await client.request(`/transactions/export${query ? `?${query}` : ""}`, {
+    method: "GET",
+    headers: {
+      Accept: "text/csv, application/problem+json"
+    }
+  });
+  if (!response.ok) {
+    const problem = await readProblemDetails(response);
+    const retryAfter = response.headers.get("Retry-After");
+    const enhancedProblem = response.status === 429 && retryAfter
+      ? {
+          type: problem?.type ?? "https://api.budgetbuddy.dev/problems/rate-limited",
+          title: problem?.title ?? "Too Many Requests",
+          status: problem?.status ?? 429,
+          detail: problem?.detail ?? `Too many requests. Try again in ${retryAfter} seconds.`
+        }
+      : problem;
+    throw new ApiProblemError(response.status, enhancedProblem, "transactions_export_failed");
+  }
+
+  return {
+    blob: await response.blob(),
+    contentDisposition: response.headers.get("content-disposition")
+  };
 }

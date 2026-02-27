@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { listAccounts } from "@/api/accounts";
@@ -10,12 +10,14 @@ import { ApiProblemError } from "@/api/problem";
 import {
   archiveTransaction,
   createTransaction,
+  exportTransactionsCsv,
   listTransactions,
   restoreTransaction,
   updateTransaction
 } from "@/api/transactions";
 import { AuthContext } from "@/auth/AuthContext";
 import TransactionsPage from "@/pages/TransactionsPage";
+import * as downloadUtils from "@/utils/download";
 
 vi.mock("@/api/accounts", () => ({
   listAccounts: vi.fn()
@@ -30,7 +32,8 @@ vi.mock("@/api/transactions", () => ({
   createTransaction: vi.fn(),
   updateTransaction: vi.fn(),
   archiveTransaction: vi.fn(),
-  restoreTransaction: vi.fn()
+  restoreTransaction: vi.fn(),
+  exportTransactionsCsv: vi.fn()
 }));
 
 const apiClientStub = {} as ApiClient;
@@ -66,6 +69,10 @@ function renderPage() {
 }
 
 describe("TransactionsPage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(listAccounts).mockResolvedValue({
@@ -146,6 +153,12 @@ describe("TransactionsPage", () => {
       created_at: "2026-02-18T10:20:30Z",
       updated_at: "2026-02-19T10:20:30Z"
     });
+    vi.mocked(exportTransactionsCsv).mockResolvedValue({
+      blob: new Blob(["date,type\n"], { type: "text/csv" }),
+      contentDisposition: "attachment; filename=\"transactions.csv\""
+    });
+    vi.spyOn(downloadUtils, "downloadBlob").mockImplementation(() => undefined);
+    vi.spyOn(downloadUtils, "resolveCsvFilename").mockReturnValue("transactions.csv");
   });
 
   it("edits transaction via patch mutation", async () => {
@@ -383,5 +396,47 @@ describe("TransactionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
 
     expect(await screen.findByText("Import page")).toBeInTheDocument();
+  });
+
+  it("disables export when date range is invalid", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-01" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-02-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+
+    expect(screen.getByText("From date must be on or before To date.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+  });
+
+  it("exports csv and triggers download helper", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+
+    await waitFor(() => expect(exportTransactionsCsv).toHaveBeenCalledWith(apiClientStub, expect.any(Object)));
+    expect(downloadUtils.resolveCsvFilename).toHaveBeenCalled();
+    expect(downloadUtils.downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "transactions.csv");
+  });
+
+  it("shows retry-after guidance when export returns 429", async () => {
+    vi.mocked(exportTransactionsCsv).mockRejectedValueOnce(
+      new ApiProblemError(429, {
+        type: "https://api.budgetbuddy.dev/problems/rate-limited",
+        title: "Too Many Requests",
+        status: 429,
+        detail: "Too many requests. Try again in 30 seconds."
+      })
+    );
+
+    renderPage();
+    await screen.findByText("Market");
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+
+    expect(await screen.findByText("Too many requests. Try again in 30 seconds.")).toBeInTheDocument();
   });
 });

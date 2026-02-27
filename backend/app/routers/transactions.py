@@ -143,33 +143,25 @@ def _csv_line(cells: list[object]) -> str:
 
 def _csv_stream(rows) -> Iterator[str]:
     header = [
-        "id",
-        "type",
-        "account_id",
-        "category_id",
-        "amount_cents",
         "date",
+        "type",
+        "account",
+        "category",
+        "amount_cents",
         "merchant",
         "note",
-        "archived_at",
-        "created_at",
-        "updated_at",
     ]
     yield _csv_line(header)
-    for row in rows:
+    for tx, account_name, category_name in rows:
         yield _csv_line(
             [
-                row.id,
-                row.type,
-                row.account_id,
-                row.category_id,
-                row.amount_cents,
-                row.date.isoformat(),
-                row.merchant or "",
-                row.note or "",
-                row.archived_at.isoformat() if row.archived_at else "",
-                row.created_at.isoformat(),
-                row.updated_at.isoformat(),
+                tx.date.isoformat(),
+                tx.type,
+                account_name,
+                category_name,
+                tx.amount_cents,
+                tx.merchant or "",
+                tx.note or "",
             ]
         )
 
@@ -380,7 +372,12 @@ def export_transactions(
     if from_ and to and from_ > to:
         raise invalid_date_range_error("from must be less than or equal to to")
 
-    stmt = select(Transaction).where(Transaction.user_id == current_user.id)
+    stmt = (
+        select(Transaction, Account.name, Category.name)
+        .join(Account, Transaction.account_id == Account.id)
+        .join(Category, Transaction.category_id == Category.id)
+        .where(Transaction.user_id == current_user.id)
+    )
     stmt = _apply_list_filters(
         stmt,
         include_archived=False,
@@ -391,7 +388,7 @@ def export_transactions(
         to=to,
     )
     stmt = stmt.order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id.desc())
-    rows = db.scalars(stmt)
+    rows = db.execute(stmt)
 
     return StreamingResponse(
         _csv_stream(rows),

@@ -1446,9 +1446,9 @@ paths:
               schema:
                 type: string
                 format: binary
-              example: 'id,type,account_id,category_id,amount_cents,date,merchant,note
+              example: 'date,type,account,category,amount_cents,merchant,note
 
-                9d9ae8f4-090c-4f65-82d4-2f6e10985ef7,expense,c4187039-d6c3-4f6b-9f87-ac2f59aa31ab,0dab8db1-dcb8-44a2-bccd-d2efce11c7c9,4599,2026-02-18,Corner Market,Weekly groceries
+                2026-02-18,expense,Main Checking,Groceries,4599,Corner Market,Weekly groceries
 
                 '
         '400':

@@ -2912,7 +2912,7 @@ def test_transactions_export_returns_csv_headers_and_row_count():
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/csv")
         lines = [line for line in response.text.strip().splitlines() if line]
-        assert lines[0] == "id,type,account_id,category_id,amount_cents,date,merchant,note,archived_at,created_at,updated_at"
+        assert lines[0] == "date,type,account,category,amount_cents,merchant,note"
         assert len(lines) == 3
 
 

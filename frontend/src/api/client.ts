@@ -95,7 +95,9 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     const { auth = false, retryOn401 = false } = requestOptions;
     const headers = new Headers(init.headers);
     const reqId = requestId();
-    headers.set("Accept", VENDOR_MEDIA_TYPE);
+    if (!headers.has("Accept")) {
+      headers.set("Accept", VENDOR_MEDIA_TYPE);
+    }
     headers.set("X-Request-Id", reqId);
     if (needsVendorContentType(init.method) && !headers.has("Content-Type")) {
       headers.set("Content-Type", VENDOR_MEDIA_TYPE);

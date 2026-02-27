@@ -5,6 +5,8 @@ import { ApiProblemError } from "@/api/problem";
 import {
   archiveTransaction,
   createTransaction,
+  exportTransactionsCsv,
+  buildTransactionsExportQuery,
   importTransactions,
   listTransactions,
   restoreTransaction,
@@ -222,6 +224,46 @@ describe("transactions api wrappers", () => {
     expect(result.created_count).toBe(1);
   });
 
+  it("builds export query with active filters only", () => {
+    const query = buildTransactionsExportQuery({
+      type: "expense",
+      accountId: "a1",
+      categoryId: "c1",
+      from: "2026-02-01",
+      to: "2026-02-28"
+    });
+    expect(query).toBe("type=expense&account_id=a1&category_id=c1&from=2026-02-01&to=2026-02-28");
+
+    const defaults = buildTransactionsExportQuery({ type: "all" });
+    expect(defaults).toBe("");
+  });
+
+  it("exports CSV with csv/problem accept header", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("date,type\n2026-02-01,expense\n", {
+        status: 200,
+        headers: {
+          "content-type": "text/csv",
+          "content-disposition": "attachment; filename=\"transactions.csv\""
+        }
+      })
+    );
+    const client = makeClient(fetchMock);
+
+    const result = await exportTransactionsCsv(client, {
+      type: "expense",
+      from: "2026-02-01",
+      to: "2026-02-28"
+    });
+
+    const call = fetchMock.mock.calls[0];
+    expect(String(call?.[0])).toContain("/transactions/export?type=expense&from=2026-02-01&to=2026-02-28");
+    const headers = new Headers(call?.[1]?.headers);
+    expect(headers.get("Accept")).toBe("text/csv, application/problem+json");
+    expect(result.contentDisposition).toContain("transactions.csv");
+    expect(result.blob.type).toBe("text/csv");
+  });
+
   it("omits optional query params when using defaults", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ items: [], next_cursor: null }), {
@@ -358,5 +400,63 @@ describe("transactions api wrappers", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/transactions/import");
     expect(setSession).toHaveBeenCalledTimes(1);
     expect(clearSession).not.toHaveBeenCalled();
+  });
+
+  it("retries export once after 401 using refresh flow", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: { id: "u1", username: "demo", currency_code: "USD" },
+            access_token: "access-456",
+            access_token_expires_in: 900
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response("date,type\n", {
+          status: 200,
+          headers: { "content-type": "text/csv" }
+        })
+      );
+
+    const { client, setSession, clearSession } = makeClientWithSpies(fetchMock);
+    const response = await exportTransactionsCsv(client, { type: "expense" });
+
+    expect(response.blob.type).toBe("text/csv");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/transactions/export?type=expense");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/auth/refresh");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/transactions/export?type=expense");
+    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
+  });
+
+  it("maps retry-after guidance for 429 export error", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/rate-limited",
+          title: "Too Many Requests",
+          status: 429
+        }),
+        {
+          status: 429,
+          headers: {
+            "content-type": "application/problem+json",
+            "Retry-After": "30"
+          }
+        }
+      )
+    );
+
+    await expect(exportTransactionsCsv(makeClient(fetchMock))).rejects.toMatchObject({
+      status: 429,
+      problem: expect.objectContaining({
+        detail: "Too many requests. Try again in 30 seconds."
+      })
+    } satisfies Partial<ApiProblemError>);
   });
 });

@@ -9,6 +9,7 @@ import { ApiProblemError } from "@/api/problem";
 import {
   archiveTransaction,
   createTransaction,
+  exportTransactionsCsv,
   listTransactions,
   restoreTransaction,
   updateTransaction
@@ -29,6 +30,8 @@ import TransactionRowActions from "@/components/transactions/TransactionRowActio
 import { appendCursorPage } from "@/lib/pagination";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { defaultAnalyticsRange } from "@/utils/dates";
+import { downloadBlob, resolveCsvFilename } from "@/utils/download";
 
 const EMPTY_FORM: TransactionFormState = {
   type: "expense",
@@ -44,13 +47,19 @@ type TransactionFilters = {
   type: TransactionType | "all";
   accountId: string;
   categoryId: string;
+  from: string;
+  to: string;
   includeArchived: boolean;
 };
+
+const defaultRange = defaultAnalyticsRange();
 
 const DEFAULT_FILTERS: TransactionFilters = {
   type: "all",
   accountId: "",
   categoryId: "",
+  from: defaultRange.from,
+  to: defaultRange.to,
   includeArchived: false
 };
 
@@ -66,7 +75,7 @@ function normalizeOptional(value: string): string | null {
 }
 
 export default function TransactionsPage() {
-  const { apiClient } = useAuth();
+  const { apiClient, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
@@ -89,8 +98,11 @@ export default function TransactionsPage() {
     filters.type,
     filters.accountId,
     filters.categoryId,
+    filters.from,
+    filters.to,
     filters.includeArchived
   ] as const;
+  const isDateRangeInvalid = Boolean(filters.from && filters.to && filters.from > filters.to);
 
   function toProblemDetails(error: unknown, title: string): ProblemDetails {
     if (error instanceof ApiProblemError) {
@@ -131,6 +143,8 @@ export default function TransactionsPage() {
         type: filters.type,
         accountId: filters.accountId || undefined,
         categoryId: filters.categoryId || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined,
         limit: 20
       })
   });
@@ -142,6 +156,8 @@ export default function TransactionsPage() {
         type: filters.type,
         accountId: filters.accountId || undefined,
         categoryId: filters.categoryId || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined,
         cursor,
         limit: 20
       }),
@@ -193,6 +209,26 @@ export default function TransactionsPage() {
     },
     onError: (error) => {
       setPageProblem(toProblemDetails(error, "Failed to restore transaction"));
+    }
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: () =>
+      exportTransactionsCsv(apiClient, {
+        type: filters.type,
+        accountId: filters.accountId || undefined,
+        categoryId: filters.categoryId || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined
+      }),
+    onSuccess: ({ blob, contentDisposition }) => {
+      const filename = resolveCsvFilename(contentDisposition);
+      downloadBlob(blob, filename);
+      setPageProblem(null);
+      setMoreActionsOpen(false);
+    },
+    onError: (error) => {
+      setPageProblem(toProblemDetails(error, "Export failed"));
     }
   });
 
@@ -423,47 +459,86 @@ export default function TransactionsPage() {
         title="Transactions"
         description="Create, update, restore, and archive transactions with contract-safe behavior."
         actions={(
-          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <Button type="button" onClick={openCreateModal}>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+            <Button type="button" size="sm" className="min-w-36" onClick={openCreateModal}>
               New transaction
             </Button>
             <div className="relative" ref={moreActionsRef}>
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 aria-label="More options"
                 onClick={() => setMoreActionsOpen((current) => !current)}
-                className="h-10 w-10 px-0 text-xl leading-none"
+                className="h-9 w-9 px-0 text-lg leading-none text-muted-foreground"
               >
-                ⋮
+                ...
               </Button>
               {moreActionsOpen ? (
-                <div className="absolute right-0 z-20 mt-2 w-56 rounded-md border bg-card p-2 shadow-lg">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mb-2 w-full justify-start"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    navigate("/app/transactions/import");
-                  }}
-                >
-                  Import
-                </Button>
-                <Button type="button" variant="outline" className="w-full justify-start" disabled>
-                  Export (coming soon)
-                </Button>
+                <div className="absolute right-0 z-20 mt-2 w-52 rounded-md border bg-card p-2 shadow-lg">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mb-2 w-full justify-start"
+                    onClick={() => {
+                      setMoreActionsOpen(false);
+                      navigate("/app/transactions/import");
+                    }}
+                  >
+                    Import
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start"
+                    disabled={exportMutation.isPending || !isAuthenticated || isDateRangeInvalid}
+                    onClick={() => exportMutation.mutate()}
+                  >
+                    {exportMutation.isPending ? "Exporting..." : "Export CSV"}
+                  </Button>
                 </div>
               ) : null}
             </div>
           </div>
         )}
-      >
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-          <label className="inline-flex items-center gap-2">
-            <span>Type</span>
+      />
+
+      <div className="mb-6 border-b pb-4">
+        <div className="grid max-w-5xl grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-6">
+          <label className="space-y-1">
+            <span className="block">From</span>
+            <input
+              type="date"
+              aria-label="From"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              value={filters.from}
+              onChange={(event) =>
+                setFilters((previous) => ({
+                  ...previous,
+                  from: event.target.value
+                }))
+              }
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="block">To</span>
+            <input
+              type="date"
+              aria-label="To"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              value={filters.to}
+              onChange={(event) =>
+                setFilters((previous) => ({
+                  ...previous,
+                  to: event.target.value
+                }))
+              }
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="block">Type</span>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
               value={filters.type}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -477,10 +552,10 @@ export default function TransactionsPage() {
               <option value="expense">expense</option>
             </select>
           </label>
-          <label className="inline-flex items-center gap-2">
-            <span>Account</span>
+          <label className="space-y-1">
+            <span className="block">Account</span>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
               value={filters.accountId}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -497,10 +572,10 @@ export default function TransactionsPage() {
               ))}
             </select>
           </label>
-          <label className="inline-flex items-center gap-2">
-            <span>Category</span>
+          <label className="space-y-1">
+            <span className="block">Category</span>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
               value={filters.categoryId}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -517,21 +592,27 @@ export default function TransactionsPage() {
               ))}
             </select>
           </label>
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={filters.includeArchived}
-              onChange={(event) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  includeArchived: event.target.checked
-                }))
-              }
-            />
-            Show archived
+          <label className="space-y-1">
+            <span className="block opacity-0">Options</span>
+            <span className="inline-flex h-9 items-center gap-2 rounded-md border border-transparent px-1">
+              <input
+                type="checkbox"
+                checked={filters.includeArchived}
+                onChange={(event) =>
+                  setFilters((previous) => ({
+                    ...previous,
+                    includeArchived: event.target.checked
+                  }))
+                }
+              />
+              Show archived
+            </span>
           </label>
         </div>
-      </PageHeader>
+        {isDateRangeInvalid ? (
+          <p className="mt-2 text-sm text-destructive">From date must be on or before To date.</p>
+        ) : null}
+      </div>
 
       <ProblemBanner problem={pageProblem} onClose={() => setPageProblem(null)} />
 
