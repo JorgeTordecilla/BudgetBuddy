@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
+import SessionLoader from "@/components/session/SessionLoader";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { API_BASE_URL } from "@/config";
@@ -61,13 +62,16 @@ export default function Login() {
 
   if (!bootstrapAttempted || isBootstrapping) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Welcome to BudgetBuddy</CardTitle>
-            <CardDescription>Checking your session...</CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="space-y-4">
+        <div className="flex min-h-[20vh] items-end justify-center p-6">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Welcome to BudgetBuddy</CardTitle>
+              <CardDescription>Restoring your secure session.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+        <SessionLoader message="Checking your session..." />
       </div>
     );
   }

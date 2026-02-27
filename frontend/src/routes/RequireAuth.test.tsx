@@ -29,6 +29,20 @@ function renderWithAuth(value: Parameters<typeof AuthContext.Provider>[0]["value
 }
 
 describe("RequireAuth", () => {
+  it("shows loader while auth bootstrap is in progress", () => {
+    renderWithAuth({
+      apiClient: apiClientStub,
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isBootstrapping: true,
+      login: async () => undefined,
+      logout: async () => undefined,
+      bootstrapSession: async () => false
+    });
+    expect(screen.getByText("Checking session...")).toBeInTheDocument();
+  });
+
   it("renders protected content when authenticated", () => {
     renderWithAuth({
       apiClient: apiClientStub,

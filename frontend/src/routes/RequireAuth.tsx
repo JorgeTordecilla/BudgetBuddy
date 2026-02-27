@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import type { ReactElement } from "react";
 
 import { useAuth } from "@/auth/useAuth";
+import SessionLoader from "@/components/session/SessionLoader";
 
 type RequireAuthProps = {
   children: ReactElement;
@@ -28,12 +29,16 @@ export default function RequireAuth({ children }: RequireAuthProps): ReactElemen
     };
   }, [isAuthenticated, bootstrapAttempted, isBootstrapping, bootstrapSession]);
 
+  if (isBootstrapping) {
+    return <SessionLoader />;
+  }
+
   if (isAuthenticated) {
     return children;
   }
 
-  if (!bootstrapAttempted || isBootstrapping) {
-    return <div className="p-6 text-sm text-muted-foreground">Checking session...</div>;
+  if (!bootstrapAttempted) {
+    return <SessionLoader />;
   }
 
   if (!isAuthenticated) {

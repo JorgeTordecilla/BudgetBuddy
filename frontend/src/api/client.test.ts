@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { publishProblemToast } = vi.hoisted(() => ({
+  publishProblemToast: vi.fn()
+}));
+vi.mock("@/components/errors/problemToastStore", () => ({
+  publishProblemToast
+}));
+
 import { createApiClient } from "@/api/client";
 import type { User } from "@/api/types";
 
@@ -10,6 +17,7 @@ function makeUser(): User {
 describe("api client refresh behavior", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    publishProblemToast.mockClear();
   });
 
   it("retries once after refresh succeeds", async () => {
@@ -100,6 +108,116 @@ describe("api client refresh behavior", () => {
     expect(response.status).toBe(401);
     expect(setSession).not.toHaveBeenCalled();
     expect(clearSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears session when retry after refresh still returns 401", async () => {
+    const clearSession = vi.fn();
+    const onAuthFailure = vi.fn();
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: makeUser(),
+            access_token: "new-token",
+            access_token_expires_in: 900
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response("still-unauthorized", { status: 401 }));
+
+    const client = createApiClient(
+      {
+        getAccessToken: () => "old-token",
+        setSession: () => undefined,
+        clearSession
+      },
+      {
+        fetchImpl: fetchMock,
+        baseUrl: "http://test.local/api",
+        onAuthFailure
+      }
+    );
+
+    const response = await client.request("/protected", { method: "GET" });
+    expect(response.status).toBe(401);
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(onAuthFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not clear session on refresh network failure and surfaces the error", async () => {
+    const clearSession = vi.fn();
+    const onAuthFailure = vi.fn();
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockRejectedValueOnce(new TypeError("network down"));
+
+    const client = createApiClient(
+      {
+        getAccessToken: () => "old-token",
+        setSession: () => undefined,
+        clearSession
+      },
+      {
+        fetchImpl: fetchMock,
+        baseUrl: "http://test.local/api",
+        onAuthFailure
+      }
+    );
+
+    await expect(client.request("/protected", { method: "GET" })).rejects.toThrow("network down");
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(onAuthFailure).not.toHaveBeenCalled();
+  });
+
+  it("publishes mapped auth toast with request id on refresh 403", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            type: "https://api.budgetbuddy.dev/problems/forbidden",
+            title: "Forbidden",
+            status: 403,
+            detail: "Refresh revoked"
+          }),
+          {
+            status: 403,
+            headers: {
+              "content-type": "application/problem+json",
+              "X-Request-Id": "req-refresh-403"
+            }
+          }
+        )
+      );
+
+    const client = createApiClient(
+      {
+        getAccessToken: () => "old-token",
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      {
+        fetchImpl: fetchMock,
+        baseUrl: "http://test.local/api",
+        onAuthFailure: () => undefined
+      }
+    );
+
+    await client.request("/protected", { method: "GET" });
+
+    expect(publishProblemToast).toHaveBeenCalledTimes(1);
+    expect(publishProblemToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-refresh-403",
+        status: 403,
+        type: "https://api.budgetbuddy.dev/problems/forbidden"
+      })
+    );
   });
 
   it("sends vendor content-type for refresh post without body", async () => {

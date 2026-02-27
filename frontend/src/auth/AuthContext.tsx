@@ -1,4 +1,5 @@
 import { createContext, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { createApiClient } from "@/api/client";
 import type { ApiClient } from "@/api/client";
@@ -23,6 +24,7 @@ type SessionState = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<SessionState>({ user: null, accessToken: null });
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const tokenRef = useRef<string | null>(null);
@@ -41,9 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         clearSession: () => {
           setSessionState({ accessToken: null, user: null });
+          queryClient.clear();
         }
       }),
-    []
+    [queryClient]
   );
 
   const login = useCallback(async (username: string, password: string): Promise<void> => {
@@ -53,27 +56,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     await client.logout();
-  }, [client]);
+    queryClient.clear();
+  }, [client, queryClient]);
 
   const bootstrapSession = useCallback(async (): Promise<boolean> => {
-    if (tokenRef.current) {
+    if (tokenRef.current && session.user) {
       return true;
     }
     setIsBootstrapping(true);
     try {
-      const refreshed = await client.refresh();
-      return Boolean(refreshed?.access_token);
+      if (!tokenRef.current) {
+        const refreshed = await client.refresh();
+        if (!refreshed?.access_token) {
+          return false;
+        }
+      }
+      const meUser = await client.me();
+      setSessionState({ accessToken: tokenRef.current, user: meUser });
+      return true;
+    } catch {
+      setSessionState({ accessToken: null, user: null });
+      return false;
     } finally {
       setIsBootstrapping(false);
     }
-  }, [client]);
+  }, [client, session.user]);
 
   const value: AuthContextValue = useMemo(
     () => ({
       apiClient: client,
       user: session.user,
       accessToken: session.accessToken,
-      isAuthenticated: Boolean(session.accessToken),
+      isAuthenticated: Boolean(session.accessToken && session.user),
       isBootstrapping,
       login,
       logout,

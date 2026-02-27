@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "@/config";
 import type { AuthSessionResponse, ProblemDetails, User } from "@/api/types";
-import { parseProblemDetails } from "@/api/errors";
+import { parseProblemDetails, toApiError } from "@/api/errors";
+import { resolveProblemUi } from "@/api/problemMapping";
+import { publishProblemToast } from "@/components/errors/problemToastStore";
 
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 
@@ -61,22 +63,35 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
   const onAuthFailure = options.onAuthFailure ?? redirectToLogin;
   let refreshInFlight: Promise<AuthSessionResponse | null> | null = null;
 
+  const publishAuthProblem = async (input: Response | unknown, fallbackMessage: string): Promise<void> => {
+    const normalized = await toApiError(input, fallbackMessage);
+    publishProblemToast(resolveProblemUi(normalized));
+  };
+
   const refresh = async (): Promise<AuthSessionResponse | null> => {
     if (refreshInFlight) {
       return refreshInFlight;
     }
     refreshInFlight = (async () => {
-      const response = await rawRequest("/auth/refresh", {
-        method: "POST"
-      });
-      if (!response.ok) {
-        bindings.clearSession();
-        onAuthFailure();
-        return null;
+      try {
+        const response = await rawRequest("/auth/refresh", {
+          method: "POST"
+        });
+        if (!response.ok) {
+          await publishAuthProblem(response, "Refresh failed");
+          if (response.status === 401 || response.status === 403) {
+            bindings.clearSession();
+            onAuthFailure();
+          }
+          return null;
+        }
+        const session = (await response.json()) as AuthSessionResponse;
+        bindings.setSession({ accessToken: session.access_token, user: session.user });
+        return session;
+      } catch (error) {
+        await publishAuthProblem(error, "Refresh failed");
+        throw error;
       }
-      const session = (await response.json()) as AuthSessionResponse;
-      bindings.setSession({ accessToken: session.access_token, user: session.user });
-      return session;
     })().finally(() => {
       refreshInFlight = null;
     });
@@ -110,7 +125,12 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     if (response.status === 401 && retryOn401) {
       const refreshed = await refresh();
       if (refreshed) {
-        return rawRequest(path, init, { ...requestOptions, retryOn401: false });
+        const retried = await rawRequest(path, init, { ...requestOptions, retryOn401: false });
+        if (retried.status === 401) {
+          bindings.clearSession();
+          onAuthFailure();
+        }
+        return retried;
       }
       return response;
     }

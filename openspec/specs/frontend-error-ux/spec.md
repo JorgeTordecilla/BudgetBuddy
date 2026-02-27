@@ -35,6 +35,11 @@ The frontend SHALL map canonical `problem.type` values to user-facing messages a
 - **THEN** frontend SHALL fallback to a generic safe message and deterministic presentation
 - **AND** SHALL avoid exposing potentially sensitive raw backend detail by default.
 
+#### Scenario: Session-expired auth failures follow mapped UX policy
+- **WHEN** refresh flow returns ProblemDetails with unauthorized or forbidden auth types
+- **THEN** frontend SHALL render deterministic mapped messaging
+- **AND** request-id visibility/copy behavior SHALL remain available in the error presentation path.
+
 ### Requirement: Error UI must expose request id and support copy interaction
 All rendered frontend error surfaces SHALL display request correlation metadata when available.
 
