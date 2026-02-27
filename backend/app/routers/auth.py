@@ -246,14 +246,15 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 @router.post("/refresh")
 def refresh(request: Request, db: Session = Depends(get_db)):
     refresh_token = _refresh_cookie_value(request)
-    token_key = hash_refresh_token(refresh_token) if refresh_token else "missing-cookie"
-    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{_client_ip(request)}")
     _enforce_refresh_origin_policy(request)
+    if not refresh_token:
+        raise unauthorized_error("Refresh token is invalid or expired")
+
+    token_key = hash_refresh_token(refresh_token)
+    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{_client_ip(request)}")
 
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
-    if not refresh_token:
-        raise unauthorized_error("Refresh token is invalid or expired")
 
     token_hash = hash_refresh_token(refresh_token)
     refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)

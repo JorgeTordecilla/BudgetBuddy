@@ -6,6 +6,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
 import ProblemDetailsToast from "@/components/errors/ProblemDetailsToast";
+import ErrorBoundary from "@/errors/ErrorBoundary";
 import AnalyticsPage from "@/features/analytics/AnalyticsPage";
 import BudgetsPage from "@/features/budgets/BudgetsPage";
 import TransactionsImportPage from "@/features/transactions/import/TransactionsImportPage";
@@ -46,10 +47,12 @@ const queryClient = createAppQueryClient();
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-        <ProblemDetailsToast />
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <RouterProvider router={router} />
+          <ProblemDetailsToast />
+        </AuthProvider>
+      </ErrorBoundary>
     </QueryClientProvider>
   </React.StrictMode>
 );

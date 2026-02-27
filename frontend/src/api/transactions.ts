@@ -2,6 +2,7 @@ import type { ApiClient } from "@/api/client";
 import { readProblemDetails } from "@/api/client";
 import { ApiProblemError } from "@/api/errors";
 import { throwApiError } from "@/api/errors";
+import { setLastProblemType, setLastRequestId } from "@/state/diagnostics";
 import type {
   Transaction,
   TransactionCreate,
@@ -150,6 +151,8 @@ export async function exportTransactionsCsv(
   if (!response.ok) {
     const problem = await readProblemDetails(response);
     const retryAfter = response.headers.get("Retry-After");
+    const requestId = response.headers.get("X-Request-Id");
+    setLastRequestId(requestId);
     const enhancedProblem = response.status === 429 && retryAfter
       ? {
           type: problem?.type ?? "https://api.budgetbuddy.dev/problems/rate-limited",
@@ -158,11 +161,12 @@ export async function exportTransactionsCsv(
           detail: problem?.detail ?? `Too many requests. Try again in ${retryAfter} seconds.`
         }
       : problem;
+    setLastProblemType(enhancedProblem?.type ?? "about:blank", requestId);
     throw new ApiProblemError(
       enhancedProblem ?? { type: "about:blank", title: "transactions_export_failed", status: response.status },
       {
         httpStatus: response.status,
-        requestId: response.headers.get("X-Request-Id"),
+        requestId,
         retryAfter
       }
     );

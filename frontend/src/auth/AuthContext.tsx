@@ -17,6 +17,7 @@ type AuthContextValue = {
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+const MAX_SESSION_BOOTSTRAP_ATTEMPTS = 3;
 
 type SessionState = {
   user: User | null;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionState>({ user: null, accessToken: null });
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const tokenRef = useRef<string | null>(null);
+  const skipNextBootstrapRef = useRef(false);
 
   const setSessionState = (next: SessionState) => {
     tokenRef.current = next.accessToken;
@@ -55,26 +57,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [client]);
 
   const logout = useCallback(async (): Promise<void> => {
+    skipNextBootstrapRef.current = true;
     await client.logout();
     queryClient.clear();
   }, [client, queryClient]);
 
   const bootstrapSession = useCallback(async (): Promise<boolean> => {
+    if (skipNextBootstrapRef.current) {
+      skipNextBootstrapRef.current = false;
+      return false;
+    }
     if (tokenRef.current && session.user) {
       return true;
     }
     setIsBootstrapping(true);
     try {
-      if (!tokenRef.current) {
-        const refreshed = await client.refresh();
-        if (!refreshed?.access_token) {
-          return false;
+      for (let attempt = 1; attempt <= MAX_SESSION_BOOTSTRAP_ATTEMPTS; attempt += 1) {
+        try {
+          if (!tokenRef.current) {
+            const refreshed = await client.refresh({
+              silentAuthFailure: true,
+              suppressAuthFailureRedirect: true
+            });
+            if (!refreshed?.access_token) {
+              setSessionState({ accessToken: null, user: null });
+              return false;
+            }
+          }
+          const meUser = await client.me();
+          setSessionState({ accessToken: tokenRef.current, user: meUser });
+          return true;
+        } catch {
+          // Intentionally continue until max attempts are reached.
         }
       }
-      const meUser = await client.me();
-      setSessionState({ accessToken: tokenRef.current, user: meUser });
-      return true;
-    } catch {
+
       setSessionState({ accessToken: null, user: null });
       return false;
     } finally {

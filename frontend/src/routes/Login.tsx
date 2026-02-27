@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
-import SessionLoader from "@/components/session/SessionLoader";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { API_BASE_URL } from "@/config";
@@ -60,22 +59,6 @@ export default function Login() {
     return <Navigate to="/app/dashboard" replace />;
   }
 
-  if (!bootstrapAttempted || isBootstrapping) {
-    return (
-      <div className="space-y-4">
-        <div className="flex min-h-[20vh] items-end justify-center p-6">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Welcome to BudgetBuddy</CardTitle>
-              <CardDescription>Restoring your secure session.</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-        <SessionLoader message="Checking your session..." />
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md">
@@ -84,6 +67,9 @@ export default function Login() {
           <CardDescription>Sign in to continue. API base: {API_BASE_URL}</CardDescription>
         </CardHeader>
         <CardContent>
+          {isBootstrapping && !bootstrapAttempted ? (
+            <p className="mb-3 text-sm text-muted-foreground">Checking existing session...</p>
+          ) : null}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <input
               className="w-full rounded-md border px-3 py-2 text-sm"

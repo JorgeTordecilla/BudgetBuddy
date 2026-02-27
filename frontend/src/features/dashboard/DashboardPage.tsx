@@ -79,11 +79,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function toTrendPoints(rows: { month: string; expense_total_cents: number; budget_limit_cents: number }[]): TrendPoint[] {
+function toTrendPoints(rows: { month: string; expense_total_cents: number; budget_limit_cents?: number }[]): TrendPoint[] {
   return rows.map((row) => ({
     month: row.month,
     expense: row.expense_total_cents,
-    budget: row.budget_limit_cents
+    budget: row.budget_limit_cents ?? 0
   }));
 }
 

@@ -1,4 +1,5 @@
 import type { ProblemDetails } from "@/api/types";
+import { setLastProblemType, setLastRequestId } from "@/state/diagnostics";
 
 const PROBLEM_MEDIA_TYPE = "application/problem+json";
 
@@ -77,15 +78,19 @@ export async function parseProblemDetails(response: Response): Promise<ProblemDe
 
 export async function toApiError(input: Response | unknown, fallbackMessage = "Unexpected error"): Promise<NormalizedApiError> {
   if (input instanceof Response) {
+    const headerRequestId = readHeader(input, "X-Request-Id");
+    setLastRequestId(headerRequestId);
     const meta: ApiErrorBase = {
       httpStatus: input.status,
-      requestId: readHeader(input, "X-Request-Id"),
+      requestId: headerRequestId,
       retryAfter: readHeader(input, "Retry-After")
     };
     const problem = await parseProblemDetails(input);
     if (problem) {
+      setLastProblemType(problem.type, meta.requestId);
       return new ApiProblemError(problem, meta);
     }
+    setLastProblemType("about:blank", meta.requestId);
     return new ApiUnknownError(fallbackMessage, meta);
   }
 

@@ -11,7 +11,7 @@ describe("ProblemDetailsToast", () => {
 
     render(<ProblemDetailsToast />);
     publishProblemToast({
-      message: "Too many requests. Try again in a moment.",
+      message: "Rate limited. Try again later.",
       detail: null,
       presentation: "toast",
       requestId: "req-toast",
@@ -20,10 +20,9 @@ describe("ProblemDetailsToast", () => {
       retryAfter: "30"
     });
 
-    expect(await screen.findByText("Too many requests. Try again in a moment.")).toBeInTheDocument();
+    expect(await screen.findByText("Rate limited. Try again later.")).toBeInTheDocument();
     expect(screen.getByText("Retry-After: 30s")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(writeText).toHaveBeenCalledWith("req-toast");
   });
 });
-

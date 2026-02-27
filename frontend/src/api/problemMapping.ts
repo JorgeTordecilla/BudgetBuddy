@@ -37,7 +37,7 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
     showDetail: true
   },
   "https://api.budgetbuddy.dev/problems/rate-limited": {
-    message: "Too many requests. Try again in a moment.",
+    message: "Rate limited. Try again later.",
     presentation: "toast"
   },
   "https://api.budgetbuddy.dev/problems/account-archived": {

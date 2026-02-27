@@ -451,6 +451,6 @@ describe("TransactionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
     fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
 
-    expect(await screen.findByText("Too many requests. Try again in a moment.")).toBeInTheDocument();
+    expect(await screen.findByText("Rate limited. Try again later.")).toBeInTheDocument();
   });
 });

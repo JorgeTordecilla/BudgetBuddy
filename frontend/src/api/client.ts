@@ -1,8 +1,9 @@
-import { API_BASE_URL } from "@/config";
+import { ENV } from "@/config/env";
 import type { AuthSessionResponse, ProblemDetails, User } from "@/api/types";
 import { parseProblemDetails, toApiError } from "@/api/errors";
 import { resolveProblemUi } from "@/api/problemMapping";
 import { publishProblemToast } from "@/components/errors/problemToastStore";
+import { setLastRequestId } from "@/state/diagnostics";
 
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 
@@ -23,6 +24,10 @@ type RequestOptions = {
   retryOn401?: boolean;
 };
 
+type RefreshOptions = {
+  silentAuthFailure?: boolean;
+  suppressAuthFailureRedirect?: boolean;
+};
 
 function requestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -59,7 +64,7 @@ export async function readProblemDetails(response: Response): Promise<ProblemDet
 
 export function createApiClient(bindings: AuthBindings, options: ClientOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = options.baseUrl ?? API_BASE_URL;
+  const baseUrl = options.baseUrl ?? ENV.API_BASE_URL;
   const onAuthFailure = options.onAuthFailure ?? redirectToLogin;
   let refreshInFlight: Promise<AuthSessionResponse | null> | null = null;
 
@@ -68,7 +73,8 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     publishProblemToast(resolveProblemUi(normalized));
   };
 
-  const refresh = async (): Promise<AuthSessionResponse | null> => {
+  const refresh = async (options: RefreshOptions = {}): Promise<AuthSessionResponse | null> => {
+    const { silentAuthFailure = false, suppressAuthFailureRedirect = false } = options;
     if (refreshInFlight) {
       return refreshInFlight;
     }
@@ -78,10 +84,14 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
           method: "POST"
         });
         if (!response.ok) {
-          await publishAuthProblem(response, "Refresh failed");
+          if (!silentAuthFailure) {
+            await publishAuthProblem(response, "Refresh failed");
+          }
           if (response.status === 401 || response.status === 403) {
             bindings.clearSession();
-            onAuthFailure();
+            if (!suppressAuthFailureRedirect) {
+              onAuthFailure();
+            }
           }
           return null;
         }
@@ -89,7 +99,9 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
         bindings.setSession({ accessToken: session.access_token, user: session.user });
         return session;
       } catch (error) {
-        await publishAuthProblem(error, "Refresh failed");
+        if (!silentAuthFailure) {
+          await publishAuthProblem(error, "Refresh failed");
+        }
         throw error;
       }
     })().finally(() => {
@@ -121,6 +133,7 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       headers,
       credentials: "include"
     });
+    setLastRequestId(response.headers.get("X-Request-Id"));
 
     if (response.status === 401 && retryOn401) {
       const refreshed = await refresh();
