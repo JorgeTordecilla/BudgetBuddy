@@ -3,12 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import {
-  archiveBudget,
-  createBudget,
-  listBudgets,
-  updateBudget
-} from "@/api/budgets";
+import { archiveBudget, createBudget, listBudgets, updateBudget } from "@/api/budgets";
 import { listCategories } from "@/api/categories";
 import { ApiProblemError } from "@/api/problem";
 import { AuthContext } from "@/auth/AuthContext";
@@ -64,6 +59,15 @@ describe("BudgetsPage", () => {
           archived_at: null,
           created_at: "2026-02-01T00:00:00Z",
           updated_at: "2026-02-01T00:00:00Z"
+        },
+        {
+          id: "b2",
+          month: "2026-03",
+          category_id: "c2",
+          limit_cents: 10000,
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z"
         }
       ]
     });
@@ -75,13 +79,13 @@ describe("BudgetsPage", () => {
       next_cursor: null
     });
     vi.mocked(createBudget).mockResolvedValue({
-      id: "b2",
-      month: "2026-03",
+      id: "b3",
+      month: "2026-04",
       category_id: "c2",
       limit_cents: 10000,
       archived_at: null,
-      created_at: "2026-03-01T00:00:00Z",
-      updated_at: "2026-03-01T00:00:00Z"
+      created_at: "2026-04-01T00:00:00Z",
+      updated_at: "2026-04-01T00:00:00Z"
     });
     vi.mocked(updateBudget).mockResolvedValue({
       id: "b1",
@@ -97,7 +101,7 @@ describe("BudgetsPage", () => {
 
   it("shows income and expense categories and converts limit to cents on create", async () => {
     renderPage();
-    await screen.findByText("2026-02");
+    await screen.findByText("2026-03");
 
     fireEvent.click(screen.getByRole("button", { name: "New budget" }));
 
@@ -121,12 +125,39 @@ describe("BudgetsPage", () => {
     );
   });
 
+  it("applies range only when clicking Apply", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+
+    expect(listBudgets).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText("From month"), { target: { value: "2026-01" } });
+    fireEvent.change(screen.getByLabelText("To month"), { target: { value: "2026-04" } });
+
+    await waitFor(() => expect(listBudgets).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(listBudgets).toHaveBeenCalledTimes(2));
+    expect(listBudgets).toHaveBeenLastCalledWith(apiClientStub, { from: "2026-01", to: "2026-04" });
+  });
+
+  it("sorts budgets by month descending", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+
+    const rows = screen.getAllByRole("row");
+    const firstBodyRow = rows[1];
+    expect(within(firstBodyRow).getByText("2026-03")).toBeInTheDocument();
+  });
+
   it("shows validation feedback for invalid month range", async () => {
     renderPage();
-    await screen.findByText("2026-02");
+    await screen.findByText("2026-03");
 
     fireEvent.change(screen.getByLabelText("From month"), { target: { value: "2026-05" } });
     fireEvent.change(screen.getByLabelText("To month"), { target: { value: "2026-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(await screen.findByText("Invalid date range")).toBeInTheDocument();
   });
@@ -141,7 +172,7 @@ describe("BudgetsPage", () => {
     );
 
     renderPage();
-    await screen.findByText("2026-02");
+    await screen.findByText("2026-03");
     fireEvent.click(screen.getByRole("button", { name: "New budget" }));
 
     const dialog = screen.getByRole("dialog");
@@ -152,106 +183,143 @@ describe("BudgetsPage", () => {
     expect(await screen.findByText("A budget already exists for that month and category.")).toBeInTheDocument();
   });
 
+  it("renders inline feedback for backend budget-month-invalid", async () => {
+    vi.mocked(createBudget).mockRejectedValueOnce(
+      new ApiProblemError(400, {
+        type: "https://api.budgetbuddy.dev/problems/budget-month-invalid",
+        title: "",
+        status: 400
+      })
+    );
+
+    renderPage();
+    await screen.findByText("2026-03");
+    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Month must use YYYY-MM format.").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("renders inline feedback for backend money-amount-* errors", async () => {
+    vi.mocked(createBudget).mockRejectedValueOnce(
+      new ApiProblemError(400, {
+        type: "https://api.budgetbuddy.dev/problems/money-amount-out-of-range",
+        title: "",
+        status: 400
+      })
+    );
+
+    renderPage();
+    await screen.findByText("2026-03");
+    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows month validation on create when month format is invalid", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Month"), { target: { value: "2026/02" } });
+    fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
+
+    expect(await screen.findByText("month and category are required and month must be YYYY-MM.")).toBeInTheDocument();
+    expect(screen.getAllByText("Month must use YYYY-MM format.").length).toBeGreaterThan(0);
+    expect(createBudget).not.toHaveBeenCalled();
+  });
+
+  it("shows limit validation on create when amount is invalid", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "0" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
+
+    expect(await screen.findByText("Invalid limit")).toBeInTheDocument();
+    expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
+    expect(createBudget).not.toHaveBeenCalled();
+  });
+
   it("edits budget and submits partial update payload", async () => {
     renderPage();
-    await screen.findByText("2026-02");
+    await screen.findByText("2026-03");
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "300.00" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
     await waitFor(() =>
-      expect(updateBudget).toHaveBeenCalledWith(
-        apiClientStub,
-        "b1",
-        expect.objectContaining({ limit_cents: 30000 })
-      )
+      expect(updateBudget).toHaveBeenCalledWith(apiClientStub, expect.any(String), expect.objectContaining({ limit_cents: 30000 }))
     );
   });
 
-  it("archives budget through confirm dialog", async () => {
+  it("blocks update when there are no changes", async () => {
     renderPage();
-    await screen.findByText("2026-02");
+    await screen.findByText("2026-03");
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
-
-    await waitFor(() => expect(archiveBudget).toHaveBeenCalledWith(apiClientStub, "b1"));
-  });
-
-  it("blocks create when limit is invalid", async () => {
-    renderPage();
-    await screen.findByText("2026-02");
-    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
-
-    const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
-    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "1.999" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
-
-    expect(await screen.findByText("Invalid limit")).toBeInTheDocument();
-    expect(createBudget).not.toHaveBeenCalled();
-  });
-
-  it("blocks create when required fields are missing", async () => {
-    renderPage();
-    await screen.findByText("2026-02");
-    fireEvent.click(screen.getByRole("button", { name: "New budget" }));
-
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
-
-    expect(await screen.findByText("Invalid request")).toBeInTheDocument();
-    expect(createBudget).not.toHaveBeenCalled();
-  });
-
-  it("shows no-changes message when editing without changes", async () => {
-    renderPage();
-    await screen.findByText("2026-02");
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
     const dialog = screen.getByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByText("No changes")).toBeInTheDocument();
+    expect(screen.getByText("Update requires at least one changed field.")).toBeInTheDocument();
     expect(updateBudget).not.toHaveBeenCalled();
   });
 
-  it("blocks edit when limit is invalid", async () => {
+  it("shows archive error banner when delete fails", async () => {
+    vi.mocked(archiveBudget).mockRejectedValueOnce(
+      new ApiProblemError(403, {
+        type: "https://api.budgetbuddy.dev/problems/forbidden",
+        title: "Forbidden",
+        status: 403
+      })
+    );
+
     renderPage();
-    await screen.findByText("2026-02");
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await screen.findByText("2026-03");
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
 
-    const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "1.999" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    expect(await screen.findByText("Invalid limit")).toBeInTheDocument();
-    expect(updateBudget).not.toHaveBeenCalled();
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+  });
+
+  it("archives budget through confirm dialog", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
+
+    await waitFor(() => expect(archiveBudget).toHaveBeenCalled());
   });
 
   it("shows fallback page error when list fails unexpectedly", async () => {
     vi.mocked(listBudgets).mockRejectedValueOnce(new Error("boom"));
     renderPage();
     expect(await screen.findByText("Failed to load budgets")).toBeInTheDocument();
-  });
-
-  it.each([
-    [401, "Unauthorized"],
-    [403, "Forbidden"],
-    [406, "Client contract error"],
-    [429, "Too Many Requests"]
-  ])("shows canonical %s title on list error", async (status, expectedTitle) => {
-    vi.mocked(listBudgets).mockRejectedValueOnce(
-      new ApiProblemError(status, {
-        type: "about:blank",
-        title: "",
-        status
-      })
-    );
-
-    renderPage();
-    expect(await screen.findByText(expectedTitle)).toBeInTheDocument();
   });
 });

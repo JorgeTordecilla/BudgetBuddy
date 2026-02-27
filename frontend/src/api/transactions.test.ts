@@ -163,4 +163,70 @@ describe("transactions api wrappers", () => {
       problem: expect.objectContaining({ status: 409 })
     } satisfies Partial<ApiProblemError>);
   });
+
+  it("omits optional query params when using defaults", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], next_cursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    const client = makeClient(fetchMock);
+
+    await listTransactions(client, { type: "all", cursor: null, limit: 0 });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("/transactions?include_archived=false");
+    expect(url).not.toContain("type=");
+    expect(url).not.toContain("cursor=");
+    expect(url).not.toContain("limit=");
+  });
+
+  it("throws ApiProblemError for list/create/archive failures", async () => {
+    const listFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/invalid-cursor",
+          title: "Invalid cursor",
+          status: 400
+        }),
+        { status: 400, headers: { "content-type": "application/problem+json" } }
+      )
+    );
+    await expect(listTransactions(makeClient(listFetch))).rejects.toMatchObject({ status: 400 } satisfies Partial<ApiProblemError>);
+
+    const createFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/invalid-request",
+          title: "Invalid request",
+          status: 400
+        }),
+        { status: 400, headers: { "content-type": "application/problem+json" } }
+      )
+    );
+    await expect(
+      createTransaction(makeClient(createFetch), {
+        type: "expense",
+        account_id: "a1",
+        category_id: "c1",
+        amount_cents: 100,
+        date: "2026-02-01"
+      })
+    ).rejects.toMatchObject({ status: 400 } satisfies Partial<ApiProblemError>);
+
+    const archiveFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/forbidden",
+          title: "Forbidden",
+          status: 403
+        }),
+        { status: 403, headers: { "content-type": "application/problem+json" } }
+      )
+    );
+    await expect(archiveTransaction(makeClient(archiveFetch), "t1")).rejects.toMatchObject({
+      status: 403
+    } satisfies Partial<ApiProblemError>);
+  });
 });

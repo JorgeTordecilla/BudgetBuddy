@@ -4,7 +4,9 @@ const CATEGORY_TYPE_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/catego
 const ACCOUNT_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/account-archived";
 const CATEGORY_ARCHIVED_TYPE = "https://api.budgetbuddy.dev/problems/category-archived";
 const BUDGET_DUPLICATE_TYPE = "https://api.budgetbuddy.dev/problems/budget-duplicate";
+const BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid";
 const CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-owned";
+const MONEY_AMOUNT_PREFIX = "https://api.budgetbuddy.dev/problems/money-amount-";
 const INVALID_DATE_RANGE_TYPE = "https://api.budgetbuddy.dev/problems/invalid-date-range";
 
 const STATUS_FALLBACK_TITLE: Record<number, string> = {
@@ -63,6 +65,22 @@ export function mapBudgetProblem(problem: ProblemDetails | null, status: number,
       ...normalized,
       title: normalized.title || "Budget already exists",
       detail: "A budget already exists for that month and category."
+    };
+  }
+
+  if (normalized.type === BUDGET_MONTH_INVALID_TYPE) {
+    return {
+      ...normalized,
+      title: normalized.title || "Invalid month",
+      detail: normalized.detail ?? "Month must use YYYY-MM format."
+    };
+  }
+
+  if (normalized.type.startsWith(MONEY_AMOUNT_PREFIX)) {
+    return {
+      ...normalized,
+      title: normalized.title || "Invalid limit",
+      detail: normalized.detail ?? "Limit must be a positive amount with up to two decimals."
     };
   }
 

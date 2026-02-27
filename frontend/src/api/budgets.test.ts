@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
 import type { ApiProblemError } from "@/api/problem";
-import { archiveBudget, createBudget, listBudgets, updateBudget } from "@/api/budgets";
+import { archiveBudget, createBudget, getBudget, listBudgets, updateBudget } from "@/api/budgets";
 
 function makeClient(fetchImpl: typeof fetch) {
   return createApiClient(
@@ -35,9 +35,23 @@ describe("budgets api wrappers", () => {
     expect(call?.[1]?.credentials).toBe("include");
   });
 
-  it("creates, updates, and archives budgets through contract paths", async () => {
+  it("creates, gets, updates, and archives budgets through contract paths", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "b1",
+            month: "2026-02",
+            category_id: "c1",
+            limit_cents: 12345,
+            archived_at: null,
+            created_at: "2026-02-01T00:00:00Z",
+            updated_at: "2026-02-01T00:00:00Z"
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -70,15 +84,18 @@ describe("budgets api wrappers", () => {
     const client = makeClient(fetchMock);
 
     await createBudget(client, { month: "2026-02", category_id: "c1", limit_cents: 12345 });
+    await getBudget(client, "b1");
     await updateBudget(client, "b1", { month: "2026-03", category_id: "c2", limit_cents: 20000 });
     await archiveBudget(client, "b1");
 
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/budgets");
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/budgets/b1");
-    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("PATCH");
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("GET");
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/budgets/b1");
-    expect(fetchMock.mock.calls[2]?.[1]?.method).toBe("DELETE");
+    expect(fetchMock.mock.calls[2]?.[1]?.method).toBe("PATCH");
+    expect(String(fetchMock.mock.calls[3]?.[0])).toContain("/budgets/b1");
+    expect(fetchMock.mock.calls[3]?.[1]?.method).toBe("DELETE");
   });
 
   it("propagates ProblemDetails on conflict", async () => {
@@ -116,6 +133,12 @@ describe("budgets api wrappers", () => {
       )
       .mockResolvedValueOnce(
         new Response(
+          JSON.stringify({ type: "about:blank", title: "Not Found", status: 404 }),
+          { status: 404, headers: { "content-type": "application/problem+json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
           JSON.stringify({ type: "about:blank", title: "Conflict", status: 409 }),
           { status: 409, headers: { "content-type": "application/problem+json" } }
         )
@@ -129,6 +152,7 @@ describe("budgets api wrappers", () => {
     const client = makeClient(fetchMock);
 
     await expect(listBudgets(client, { from: "2026-01", to: "2026-01" })).rejects.toMatchObject({ status: 400 });
+    await expect(getBudget(client, "b1")).rejects.toMatchObject({ status: 404 });
     await expect(updateBudget(client, "b1", { limit_cents: 100 })).rejects.toMatchObject({ status: 409 });
     await expect(archiveBudget(client, "b1")).rejects.toMatchObject({ status: 403 });
   });

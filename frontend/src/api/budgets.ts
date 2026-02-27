@@ -35,6 +35,14 @@ export async function createBudget(client: ApiClient, payload: BudgetCreate): Pr
   return (await response.json()) as Budget;
 }
 
+export async function getBudget(client: ApiClient, budgetId: string): Promise<Budget> {
+  const response = await client.request(`/budgets/${budgetId}`, { method: "GET" });
+  if (!response.ok) {
+    throw new ApiProblemError(response.status, await readProblemDetails(response), "budgets_get_failed");
+  }
+  return (await response.json()) as Budget;
+}
+
 export async function updateBudget(client: ApiClient, budgetId: string, payload: BudgetUpdate): Promise<Budget> {
   const response = await client.request(`/budgets/${budgetId}`, {
     method: "PATCH",

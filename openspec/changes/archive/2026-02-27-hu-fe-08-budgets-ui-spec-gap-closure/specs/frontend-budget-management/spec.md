@@ -1,8 +1,4 @@
-## Purpose
-
-Define the frontend contract and behavior for authenticated budget management, including list/create/update/archive flows, deterministic ProblemDetails handling, and quality gates aligned with the BudgetBuddy API contract.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Authenticated budgets route and range list must be available
 The frontend SHALL expose a protected budgets page under the authenticated app shell and support month-range list retrieval.
@@ -46,22 +42,6 @@ The frontend SHALL support budget creation and partial updates using vendor medi
 - **THEN** frontend SHALL provide a contract-safe wrapper for `GET /budgets/{budget_id}`
 - **AND** wrapper behavior SHALL preserve vendor media type and ProblemDetails parsing rules.
 
-### Requirement: Budget archive lifecycle must be supported
-The frontend SHALL support archive actions through the contract-defined delete endpoint.
-
-#### Scenario: Archive budget from list
-- **WHEN** user confirms archive action for a budget row
-- **THEN** frontend SHALL call `DELETE /budgets/{budget_id}`
-- **AND** on `204` the archived budget SHALL no longer appear in the active list view.
-
-### Requirement: Budget categories selection must include active income and expense categories
-The frontend SHALL populate budget category selection from active categories without frontend-only type restrictions.
-
-#### Scenario: Category selector loads active categories
-- **WHEN** budget create/edit modal opens
-- **THEN** frontend SHALL call `GET /categories?include_archived=false`
-- **AND** selector SHALL include both `income` and `expense` categories that are active.
-
 ### Requirement: Budget ProblemDetails handling must be deterministic
 The frontend SHALL parse `application/problem+json` and provide canonical, contract-aware feedback.
 
@@ -99,6 +79,8 @@ The budgets UI SHALL align with existing frontend auth/session and verification 
 - **AND** conflict feedback for `409 budget-duplicate` SHALL be covered by tests
 - **AND** backend-driven `400 budget-month-invalid` feedback SHALL be covered by tests
 - **AND** `npm run test`, `npm run test:coverage`, and `npm run build` SHALL pass.
+
+## ADDED Requirements
 
 ### Requirement: Budgets query architecture must expose list and detail cache boundaries
 The frontend SHALL define explicit budgets query modules and stable query key semantics for list and detail operations.

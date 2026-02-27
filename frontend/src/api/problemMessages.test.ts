@@ -115,6 +115,32 @@ describe("mapBudgetProblem", () => {
     expect(notOwned.detail).toBe("Selected category is not available. Choose another.");
   });
 
+  it("maps budget month invalid and money amount errors", () => {
+    const monthInvalid = mapBudgetProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/budget-month-invalid",
+        title: "",
+        status: 400
+      },
+      400,
+      "Failed to save budget"
+    );
+    const moneyInvalid = mapBudgetProblem(
+      {
+        type: "https://api.budgetbuddy.dev/problems/money-amount-out-of-range",
+        title: "",
+        status: 400
+      },
+      400,
+      "Failed to save budget"
+    );
+
+    expect(monthInvalid.title).toBe("Invalid month");
+    expect(monthInvalid.detail).toBe("Month must use YYYY-MM format.");
+    expect(moneyInvalid.title).toBe("Invalid limit");
+    expect(moneyInvalid.detail).toBe("Limit must be a positive amount with up to two decimals.");
+  });
+
   it("uses fallback status titles for missing budget problem payload", () => {
     const mapped = mapBudgetProblem(null, 429, "Failed to load budgets");
     expect(mapped.title).toBe("Too Many Requests");
