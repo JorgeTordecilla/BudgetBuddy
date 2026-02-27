@@ -1,4 +1,0 @@
-interface:
-  display_name: "Frontend Review Pro"
-  short_description: "Frontend review for quality, performance, and security."
-  default_prompt: "Review this frontend change for correctness, UX regressions, performance, and security issues; prioritize critical findings with file references and fixes."
