@@ -7,6 +7,7 @@ import { setLastRequestId } from "@/state/diagnostics";
 import { captureApiFailure } from "@/observability/runtime";
 
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
+const REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected";
 
 type AuthBindings = {
   getAccessToken: () => string | null;
@@ -81,9 +82,18 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
     }
     refreshInFlight = (async () => {
       try {
-        const response = await rawRequest("/auth/refresh", {
+        let response = await rawRequest("/auth/refresh", {
           method: "POST"
         });
+        if (response.status === 403) {
+          const problem = await parseProblemDetails(response);
+          if (problem?.type === REFRESH_REUSE_DETECTED_TYPE) {
+            // A concurrent refresh may have already rotated the cookie. Retry once with the updated cookie jar.
+            response = await rawRequest("/auth/refresh", {
+              method: "POST"
+            });
+          }
+        }
         if (!response.ok) {
           if (!silentAuthFailure) {
             await publishAuthProblem(response, "Refresh failed");
