@@ -110,6 +110,20 @@ describe("AuthProvider", () => {
     expect(mockMe).toHaveBeenCalledTimes(1);
   });
 
+  it("restores session after browser reload using refresh cookie flow", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await act(async () => {
+      const restored = await result.current.bootstrapSession();
+      expect(restored).toBe(true);
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessToken).toBe("token-2");
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockMe).toHaveBeenCalledTimes(1);
+  });
+
   it("skips refresh bootstrap when a token already exists", async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await act(async () => {

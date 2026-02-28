@@ -21,6 +21,16 @@ Frontend deploy configuration SHALL guarantee browser refresh support for app ro
 - **THEN** repository SHALL include `_redirects` or `netlify.toml` with SPA fallback semantics
 - **AND** the fallback rule SHALL be deterministic (`/* /index.html 200` or equivalent).
 
+#### Scenario: API proxy redirect is explicit and versioned
+- **WHEN** frontend deploy config is reviewed
+- **THEN** Netlify SHALL include a redirect for `/api/*` to the backend service `/api/:splat`
+- **AND** the redirect SHALL return `200` with `force=true` semantics.
+
+#### Scenario: API proxy rule takes precedence over SPA fallback
+- **WHEN** Netlify evaluates redirects
+- **THEN** `/api/*` proxy SHALL be resolved before catch-all SPA rewrite rules
+- **AND** API requests SHALL NOT be rewritten to `index.html`.
+
 ### Requirement: Netlify response security headers must be baseline-hardened
 Frontend hosting configuration SHALL enforce baseline browser security headers for production responses.
 

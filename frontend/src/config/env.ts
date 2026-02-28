@@ -1,6 +1,6 @@
 type AppEnv = "development" | "staging" | "production";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
+const DEFAULT_API_BASE_URL = "/api";
 
 function normalizeAppEnv(value: string | undefined): AppEnv {
   if (value === "staging" || value === "production") {
