@@ -4,33 +4,15 @@
 TBD - created by archiving change hu-fe-14-netlify-prod-readiness. Update Purpose after archive.
 ## Requirements
 ### Requirement: Frontend runtime configuration must be environment-driven
-The frontend SHALL derive runtime API targets and deployment metadata from explicit `VITE_*` variables, not hardcoded host values.
+The frontend deployment runtime SHALL rely on explicit environment values for API routing and proxy target generation.
 
-#### Scenario: API base URL comes from environment contract
-- **WHEN** frontend initializes API client configuration
-- **THEN** it SHALL use `VITE_API_BASE_URL` as the authoritative backend base URL
-- **AND** feature code SHALL NOT hardcode `http://localhost:8000/api`.
+#### Scenario: Netlify proxy target is supplied by environment
+- **WHEN** frontend deploy runs in Netlify
+- **THEN** `API_PROXY_TARGET` SHALL be provided as environment configuration
+- **AND** generated redirect rules SHALL use this value as backend base.
 
-#### Scenario: Production API base uses same-origin proxy path
-- **WHEN** Netlify production runtime is configured
-- **THEN** `VITE_API_BASE_URL` SHALL be `/api`
-- **AND** browser API traffic SHALL be routed through Netlify edge proxy.
+#### Scenario: Frontend API base remains same-origin
+- **WHEN** frontend runtime initializes API calls
+- **THEN** `VITE_API_BASE_URL` SHALL remain `/api`
+- **AND** components SHALL not hardcode backend host URLs.
 
-#### Scenario: Runtime env access is centralized
-- **WHEN** frontend reads environment variables
-- **THEN** it SHALL do so through a single typed module (e.g., `src/config/env.ts`)
-- **AND** direct `import.meta.env` access in feature modules SHALL be avoided.
-
-#### Scenario: Environment template is documented
-- **WHEN** a developer or CI configures the frontend project
-- **THEN** `.env.example` SHALL include `VITE_API_BASE_URL`, `VITE_APP_ENV`, `VITE_RELEASE`, and optional feature flags/telemetry keys
-- **AND** each variable SHALL include intended values for local and production usage.
-
-#### Scenario: Environment template reflects proxy-based API base
-- **WHEN** `.env.example` is reviewed for deployment defaults
-- **THEN** `VITE_API_BASE_URL` SHALL document `/api` as the production-safe proxy value.
-
-#### Scenario: Release identity is propagated to runtime telemetry context
-- **WHEN** frontend starts in non-local environment
-- **THEN** `VITE_RELEASE` SHALL be available to observability integrations
-- **AND** emitted frontend error events SHALL include release and environment metadata.

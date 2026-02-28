@@ -1,5 +1,5 @@
 [build]
-  command = "if [ -n \"$NETLIFY_API_PROXY_TARGET\" ]; then sed -i \"s|API_PROXY_TARGET|$NETLIFY_API_PROXY_TARGET|g\" netlify.toml; fi && npm run build"
+  command = 'npm run build && printf "/api/* $API_PROXY_TARGET/:splat 200\n/* /index.html 200\n" > dist/_redirects'
   publish = "dist"
 
 [[redirects]]
