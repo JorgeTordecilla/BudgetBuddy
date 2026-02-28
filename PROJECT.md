@@ -4,7 +4,7 @@
 BudgetBuddy
 
 ## Goal
-Implement and maintain a contract-first personal finance backend where behavior is driven by OpenAPI and refined through OpenSpec changes.
+Implement and maintain a contract-first personal finance platform where behavior is driven by OpenAPI and refined through OpenSpec changes.
 
 ## Primary Contracts
 - Main API contract: `backend/openapi.yaml`
@@ -21,6 +21,9 @@ Implement and maintain a contract-first personal finance backend where behavior 
 - Postgres (Neon) as target DB
 - SQLite for isolated tests
 - Pytest + pytest-cov
+- React + TypeScript + Vite
+- React Router + React Query
+- Vitest + Testing Library
 
 ## Functional Scope
 - Auth: register, login, refresh, logout
@@ -50,8 +53,10 @@ py -m pytest tests -q -s --cov=app --cov-report=term-missing:skip-covered
 - Keep implementation and tests strictly aligned with OpenAPI response codes, schemas, and media types.
 - Prefer centralized error constants/helpers (`app/errors.py`) for canonical ProblemDetails.
 - Preserve idempotent, minimal updates when syncing OpenSpec deltas into main specs.
-- All changes must keep test coverage ≥ 90% (enforced by pytest-cov fail-under).
-- All endpoints must have contract tests aligned with openapi.yml.
+- Backend changes must keep coverage >= 90% (enforced by pytest-cov fail-under).
+- Frontend changes must satisfy policy thresholds defined in this document.
+- All endpoints must have contract tests aligned with `backend/openapi.yaml`.
+
 ## OpenAPI + SDK Commands
 From repository root:
 
@@ -64,6 +69,15 @@ backend\.venv\Scripts\python.exe tools\generate_sdks.py --check
 Generated SDK outputs:
 - `sdk/typescript/src/`
 - `sdk/python/budgetbuddy_sdk/`
+
+## Frontend Verification Commands
+From `frontend/`:
+
+```bat
+npm run test
+npm run test:coverage
+npm run build
+```
 
 ## Global Frontend + OpenSpec Policy
 - This policy is mandatory for every new frontend OpenSpec change.

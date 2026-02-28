@@ -27,6 +27,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -53,6 +54,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout,
           bootstrapSession: async () => true
         }}
@@ -86,6 +88,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout,
           bootstrapSession: async () => true
         }}
@@ -116,6 +119,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -159,6 +163,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -195,6 +200,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -231,6 +237,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -267,6 +274,7 @@ describe("AppShell", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -293,3 +301,5 @@ describe("AppShell", () => {
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 });
+
+

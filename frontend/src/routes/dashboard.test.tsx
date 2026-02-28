@@ -47,6 +47,7 @@ function renderDashboard() {
             isAuthenticated: true,
             isBootstrapping: false,
             login: async () => undefined,
+            register: async () => undefined,
             logout: async () => undefined,
             bootstrapSession: async () => true
           }}
@@ -290,3 +291,5 @@ describe("Dashboard", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
+
+

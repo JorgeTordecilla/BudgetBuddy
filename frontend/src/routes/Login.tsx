@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
-import { API_BASE_URL, APP_ENV } from "@/config";
 import SessionLoader from "@/components/session/SessionLoader";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -12,8 +12,6 @@ function resolveRedirectPath(pathname: string | undefined): string {
   }
   return "/app/dashboard";
 }
-
-const SHOW_API_BASE = APP_ENV === "development";
 
 export default function Login() {
   const { isAuthenticated, isBootstrapping, login, bootstrapSession } = useAuth();
@@ -81,10 +79,7 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome to BudgetBuddy</CardTitle>
-          <CardDescription>
-            Sign in to continue.
-            {SHOW_API_BASE ? ` API base: ${API_BASE_URL}` : ""}
-          </CardDescription>
+          <CardDescription>Sign in to continue.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -111,6 +106,12 @@ export default function Login() {
             <Button className="w-full" type="submit" disabled={submitting}>
               {submitting ? "Signing in..." : "Sign in"}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              No account yet?{" "}
+              <Link className="font-medium underline-offset-4 hover:underline" to="/register">
+                Create account
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

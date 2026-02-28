@@ -1,5 +1,5 @@
 import { ENV } from "@/config/env";
-import type { AuthSessionResponse, ProblemDetails, User } from "@/api/types";
+import type { AuthSessionResponse, ProblemDetails, RegisterRequest, User } from "@/api/types";
 import { parseProblemDetails, toApiError } from "@/api/errors";
 import { resolveProblemUi } from "@/api/problemMapping";
 import { publishProblemToast } from "@/components/errors/problemToastStore";
@@ -186,6 +186,16 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       });
       if (!response.ok) {
         throw new Error("login_failed");
+      }
+      return (await response.json()) as AuthSessionResponse;
+    },
+    register: async (payload: RegisterRequest): Promise<AuthSessionResponse> => {
+      const response = await rawRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        throw await toApiError(response, "register_failed");
       }
       return (await response.json()) as AuthSessionResponse;
     },

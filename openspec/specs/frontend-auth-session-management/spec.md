@@ -5,7 +5,7 @@ Define secure frontend session behavior using in-memory access tokens and HttpOn
 
 ## Requirements
 ### Requirement: Login establishes browser session and in-memory access token
-The frontend MUST authenticate users through `POST /auth/login` and store access token material in memory only.
+The frontend MUST authenticate users through `POST /auth/login` and `POST /auth/register`, and store access token material in memory only.
 
 #### Scenario: Successful login transitions to protected area
 - **WHEN** a user submits valid credentials on `/login`
@@ -22,6 +22,22 @@ The frontend MUST authenticate users through `POST /auth/login` and store access
 - **WHEN** a user manually navigates to `/login` while a valid refresh cookie exists
 - **THEN** the frontend SHALL attempt refresh bootstrap once
 - **AND** it SHALL redirect to `/app/dashboard` without prompting for credentials
+
+#### Scenario: Successful register transitions to protected area
+- **WHEN** a user submits valid registration data on `/register`
+- **THEN** the frontend SHALL call `POST /auth/register` with vendor media types
+- **AND** it SHALL store `access_token` and user payload in memory state only
+- **AND** it SHALL navigate to `/app/dashboard` (or intended protected destination when present)
+
+#### Scenario: Register failure shows canonical error handling path
+- **WHEN** backend returns register validation or conflict failure
+- **THEN** the frontend SHALL keep user unauthenticated
+- **AND** it SHALL present safe, canonical user-facing error messaging
+
+#### Scenario: Register route auto-redirects for authenticated sessions
+- **WHEN** an authenticated user manually navigates to `/register`
+- **THEN** the frontend SHALL redirect to `/app/dashboard` (or intended protected destination)
+- **AND** it SHALL NOT prompt for registration fields
 
 ### Requirement: Access token is never persisted in browser storage
 The frontend MUST NOT persist bearer tokens in `localStorage` or `sessionStorage`.
@@ -84,4 +100,3 @@ Logout behavior MUST invalidate both browser session cookie state (server-side e
 - **THEN** frontend SHALL call `POST /auth/logout` with credentials included
 - **AND** it SHALL clear in-memory token/user state
 - **AND** it SHALL redirect to `/login`
-

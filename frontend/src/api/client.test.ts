@@ -343,6 +343,75 @@ describe("api client refresh behavior", () => {
     await expect(client.me()).rejects.toThrow("me_failed");
   });
 
+  it("register posts payload and returns auth session", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: makeUser(),
+          access_token: "token-register",
+          access_token_expires_in: 900
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const client = createApiClient(
+      {
+        getAccessToken: () => null,
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      { fetchImpl: fetchMock, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    const response = await client.register({
+      username: "demo",
+      password: "secret",
+      currency_code: "USD"
+    });
+    expect(response.access_token).toBe("token-register");
+
+    const call = fetchMock.mock.calls[0];
+    const init = call?.[1];
+    const headers = new Headers(init?.headers);
+    expect(String(call?.[0])).toBe("http://test.local/api/auth/register");
+    expect(headers.get("Content-Type")).toBe("application/vnd.budgetbuddy.v1+json");
+    expect(init?.credentials).toBe("include");
+  });
+
+  it("register throws normalized problem error on failure", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          type: "https://api.budgetbuddy.dev/problems/budget-duplicate",
+          title: "Conflict",
+          status: 409,
+          detail: "duplicate"
+        }),
+        { status: 409, headers: { "content-type": "application/problem+json", "X-Request-Id": "req-register-409" } }
+      )
+    );
+    const client = createApiClient(
+      {
+        getAccessToken: () => null,
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      { fetchImpl: fetchMock, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    await expect(
+      client.register({
+        username: "demo",
+        password: "secret",
+        currency_code: "USD"
+      })
+    ).rejects.toMatchObject({
+      name: "ApiProblemError",
+      httpStatus: 409,
+      requestId: "req-register-409"
+    });
+  });
+
   it("returns parsed payload for login and me success", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

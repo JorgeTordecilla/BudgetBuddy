@@ -54,6 +54,7 @@ function renderPage(initialEntries = ["/app/transactions"]) {
             isAuthenticated: true,
             isBootstrapping: false,
             login: async () => undefined,
+            register: async () => undefined,
             logout: async () => undefined,
             bootstrapSession: async () => true
           }}
@@ -451,6 +452,7 @@ describe("TransactionsPage", () => {
               isAuthenticated: true,
               isBootstrapping: false,
               login: async () => undefined,
+              register: async () => undefined,
               logout: async () => undefined,
               bootstrapSession: async () => true
             }}
@@ -539,3 +541,5 @@ describe("TransactionsPage", () => {
     expect(await screen.findByText("Rate limited. Try again later.")).toBeInTheDocument();
   });
 });
+
+

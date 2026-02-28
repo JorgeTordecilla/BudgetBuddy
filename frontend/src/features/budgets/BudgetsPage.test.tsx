@@ -38,6 +38,7 @@ function renderPage(initialEntries = ["/app/budgets"]) {
             isAuthenticated: true,
             isBootstrapping: false,
             login: async () => undefined,
+            register: async () => undefined,
             logout: async () => undefined,
             bootstrapSession: async () => true
           }}
@@ -179,6 +180,7 @@ describe("BudgetsPage", () => {
               isAuthenticated: true,
               isBootstrapping: false,
               login: async () => undefined,
+              register: async () => undefined,
               logout: async () => undefined,
               bootstrapSession: async () => true
             }}
@@ -375,3 +377,5 @@ describe("BudgetsPage", () => {
     expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
 });
+
+

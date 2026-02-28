@@ -16,6 +16,7 @@ import TransactionsPage from "@/pages/TransactionsPage";
 import AppShell from "@/routes/AppShell";
 import Dashboard from "@/routes/Dashboard";
 import Login from "@/routes/Login";
+import Register from "@/routes/Register";
 import RequireAuth from "@/routes/RequireAuth";
 import { createAppQueryClient } from "@/query/queryClient";
 import { initializeObservability } from "@/observability/runtime";
@@ -23,6 +24,7 @@ import { initializeObservability } from "@/observability/runtime";
 const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/app/dashboard" replace /> },
   { path: "/login", element: <Login /> },
+  { path: "/register", element: <Register /> },
   {
     path: "/app",
     element: (

@@ -10,6 +10,10 @@ const mockLogin = vi.fn(async (_username: string, _password: string) => {
   const user = { id: "u1", username: "demo", currency_code: "USD" };
   return { user, access_token: "token-1", access_token_expires_in: 900 };
 });
+const mockRegister = vi.fn(async (_username: string, _password: string, _currencyCode: string) => {
+  const user = { id: "u1", username: "demo", currency_code: "COP" };
+  return { user, access_token: "token-register", access_token_expires_in: 900 };
+});
 type RefreshSession = {
   user: { id: string; username: string; currency_code: string };
   access_token: string;
@@ -26,6 +30,11 @@ vi.mock("@/api/client", () => ({
   createApiClient: vi.fn((bindings: { setSession: (next: { accessToken: string; user: { id: string; username: string; currency_code: string } }) => void; clearSession: () => void }) => ({
     login: vi.fn(async (...args: [string, string]) => {
       const response = await mockLogin(...args);
+      bindings.setSession({ accessToken: response.access_token, user: response.user });
+      return response;
+    }),
+    register: vi.fn(async (payload: { username: string; password: string; currency_code: string }) => {
+      const response = await mockRegister(payload.username, payload.password, payload.currency_code);
       bindings.setSession({ accessToken: response.access_token, user: response.user });
       return response;
     }),
@@ -61,6 +70,7 @@ describe("AuthProvider", () => {
 
   beforeEach(() => {
     mockLogin.mockClear();
+    mockRegister.mockClear();
     mockRefresh.mockClear();
     mockMe.mockClear();
     mockLogout.mockClear();
@@ -75,6 +85,17 @@ describe("AuthProvider", () => {
     expect(result.current.accessToken).toBe("token-1");
     expect(result.current.user?.username).toBe("demo");
     expect(mockLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores session in memory on register", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.register("demo", "secret", "COP");
+    });
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessToken).toBe("token-register");
+    expect(result.current.user?.currency_code).toBe("COP");
+    expect(mockRegister).toHaveBeenCalledTimes(1);
   });
 
   it("bootstraps from refresh when token is missing", async () => {

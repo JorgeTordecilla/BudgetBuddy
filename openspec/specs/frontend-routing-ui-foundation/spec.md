@@ -25,6 +25,15 @@ Frontend routing MUST define public and private route boundaries with determinis
 - **WHEN** a user navigates to `/app` or `/app/dashboard`
 - **THEN** the route SHALL be resolved through `RequireAuth`
 
+#### Scenario: Public register route is reachable
+- **WHEN** a user navigates to `/register`
+- **THEN** the application SHALL render the registration screen
+
+#### Scenario: Login and register screens provide reciprocal navigation
+- **WHEN** a user is on `/login`
+- **THEN** the UI SHALL expose navigation to `/register`
+- **AND** `/register` SHALL expose navigation back to `/login`
+
 ### Requirement: Temporary auth guard blocks private routes
 Until HU-FE-02 is implemented, the auth guard MUST always treat users as unauthenticated.
 
