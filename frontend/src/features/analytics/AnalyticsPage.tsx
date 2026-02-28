@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAnalyticsByCategory, useAnalyticsByMonth } from "@/features/analytics/analyticsQueries";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
+import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { defaultAnalyticsRange, isValidDateRange } from "@/utils/dates";
 import { formatCents } from "@/utils/money";
@@ -95,7 +96,7 @@ export default function AnalyticsPage() {
             <span className="text-muted-foreground">From</span>
             <input
               type="date"
-              className="block rounded-md border bg-background px-2 py-1"
+              className="field-input"
               value={draftRange.from}
               onChange={(event) => setDraftRange((previous) => ({ ...previous, from: event.target.value }))}
               aria-label="From date"
@@ -105,15 +106,15 @@ export default function AnalyticsPage() {
             <span className="text-muted-foreground">To</span>
             <input
               type="date"
-              className="block rounded-md border bg-background px-2 py-1"
+              className="field-input"
               value={draftRange.to}
               onChange={(event) => setDraftRange((previous) => ({ ...previous, to: event.target.value }))}
               aria-label="To date"
             />
           </label>
-          <button type="button" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={applyRange}>
+          <Button type="button" onClick={applyRange}>
             Apply
-          </button>
+          </Button>
           <label className="inline-flex items-center gap-2 text-muted-foreground">
             <input
               type="checkbox"

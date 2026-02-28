@@ -1,4 +1,5 @@
 import type { AnalyticsByMonthItem } from "@/api/types";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { budgetUsagePercent, formatCents } from "@/utils/money";
 
 type Props = {
@@ -12,6 +13,7 @@ function maxValue(items: AnalyticsByMonthItem[]): number {
 }
 
 export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay }: Props) {
+  const isDesktop = useIsDesktop();
   const peak = maxValue(items);
 
   return (
@@ -41,6 +43,35 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
         })}
       </div>
 
+      {!isDesktop ? (
+      <ul className="space-y-2">
+        {items.map((item) => {
+          const spent = item.budget_spent_cents ?? 0;
+          const limit = item.budget_limit_cents ?? 0;
+          const usage = budgetUsagePercent(spent, limit);
+          return (
+            <li key={item.month} className="surface-panel space-y-2 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{item.month}</p>
+                <p className="text-xs text-muted-foreground">
+                  {showBudgetOverlay && usage !== null ? `${usage}% used` : "No budget"}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <p>Income: {formatCents(currencyCode, item.income_total_cents)}</p>
+                <p>Expense: {formatCents(currencyCode, item.expense_total_cents)}</p>
+                <p>Net: {formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</p>
+                <p>
+                  Budget: {showBudgetOverlay && limit > 0 ? formatCents(currencyCode, spent) : "No budget"}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      ) : null}
+
+      {isDesktop ? (
       <div className="overflow-x-auto">
         <table className="min-w-[760px] w-full text-sm">
           <thead className="bg-muted/50 text-left">
@@ -74,6 +105,7 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
           </tbody>
         </table>
       </div>
+      ) : null}
     </div>
   );
 }

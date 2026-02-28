@@ -5,6 +5,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom"
 
 import "./index.css";
 import { AuthProvider } from "@/auth/AuthContext";
+import SuccessToast from "@/components/feedback/SuccessToast";
 import ProblemDetailsToast from "@/components/errors/ProblemDetailsToast";
 import ErrorBoundary from "@/errors/ErrorBoundary";
 import AnalyticsPage from "@/features/analytics/AnalyticsPage";
@@ -55,6 +56,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <AuthProvider>
           <RouterProvider router={router} />
           <ProblemDetailsToast />
+          <SuccessToast />
         </AuthProvider>
       </ErrorBoundary>
     </QueryClientProvider>

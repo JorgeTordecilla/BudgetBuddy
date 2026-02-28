@@ -210,3 +210,17 @@ The transactions export contract SHALL provide analysis-ready business columns a
 - **WHEN** `GET /transactions/export` returns `200 text/csv`
 - **THEN** header row SHALL be `date,type,account,category,amount_cents,merchant,note`
 - **AND** CSV rows SHALL use account/category names instead of internal UUIDs.
+
+### Requirement: Transactions responsive data rendering
+The transactions page SHALL provide card/list rendering on small viewports and dense table rendering on larger viewports using the same underlying data and actions.
+
+#### Scenario: Transactions without mobile horizontal dependency
+- **WHEN** a user opens Transactions on a small viewport
+- **THEN** transaction records are readable and actionable without requiring horizontal table scrolling
+
+### Requirement: Transactions action accessibility
+Transactions actions (create, edit, archive, restore, import, export) SHALL remain discoverable and operable across breakpoints with keyboard and touch support.
+
+#### Scenario: Action parity across viewport sizes
+- **WHEN** a user performs transaction actions on mobile or desktop
+- **THEN** equivalent actions are available with clear affordances and consistent feedback states

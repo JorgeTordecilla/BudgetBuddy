@@ -1,16 +1,11 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
 
-import { listAccounts } from "@/api/accounts";
-import { listCategories } from "@/api/categories";
-import { createTransaction } from "@/api/transactions";
-import type { AnalyticsByCategoryItem, ProblemDetails, TransactionCreate } from "@/api/types";
+import type { AnalyticsByCategoryItem } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import {
   currentUtcMonth,
   monthToDateRange,
@@ -24,17 +19,6 @@ import { detectSpendingSpikes } from "@/features/dashboard/spikes";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { budgetUsagePercent, formatCents } from "@/utils/money";
-import { ApiProblemError } from "@/api/errors";
-
-const EMPTY_FORM: TransactionFormState = {
-  type: "expense",
-  accountId: "",
-  categoryId: "",
-  amountCents: "",
-  date: "",
-  merchant: "",
-  note: ""
-};
 
 type OverBudgetItem = {
   categoryId: string;
@@ -72,14 +56,6 @@ function toOverBudgetItems(items: AnalyticsByCategoryItem[]): OverBudgetItem[] {
     .sort((left, right) => right.overCents - left.overCents);
 }
 
-function toLocalProblem(problem: ProblemDetails): ApiProblemError {
-  return new ApiProblemError(problem, {
-    httpStatus: problem.status,
-    requestId: null,
-    retryAfter: null
-  });
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -113,11 +89,8 @@ function toMoneyDisplayParts(currencyCode: string, cents: number): MoneyDisplayP
 
 export default function DashboardPage() {
   const { apiClient, user } = useAuth();
-  const queryClient = useQueryClient();
+  const isDesktop = useIsDesktop();
   const [selectedMonth, setSelectedMonth] = useState(currentUtcMonth);
-  const [formOpen, setFormOpen] = useState(false);
-  const [formProblem, setFormProblem] = useState<unknown | null>(null);
-  const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const monthOptions = useMemo(() => recentMonths(6), []);
   const range = useMemo(() => monthToDateRange(selectedMonth), [selectedMonth]);
 
@@ -125,32 +98,6 @@ export default function DashboardPage() {
   const categoryQuery = useDashboardCategorySummary(apiClient, range);
   const expenseSampleQuery = useDashboardExpenseSample(apiClient, range);
   const trendQuery = useDashboardTrend(apiClient, monthOptions);
-
-  const accountsQuery = useQuery({
-    queryKey: ["accounts-options"],
-    meta: { skipGlobalErrorToast: true },
-    queryFn: () => listAccounts(apiClient, { includeArchived: false, limit: 100 })
-  });
-
-  const categoriesQuery = useQuery({
-    queryKey: ["categories-options"],
-    meta: { skipGlobalErrorToast: true },
-    queryFn: () => listCategories(apiClient, { includeArchived: false, type: "all", limit: 100 })
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (payload: TransactionCreate) => createTransaction(apiClient, payload),
-    onSuccess: async () => {
-      setFormOpen(false);
-      setFormState(EMPTY_FORM);
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-    onError: (error) => {
-      setFormProblem(error);
-    }
-  });
 
   const currencyCode = user?.currency_code ?? "USD";
   const monthRow = monthQuery.data;
@@ -220,99 +167,36 @@ export default function DashboardPage() {
       : healthState === "Warning"
         ? "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-200"
         : "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
-  const timelineSteps = [
-    {
-      id: "step-01",
-      title: "Capture new activity",
-      detail: "Register latest movement to keep this month current.",
-      href: transactionsLink,
-      cta: "Add transaction"
-    },
-    {
-      id: "step-02",
-      title: "Review risk drivers",
-      detail: riskCount > 0 ? `${riskCount} active alert(s) detected across budget and spikes.` : "No active alerts right now.",
-      href: overBudgetItems.length > 0 ? budgetsLink : transactionsExpenseLink,
-      cta: overBudgetItems.length > 0 ? "Open budgets" : "Review expenses"
-    },
-    {
-      id: "step-03",
-      title: "Close the loop",
-      detail: "Validate month outcomes in analytics and adjust budgets if required.",
-      href: analyticsLink,
-      cta: "Open analytics"
+  const currentMonth = currentUtcMonth();
+  const monthCompletionRatio = useMemo(() => {
+    if (selectedMonth < currentMonth) {
+      return 1;
     }
-  ];
-
-  function setField(field: keyof TransactionFormState, value: string) {
-    setFormState((previous) => {
-      const next = { ...previous, [field]: value };
-      if (field === "type") {
-        next.categoryId = "";
-      }
-      return next;
-    });
-  }
-
-  function openQuickTransaction() {
-    setFormProblem(null);
-    setFormState((previous) => ({
-      ...EMPTY_FORM,
-      date: range.to || previous.date
-    }));
-    setFormOpen(true);
-  }
-
-  function buildCreatePayload(): TransactionCreate | null {
-    const amount = Number(formState.amountCents);
-    if (!Number.isInteger(amount) || amount <= 0) {
-      setFormProblem(toLocalProblem({
-        type: "about:blank",
-        title: "Invalid amount",
-        status: 400,
-        detail: "amount_cents must be an integer greater than zero."
-      }));
-      return null;
+    if (selectedMonth > currentMonth) {
+      return 0;
     }
-    if (!formState.accountId || !formState.categoryId || !formState.date) {
-      setFormProblem(toLocalProblem({
-        type: "about:blank",
-        title: "Invalid request",
-        status: 400,
-        detail: "type, account, category, amount, and date are required."
-      }));
-      return null;
-    }
-    return {
-      type: formState.type,
-      account_id: formState.accountId,
-      category_id: formState.categoryId,
-      amount_cents: amount,
-      date: formState.date,
-      merchant: formState.merchant.trim() || undefined,
-      note: formState.note.trim() || undefined
-    };
-  }
-
-  async function handleSubmitQuickTransaction(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFormProblem(null);
-    const payload = buildCreatePayload();
-    if (!payload) {
-      return;
-    }
-    try {
-      await createMutation.mutateAsync(payload);
-    } catch {
-      // handled via mutation onError
-    }
-  }
+    const totalDays = Number(range.to.slice(8, 10));
+    const today = Math.max(1, Math.min(totalDays, new Date().getUTCDate()));
+    return totalDays > 0 ? today / totalDays : 0;
+  }, [currentMonth, range.to, selectedMonth]);
+  const expectedBudgetUsage = budgetLimit > 0 ? Math.round(monthCompletionRatio * 100) : null;
+  const usageDelta = budgetPercent !== null && expectedBudgetUsage !== null ? budgetPercent - expectedBudgetUsage : null;
+  const usagePaceLabel =
+    usageDelta === null ? "No budget baseline" : usageDelta > 6 ? "Ahead of safe pace" : usageDelta < -6 ? "Under pace" : "On pace";
+  const usagePaceToneClass =
+    usageDelta === null
+      ? "border-border bg-muted/20 text-muted-foreground"
+      : usageDelta > 6
+        ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200"
+        : usageDelta < -6
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+          : "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200";
+  const projectedUsageWidth = expectedBudgetUsage === null ? 0 : Math.min(100, expectedBudgetUsage);
+  const actualUsageWidth = budgetPercent === null ? 0 : Math.min(100, budgetPercent);
+  const riskHotspots = overBudgetItems.length + spikes.spikes.length;
 
   return (
     <section className="relative mx-auto w-full max-w-6xl space-y-4 overflow-hidden pb-3 sm:space-y-5">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-cyan-500/15 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -right-16 top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" aria-hidden="true" />
-
       <PageHeader title="Dashboard" description="Current month health snapshot with actionable alerts and quick execution flows.">
         <div className="flex w-full flex-wrap items-center gap-2 text-sm text-muted-foreground sm:w-auto sm:gap-3">
           <label className="inline-flex items-center gap-2">
@@ -406,36 +290,57 @@ export default function DashboardPage() {
 
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle>Priority timeline</CardTitle>
-            <p className="text-xs text-muted-foreground">Run these in order to keep the month under control.</p>
+            <CardTitle>Budget pace monitor</CardTitle>
+            <p className="text-xs text-muted-foreground">Visual checkpoint comparing budget consumption against month progress.</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {timelineSteps.map((step, index) => (
-              <div key={step.id} className="rounded-md border bg-muted/15 p-3">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">
-                    <span className="mr-2 text-xs text-muted-foreground">{`${index + 1}.`}</span>
-                    {step.title}
-                  </p>
-                  {step.id === "step-01" ? (
-                    <Button size="sm" variant="outline" type="button" onClick={openQuickTransaction}>
-                      {step.cta}
-                    </Button>
-                  ) : (
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={step.href}>{step.cta}</Link>
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">{step.detail}</p>
+            <div className="space-y-2 rounded-md border bg-muted/15 p-3">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground">Projected month usage</span>
+                <span className="font-semibold">{expectedBudgetUsage === null ? "N/A" : `${expectedBudgetUsage}%`}</span>
               </div>
-            ))}
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground">Actual budget usage</span>
+                <span className="font-semibold">{budgetPercent === null ? "N/A" : `${budgetPercent}%`}</span>
+              </div>
+              <div className="relative h-3 rounded-full bg-muted">
+                <div className="h-3 rounded-full bg-primary/85 transition-all duration-300" style={{ width: `${actualUsageWidth}%` }} />
+                {expectedBudgetUsage !== null ? (
+                  <div
+                    className="absolute -top-1 h-5 w-0.5 rounded bg-foreground/75"
+                    style={{ left: `calc(${projectedUsageWidth}% - 1px)` }}
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md border bg-muted/15 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Risk hotspots</p>
+                <p className="mt-1 text-xl font-semibold">{isLoading ? "--" : riskHotspots}</p>
+                <p className="text-xs text-muted-foreground">Over-budget categories + detected spikes.</p>
+              </div>
+              <div className={`rounded-md border p-3 ${usagePaceToneClass}`}>
+                <p className="text-[11px] uppercase tracking-wide">Pace signal</p>
+                <p className="mt-1 text-xl font-semibold">{isLoading ? "--" : usagePaceLabel}</p>
+                <p className="text-xs">
+                  {usageDelta === null || isLoading ? "Set a budget to unlock pace signal." : `${Math.abs(usageDelta)} pts vs projected baseline.`}
+                </p>
+              </div>
+            </div>
+            {!isDesktop ? (
+              <p className="text-xs text-muted-foreground">Use the floating + action to add a transaction quickly.</p>
+            ) : null}
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/70 bg-gradient-to-b from-emerald-500/10 to-background shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="space-y-1 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
           </CardHeader>
@@ -447,7 +352,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Current month inflow</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-gradient-to-b from-rose-500/10 to-background shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="space-y-1 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Expense</CardTitle>
           </CardHeader>
@@ -459,7 +364,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Current month outflow</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-gradient-to-b from-sky-500/10 to-background shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="space-y-1 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Net</CardTitle>
           </CardHeader>
@@ -473,7 +378,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Income minus expense</p>
           </CardContent>
         </Card>
-        <Card className="border-border/70 bg-gradient-to-b from-indigo-500/10 to-background shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="space-y-1 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Budget progress</CardTitle>
           </CardHeader>
@@ -639,20 +544,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <TransactionForm
-        open={formOpen}
-        title="Quick transaction"
-        submitLabel="Save transaction"
-        submitting={createMutation.isPending}
-        state={formState}
-        accounts={accountsQuery.data?.items ?? []}
-        categories={categoriesQuery.data?.items ?? []}
-        problem={formProblem}
-        onFieldChange={setField}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmitQuickTransaction}
-        isEdit={false}
-      />
     </section>
   );
 }

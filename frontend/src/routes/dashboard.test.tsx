@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
-import { fireEvent, waitFor, within } from "@testing-library/react";
 
 import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
@@ -230,7 +229,7 @@ describe("Dashboard", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
-  it("executes quick transaction flow from timeline", async () => {
+  it("renders budget pace monitor instead of duplicate action timeline", () => {
     vi.mocked(listAccounts).mockResolvedValue({
       items: [{ id: "a1", name: "Wallet", type: "cash", initial_balance_cents: 0, note: null, archived_at: null }],
       next_cursor: null
@@ -284,11 +283,9 @@ describe("Dashboard", () => {
     } as never);
 
     renderDashboard();
-
-    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByText("Budget pace monitor")).toBeInTheDocument();
+    expect(screen.getByText("Projected month usage")).toBeInTheDocument();
+    expect(screen.getByText("Actual budget usage")).toBeInTheDocument();
   });
 });
 

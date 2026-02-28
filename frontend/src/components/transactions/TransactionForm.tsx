@@ -59,7 +59,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Type</span>
           <select
-            className="w-full rounded-md border px-3 py-2"
+            className="field-select"
             value={state.type}
             onChange={(event) => onFieldChange("type", event.target.value)}
           >
@@ -70,7 +70,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Account</span>
           <select
-            className="w-full rounded-md border px-3 py-2"
+            className="field-select"
             value={state.accountId}
             onChange={(event) => onFieldChange("accountId", event.target.value)}
           >
@@ -87,7 +87,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Category</span>
           <select
-            className="w-full rounded-md border px-3 py-2"
+            className="field-select"
             value={state.categoryId}
             onChange={(event) => onFieldChange("categoryId", event.target.value)}
           >
@@ -104,7 +104,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Amount (cents)</span>
           <input
-            className="w-full rounded-md border px-3 py-2"
+            className="field-input"
             value={state.amountCents}
             onChange={(event) => onFieldChange("amountCents", event.target.value)}
             required={!isEdit}
@@ -113,7 +113,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Date</span>
           <input
-            className="w-full rounded-md border px-3 py-2"
+            className="field-input"
             type="date"
             value={state.date}
             onChange={(event) => onFieldChange("date", event.target.value)}
@@ -123,7 +123,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Merchant</span>
           <input
-            className="w-full rounded-md border px-3 py-2"
+            className="field-input"
             value={state.merchant}
             onChange={(event) => onFieldChange("merchant", event.target.value)}
           />
@@ -131,7 +131,7 @@ export default function TransactionForm({
         <label className="space-y-1 text-sm">
           <span>Note</span>
           <textarea
-            className="w-full rounded-md border px-3 py-2"
+            className="field-textarea"
             value={state.note}
             onChange={(event) => onFieldChange("note", event.target.value)}
             rows={3}

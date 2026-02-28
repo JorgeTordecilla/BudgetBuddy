@@ -16,6 +16,7 @@ import ModalForm from "@/components/ModalForm";
 import PageHeader from "@/components/PageHeader";
 import ProblemBanner from "@/components/ProblemBanner";
 import { appendCursorPage } from "@/lib/pagination";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 
@@ -51,6 +52,7 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Category | null>(null);
   const [formState, setFormState] = useState<CategoryFormState>(EMPTY_FORM);
+  const isDesktop = useIsDesktop();
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -252,15 +254,53 @@ export default function CategoriesPage() {
       </tr>
     ));
   }, [items, restoringId]);
+  const mobileCards = useMemo(
+    () =>
+      items.map((category) => (
+        <li key={category.id} className="surface-panel space-y-2 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{category.name}</p>
+              <p className="text-xs uppercase text-muted-foreground">{category.type}</p>
+            </div>
+            <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
+              {category.archived_at ? "Archived" : "Active"}
+            </span>
+          </div>
+          {category.note ? <p className="text-xs text-muted-foreground">{category.note}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(category)}>
+              Edit
+            </Button>
+            {category.archived_at ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={restoringId === category.id}
+                onClick={() => void handleRestore(category.id)}
+              >
+                {restoringId === category.id ? "Restoring..." : "Restore"}
+              </Button>
+            ) : (
+              <Button type="button" size="sm" onClick={() => setArchiveTarget(category)}>
+                Archive
+              </Button>
+            )}
+          </div>
+        </li>
+      )),
+    [items, restoringId]
+  );
 
   return (
-    <section>
+    <section className="space-y-4">
       <PageHeader title="Categories" description="Manage income and expense category configuration." actionLabel="New category" onAction={openCreateModal}>
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <label className="inline-flex items-center gap-2">
             <span>Type</span>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-select"
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value as CategoryType | "all")}
             >
@@ -282,26 +322,31 @@ export default function CategoriesPage() {
 
       <ProblemBanner problem={pageProblem} onClose={() => setPageProblem(null)} />
 
-      <Card>
+      <Card className="animate-rise-in">
         <CardContent className="p-0">
           {categoriesQuery.isLoading ? (
             <div className="p-4 text-sm text-muted-foreground">Loading categories...</div>
           ) : items.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">No categories found.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-[620px] w-full text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2">Note</th>
-                    <th className="px-3 py-2">State</th>
-                    <th className="px-3 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>{tableRows}</tbody>
-              </table>
+            <div className="space-y-3 p-3 sm:p-4">
+              {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
+              {isDesktop ? (
+                <div className="overflow-x-auto">
+                <table className="min-w-[620px] w-full text-sm">
+                  <thead className="bg-muted/50 text-left">
+                    <tr>
+                      <th className="px-3 py-2">Name</th>
+                      <th className="px-3 py-2">Type</th>
+                      <th className="px-3 py-2">Note</th>
+                      <th className="px-3 py-2">State</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>{tableRows}</tbody>
+                </table>
+                </div>
+              ) : null}
             </div>
           )}
         </CardContent>
@@ -337,7 +382,7 @@ export default function CategoriesPage() {
           <label className="space-y-1 text-sm">
             <span>Name</span>
             <input
-              className="w-full rounded-md border px-3 py-2"
+              className="field-input"
               value={formState.name}
               onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
               required
@@ -346,7 +391,7 @@ export default function CategoriesPage() {
           <label className="space-y-1 text-sm">
             <span>Type</span>
             <select
-              className="w-full rounded-md border px-3 py-2"
+              className="field-select"
               value={formState.type}
               onChange={(event) => setFormState((prev) => ({ ...prev, type: event.target.value as CategoryType }))}
               disabled={isEditing}
@@ -358,7 +403,7 @@ export default function CategoriesPage() {
           <label className="space-y-1 text-sm">
             <span>Note</span>
             <textarea
-              className="w-full rounded-md border px-3 py-2"
+              className="field-textarea"
               value={formState.note}
               onChange={(event) => setFormState((prev) => ({ ...prev, note: event.target.value }))}
               rows={3}

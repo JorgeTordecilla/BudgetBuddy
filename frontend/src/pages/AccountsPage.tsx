@@ -10,6 +10,7 @@ import ModalForm from "@/components/ModalForm";
 import PageHeader from "@/components/PageHeader";
 import ProblemBanner from "@/components/ProblemBanner";
 import { appendCursorPage } from "@/lib/pagination";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 
@@ -45,6 +46,7 @@ export default function AccountsPage() {
   const [editing, setEditing] = useState<Account | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Account | null>(null);
   const [formState, setFormState] = useState<AccountFormState>(EMPTY_FORM);
+  const isDesktop = useIsDesktop();
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -228,9 +230,38 @@ export default function AccountsPage() {
       </tr>
     ));
   }, [items]);
+  const mobileCards = useMemo(
+    () =>
+      items.map((account) => (
+        <li key={account.id} className="surface-panel space-y-2 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{account.name}</p>
+              <p className="text-xs text-muted-foreground uppercase">{account.type}</p>
+            </div>
+            <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
+              {account.archived_at ? "Archived" : "Active"}
+            </span>
+          </div>
+          <p className="text-sm tabular-nums">Initial cents: {account.initial_balance_cents}</p>
+          {account.note ? <p className="text-xs text-muted-foreground">{account.note}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(account)}>
+              Edit
+            </Button>
+            {!account.archived_at ? (
+              <Button type="button" size="sm" onClick={() => setArchiveTarget(account)}>
+                Archive
+              </Button>
+            ) : null}
+          </div>
+        </li>
+      )),
+    [items]
+  );
 
   return (
-    <section>
+    <section className="space-y-4">
       <PageHeader title="Accounts" description="Manage account setup for transaction tracking." actionLabel="New account" onAction={openCreateModal}>
         <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <input
@@ -244,27 +275,32 @@ export default function AccountsPage() {
 
       <ProblemBanner problem={pageProblem} onClose={() => setPageProblem(null)} />
 
-      <Card>
+      <Card className="animate-rise-in">
         <CardContent className="p-0">
           {accountsQuery.isLoading ? (
             <div className="p-4 text-sm text-muted-foreground">Loading accounts...</div>
           ) : items.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">No accounts found.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-[680px] w-full text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2 text-right">Initial cents</th>
-                    <th className="px-3 py-2">Note</th>
-                    <th className="px-3 py-2">State</th>
-                    <th className="px-3 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>{tableRows}</tbody>
-              </table>
+            <div className="space-y-3 p-3 sm:p-4">
+              {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
+              {isDesktop ? (
+                <div className="overflow-x-auto">
+                <table className="min-w-[680px] w-full text-sm">
+                  <thead className="bg-muted/50 text-left">
+                    <tr>
+                      <th className="px-3 py-2">Name</th>
+                      <th className="px-3 py-2">Type</th>
+                      <th className="px-3 py-2 text-right">Initial cents</th>
+                      <th className="px-3 py-2">Note</th>
+                      <th className="px-3 py-2">State</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>{tableRows}</tbody>
+                </table>
+                </div>
+              ) : null}
             </div>
           )}
         </CardContent>
@@ -300,7 +336,7 @@ export default function AccountsPage() {
           <label className="space-y-1 text-sm">
             <span>Name</span>
             <input
-              className="w-full rounded-md border px-3 py-2"
+              className="field-input"
               value={formState.name}
               onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
               required
@@ -309,7 +345,7 @@ export default function AccountsPage() {
           <label className="space-y-1 text-sm">
             <span>Type</span>
             <select
-              className="w-full rounded-md border px-3 py-2"
+              className="field-select"
               value={formState.type}
               onChange={(event) => setFormState((prev) => ({ ...prev, type: event.target.value as AccountType }))}
             >
@@ -322,7 +358,7 @@ export default function AccountsPage() {
           <label className="space-y-1 text-sm">
             <span>Initial balance (cents)</span>
             <input
-              className="w-full rounded-md border px-3 py-2"
+              className="field-input"
               value={formState.initialBalanceCents}
               onChange={(event) => setFormState((prev) => ({ ...prev, initialBalanceCents: event.target.value }))}
               required
@@ -331,7 +367,7 @@ export default function AccountsPage() {
           <label className="space-y-1 text-sm">
             <span>Note</span>
             <textarea
-              className="w-full rounded-md border px-3 py-2"
+              className="field-textarea"
               value={formState.note}
               onChange={(event) => setFormState((prev) => ({ ...prev, note: event.target.value }))}
               rows={3}

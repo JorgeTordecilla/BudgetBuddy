@@ -79,3 +79,17 @@ Cockpit behavior SHALL follow established ProblemDetails handling and frontend v
 - **WHEN** cockpit implementation is verified
 - **THEN** `npm run test`, `npm run test:coverage`, and `npm run build` SHALL pass
 - **AND** coverage SHALL remain at or above project frontend thresholds.
+
+### Requirement: Dashboard mobile action clarity
+The dashboard SHALL prioritize month health, top risks, and next actions in a mobile-first layout with clear CTA hierarchy.
+
+#### Scenario: Dashboard quick decisions on mobile
+- **WHEN** a user opens Dashboard on a small viewport
+- **THEN** health status, risk alerts, and the highest-priority action are visible without horizontal scrolling
+
+### Requirement: Responsive KPI composition
+Dashboard KPI sections SHALL adapt density by breakpoint while preserving semantic grouping and readability.
+
+#### Scenario: KPI readability across breakpoints
+- **WHEN** the viewport changes between mobile, tablet, and desktop
+- **THEN** KPI blocks reflow to appropriate columns and keep labels, values, and state cues readable
