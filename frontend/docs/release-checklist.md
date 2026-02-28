@@ -4,7 +4,7 @@
 
 - [ ] `VITE_API_BASE_URL=/api` (Netlify proxy path).
 - [ ] `VITE_APP_ENV=production`.
-- [ ] `NETLIFY_API_PROXY_TARGET=https://<render-service>/api`.
+- [ ] `API_PROXY_TARGET=https://<render-service>/api`.
 - [ ] `VITE_RELEASE` is set to commit SHA or tag.
 - [ ] Optional flags and telemetry DSN values are set intentionally.
 
@@ -13,7 +13,7 @@
 - [ ] `netlify.toml` is present and includes build/publish configuration.
 - [ ] API proxy rule is present and ordered before SPA fallback:
       `/api/* -> API_PROXY_TARGET/:splat (200, force=true)`.
-- [ ] Build-time substitution resolved `API_PROXY_TARGET` using `NETLIFY_API_PROXY_TARGET`.
+- [ ] Build command generated `dist/_redirects` using `API_PROXY_TARGET`.
 - [ ] SPA redirect fallback is active (`/* -> /index.html 200`).
 - [ ] Security headers are active (`nosniff`, `Referrer-Policy`, `Permissions-Policy`, CSP baseline).
 

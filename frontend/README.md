@@ -15,11 +15,11 @@ Use `.env.example` as the baseline.
 1. Set Netlify environment variables:
    - `VITE_API_BASE_URL=/api`
    - `VITE_APP_ENV=production`
-   - `NETLIFY_API_PROXY_TARGET=https://<your-render-service>/api`
+   - `API_PROXY_TARGET=https://<your-render-service>/api`
    - optional `VITE_SENTRY_DSN`
 2. Ensure Netlify config is versioned:
    - `netlify.toml` defines build/publish, SPA redirect, and security headers.
-   - `/api/*` proxy target is injected at build time from `NETLIFY_API_PROXY_TARGET`.
+   - Build command generates `dist/_redirects` using `API_PROXY_TARGET`.
    - Legacy fallback remains compatible via `public/_redirects`.
 3. Validate deep-link refresh:
    - `/app/dashboard`
