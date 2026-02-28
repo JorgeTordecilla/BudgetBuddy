@@ -220,6 +220,59 @@ describe("api client refresh behavior", () => {
     );
   });
 
+  it("retries refresh once when backend reports refresh-reuse-detected", async () => {
+    let token = "old-token";
+    const setSession = vi.fn(({ accessToken }: { accessToken: string; user: User }) => {
+      token = accessToken;
+    });
+    const clearSession = vi.fn();
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            type: "https://api.budgetbuddy.dev/problems/refresh-reuse-detected",
+            title: "Refresh token reuse detected",
+            status: 403,
+            detail: "Refresh token was already used and rotated"
+          }),
+          { status: 403, headers: { "content-type": "application/problem+json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: makeUser(),
+            access_token: "new-token",
+            access_token_expires_in: 900
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+    const client = createApiClient(
+      {
+        getAccessToken: () => token,
+        setSession,
+        clearSession
+      },
+      {
+        fetchImpl: fetchMock,
+        baseUrl: "http://test.local/api",
+        onAuthFailure: () => undefined
+      }
+    );
+
+    const response = await client.request("/protected", { method: "GET" });
+
+    expect(response.status).toBe(200);
+    expect(setSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it("sends vendor content-type for refresh post without body", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("unauthorized", { status: 401 }));
     const clearSession = vi.fn();

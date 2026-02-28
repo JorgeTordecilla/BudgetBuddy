@@ -9,13 +9,30 @@ function normalizeAppEnv(value: string | undefined): AppEnv {
   return "development";
 }
 
-function normalizeBaseUrl(value: string | undefined): string {
+function normalizeBaseUrl(value: string | undefined, appEnv: AppEnv): string {
   const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : DEFAULT_API_BASE_URL;
+  const configured = trimmed && trimmed.length > 0 ? trimmed : DEFAULT_API_BASE_URL;
+
+  if (appEnv === "production" && typeof window !== "undefined") {
+    const isAbsoluteHttpUrl = /^https?:\/\//i.test(configured);
+    if (isAbsoluteHttpUrl) {
+      try {
+        const resolved = new URL(configured, window.location.origin);
+        if (resolved.origin !== window.location.origin) {
+          console.warn("Cross-origin VITE_API_BASE_URL detected in production. Falling back to /api for refresh-cookie auth.");
+          return DEFAULT_API_BASE_URL;
+        }
+      } catch {
+        return DEFAULT_API_BASE_URL;
+      }
+    }
+  }
+
+  return configured;
 }
 
-const apiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const appEnv = normalizeAppEnv(import.meta.env.VITE_APP_ENV);
+const apiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL, appEnv);
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim() || null;
 const release = import.meta.env.VITE_RELEASE?.trim() || "dev-local";
 
