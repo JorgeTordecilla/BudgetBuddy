@@ -15,6 +15,7 @@ const value = {
   isAuthenticated: false,
   isBootstrapping: false,
   login: async () => undefined,
+  register: async () => undefined,
   logout: async () => undefined,
   bootstrapSession: async () => false
 };
@@ -31,3 +32,5 @@ describe("useAuth", () => {
     expect(result.current.bootstrapSession).toBeTypeOf("function");
   });
 });
+
+

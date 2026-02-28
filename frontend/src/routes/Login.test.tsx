@@ -31,6 +31,7 @@ describe("Login route", () => {
           isAuthenticated: false,
           isBootstrapping: true,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession
         }}
@@ -59,6 +60,7 @@ describe("Login route", () => {
           isAuthenticated: false,
           isBootstrapping: false,
           login,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => false
         }}
@@ -90,6 +92,7 @@ describe("Login route", () => {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -118,6 +121,7 @@ describe("Login route", () => {
           isAuthenticated: false,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession
         }}
@@ -146,6 +150,7 @@ describe("Login route", () => {
           isAuthenticated: false,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => false
         }}
@@ -162,3 +167,5 @@ describe("Login route", () => {
     expect(screen.queryByText(/API base:/)).not.toBeInTheDocument();
   });
 });
+
+

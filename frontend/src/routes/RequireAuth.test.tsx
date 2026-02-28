@@ -37,6 +37,7 @@ describe("RequireAuth", () => {
       isAuthenticated: false,
       isBootstrapping: true,
       login: async () => undefined,
+      register: async () => undefined,
       logout: async () => undefined,
       bootstrapSession: async () => false
     });
@@ -51,6 +52,7 @@ describe("RequireAuth", () => {
       isAuthenticated: true,
       isBootstrapping: false,
       login: async () => undefined,
+      register: async () => undefined,
       logout: async () => undefined,
       bootstrapSession: async () => true
     });
@@ -66,6 +68,7 @@ describe("RequireAuth", () => {
       isAuthenticated: false,
       isBootstrapping: false,
       login: async () => undefined,
+      register: async () => undefined,
       logout: async () => undefined,
       bootstrapSession
     });
@@ -84,6 +87,7 @@ describe("RequireAuth", () => {
           isAuthenticated: false,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession
         }}
@@ -109,3 +113,5 @@ describe("RequireAuth", () => {
     expect(bootstrapSession).toHaveBeenCalledTimes(1);
   });
 });
+
+

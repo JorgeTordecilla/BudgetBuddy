@@ -10,6 +10,12 @@ export type AuthSessionResponse = {
   access_token_expires_in: number;
 };
 
+export type RegisterRequest = {
+  username: string;
+  password: string;
+  currency_code: string;
+};
+
 export type ProblemDetails = {
   type: string;
   title: string;

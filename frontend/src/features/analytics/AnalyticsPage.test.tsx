@@ -31,6 +31,7 @@ function renderPage(initialEntries = ["/app/analytics"]) {
             isAuthenticated: true,
             isBootstrapping: false,
             login: async () => undefined,
+            register: async () => undefined,
             logout: async () => undefined,
             bootstrapSession: async () => true
           }}
@@ -155,6 +156,7 @@ describe("AnalyticsPage", () => {
               isAuthenticated: true,
               isBootstrapping: false,
               login: async () => undefined,
+              register: async () => undefined,
               logout: async () => undefined,
               bootstrapSession: async () => true
             }}
@@ -250,3 +252,5 @@ describe("AnalyticsPage", () => {
     expect(screen.queryByText("Invalid date range")).not.toBeInTheDocument();
   });
 });
+
+

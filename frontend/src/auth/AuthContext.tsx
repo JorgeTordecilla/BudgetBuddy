@@ -12,6 +12,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   isBootstrapping: boolean;
   login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, currencyCode: string) => Promise<void>;
   logout: () => Promise<void>;
   bootstrapSession: () => Promise<boolean>;
 };
@@ -55,6 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string): Promise<void> => {
     const authSession = await client.login(username, password);
+    setSessionState({ accessToken: authSession.access_token, user: authSession.user });
+    lastBootstrapFailureAtRef.current = null;
+  }, [client]);
+
+  const register = useCallback(async (username: string, password: string, currencyCode: string): Promise<void> => {
+    const authSession = await client.register({
+      username,
+      password,
+      currency_code: currencyCode
+    });
     setSessionState({ accessToken: authSession.access_token, user: authSession.user });
     lastBootstrapFailureAtRef.current = null;
   }, [client]);
@@ -127,10 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session.accessToken && session.user),
       isBootstrapping,
       login,
+      register,
       logout,
       bootstrapSession
     }),
-    [client, session.user, session.accessToken, isBootstrapping, login, logout, bootstrapSession]
+    [client, session.user, session.accessToken, isBootstrapping, login, register, logout, bootstrapSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

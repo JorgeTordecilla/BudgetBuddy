@@ -38,6 +38,7 @@ function renderPage() {
           isAuthenticated: true,
           isBootstrapping: false,
           login: async () => undefined,
+          register: async () => undefined,
           logout: async () => undefined,
           bootstrapSession: async () => true
         }}
@@ -333,3 +334,5 @@ describe("CategoriesPage", () => {
     expect(archiveCategory).not.toHaveBeenCalled();
   });
 });
+
+
