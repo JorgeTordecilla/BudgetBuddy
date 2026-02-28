@@ -28,6 +28,7 @@ import TransactionForm, { type TransactionFormState } from "@/components/transac
 import TransactionRowActions from "@/components/transactions/TransactionRowActions";
 import { invalidateTransactionsAndAnalytics } from "@/features/transactions/transactionCache";
 import { appendCursorPage } from "@/lib/pagination";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import {
   normalizeBooleanParam,
   normalizeIdParam,
@@ -158,6 +159,7 @@ export default function TransactionsPage() {
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const moreActionsRef = useRef<HTMLDivElement | null>(null);
+  const isDesktop = useIsDesktop();
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -307,6 +309,16 @@ export default function TransactionsPage() {
   }, [initialFilters]);
 
   useEffect(() => {
+    if (searchParams.get("action") !== "new") {
+      return;
+    }
+    openCreateModal();
+    const next = new URLSearchParams(searchParams);
+    next.delete("action");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (isDateRangeInvalid) {
       return;
     }
@@ -375,6 +387,7 @@ export default function TransactionsPage() {
     setEditing(null);
     setFormProblem(null);
     setFormState(EMPTY_FORM);
+    setMoreActionsOpen(false);
     setFormOpen(true);
   }
 
@@ -535,12 +548,49 @@ export default function TransactionsPage() {
       )),
     [items, restoringId]
   );
+  const mobileCards = useMemo(
+    () =>
+      items.map((transaction) => (
+        <li key={transaction.id} className="surface-panel space-y-2 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{transaction.merchant ?? "(no merchant)"}</p>
+              <p className="text-xs text-muted-foreground">{transaction.date}</p>
+            </div>
+            <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-1 text-[11px] font-semibold uppercase">
+              {transaction.type}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Amount (cents)</p>
+              <p className="font-semibold tabular-nums">{transaction.amount_cents}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">State</p>
+              <p className="font-semibold">{transaction.archived_at ? "Archived" : "Active"}</p>
+            </div>
+          </div>
+          {transaction.note ? <p className="text-xs text-muted-foreground">{transaction.note}</p> : null}
+          <div className="flex justify-end">
+            <TransactionRowActions
+              transaction={transaction}
+              restoringId={restoringId}
+              onEdit={openEditModal}
+              onArchive={setArchiveTarget}
+              onRestore={(transactionId) => void handleRestore(transactionId)}
+            />
+          </div>
+        </li>
+      )),
+    [items, restoringId]
+  );
 
   const accountOptions = accountsQuery.data?.items ?? [];
   const categoryOptions = categoriesQuery.data?.items ?? [];
 
   return (
-    <section>
+    <section className="space-y-4">
       <PageHeader
         title="Transactions"
         description="Create, update, restore, and archive transactions with contract-safe behavior."
@@ -589,14 +639,14 @@ export default function TransactionsPage() {
         )}
       />
 
-      <div className="mb-6 border-b pb-4">
-        <div className="grid max-w-5xl grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-6">
+      <div className="surface-panel p-3 sm:p-4">
+        <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
           <label className="space-y-1">
             <span className="block">From</span>
             <input
               type="date"
               aria-label="From"
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-input"
               value={filters.from}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -611,7 +661,7 @@ export default function TransactionsPage() {
             <input
               type="date"
               aria-label="To"
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-input"
               value={filters.to}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -624,7 +674,7 @@ export default function TransactionsPage() {
           <label className="space-y-1">
             <span className="block">Type</span>
             <select
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-select"
               value={filters.type}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -641,7 +691,7 @@ export default function TransactionsPage() {
           <label className="space-y-1">
             <span className="block">Account</span>
             <select
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-select"
               value={filters.accountId}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -661,7 +711,7 @@ export default function TransactionsPage() {
           <label className="space-y-1">
             <span className="block">Category</span>
             <select
-              className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-select"
               value={filters.categoryId}
               onChange={(event) =>
                 setFilters((previous) => ({
@@ -680,7 +730,7 @@ export default function TransactionsPage() {
           </label>
           <label className="space-y-1">
             <span className="block opacity-0">Options</span>
-            <span className="inline-flex h-9 items-center gap-2 rounded-md border border-transparent px-1">
+            <span className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
               <input
                 type="checkbox"
                 aria-label="Show archived"
@@ -703,28 +753,33 @@ export default function TransactionsPage() {
 
       {pageProblem ? <ProblemDetailsInline error={pageProblem} onRetry={() => void transactionsQuery.refetch()} /> : null}
 
-      <Card>
+      <Card className="animate-rise-in">
         <CardContent className="p-0">
           {transactionsQuery.isLoading ? (
             <div className="p-4 text-sm text-muted-foreground">Loading transactions...</div>
           ) : items.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">No transactions found.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-[760px] w-full text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr>
-                    <th className="px-3 py-2">Date</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2 text-right">Amount cents</th>
-                    <th className="px-3 py-2">Merchant</th>
-                    <th className="px-3 py-2">Note</th>
-                    <th className="px-3 py-2">State</th>
-                    <th className="px-3 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>{rows}</tbody>
-              </table>
+            <div className="space-y-3 p-3 sm:p-4">
+              {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
+              {isDesktop ? (
+                <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-sm">
+                  <thead className="bg-muted/50 text-left">
+                    <tr>
+                      <th className="px-3 py-2">Date</th>
+                      <th className="px-3 py-2">Type</th>
+                      <th className="px-3 py-2 text-right">Amount cents</th>
+                      <th className="px-3 py-2">Merchant</th>
+                      <th className="px-3 py-2">Note</th>
+                      <th className="px-3 py-2">State</th>
+                      <th className="px-3 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>{rows}</tbody>
+                </table>
+                </div>
+              ) : null}
             </div>
           )}
         </CardContent>

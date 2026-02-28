@@ -66,3 +66,17 @@ Frontend code MUST source backend base URL from Vite environment variables throu
 - **WHEN** frontend modules need backend base URL
 - **THEN** they SHALL consume `API_BASE_URL` from `src/config.ts`
 - **AND** they SHALL NOT hardcode backend URLs in route components
+
+### Requirement: Mobile-first primary navigation
+The frontend SHALL provide persistent, thumb-friendly primary navigation for authenticated routes on small viewports while preserving an equivalent desktop navigation model on larger viewports.
+
+#### Scenario: Primary route switching on mobile
+- **WHEN** an authenticated user is on a viewport below the desktop breakpoint
+- **THEN** the UI shows persistent primary navigation that allows direct access to Dashboard, Analytics, Accounts, Categories, Budgets, and Transactions without relying on wrapped header links
+
+### Requirement: Responsive app shell hierarchy
+The app shell SHALL present a consistent visual hierarchy for title, contextual actions, and navigation across mobile, tablet, and desktop breakpoints.
+
+#### Scenario: Shell layout at breakpoint transitions
+- **WHEN** the viewport changes between mobile, tablet, and desktop widths
+- **THEN** shell content reflows without overlap, clipped controls, or hidden primary actions

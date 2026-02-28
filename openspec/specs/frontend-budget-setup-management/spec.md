@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define frontend contract and behavior for authenticated setup management across accounts/categories and budget setup/edit ergonomics.
+
+## Requirements
 
 ### Requirement: Authenticated navigation exposes setup management screens
 The frontend MUST expose authenticated routes for accounts and categories management and include navigation links from the authenticated shell.
@@ -61,3 +65,10 @@ Accounts and categories API calls MUST preserve existing FE session constraints.
 - **WHEN** frontend performs accounts/categories API requests
 - **THEN** requests SHALL use `credentials: include`
 - **AND** access tokens SHALL remain in memory-only auth state with no localStorage/sessionStorage persistence
+
+### Requirement: Budget setup forms mobile ergonomics
+Budget setup and edit forms SHALL be optimized for mobile input ergonomics, including field spacing, touch targets, and error readability.
+
+#### Scenario: Budget form completion on small viewport
+- **WHEN** a user creates or edits a budget on a small viewport
+- **THEN** required fields, validation messages, and submit actions remain visible and usable without accidental overlap or clipped controls

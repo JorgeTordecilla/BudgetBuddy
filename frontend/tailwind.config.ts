@@ -22,7 +22,8 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       fontFamily: {
-        sans: ["\"Plus Jakarta Sans\"", "ui-sans-serif", "system-ui", "sans-serif"]
+        sans: ["\"Manrope\"", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["\"Fraunces\"", "ui-serif", "Georgia", "serif"]
       }
     }
   },

@@ -351,7 +351,7 @@ export default function BudgetsPage() {
   const items = budgetsQuery.data?.items ?? [];
 
   return (
-    <section>
+    <section className="space-y-4">
       <PageHeader
         title="Budgets"
         description="Manage monthly category limits with contract-safe budget operations."
@@ -363,7 +363,7 @@ export default function BudgetsPage() {
             <span>From</span>
             <input
               type="month"
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-input"
               value={draftFrom}
               onChange={(event) => setDraftFrom(event.target.value)}
               aria-label="From month"
@@ -373,7 +373,7 @@ export default function BudgetsPage() {
             <span>To</span>
             <input
               type="month"
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="field-input"
               value={draftTo}
               onChange={(event) => setDraftTo(event.target.value)}
               aria-label="To month"

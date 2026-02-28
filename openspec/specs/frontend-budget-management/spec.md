@@ -150,3 +150,17 @@ The budgets frontend SHALL keep orchestration, table rendering, and form interac
 - **WHEN** create/edit budget modal is rendered
 - **THEN** budget form inputs and submission controls SHALL live in a dedicated form component
 - **AND** page container SHALL provide state, handlers, and error payload inputs.
+
+### Requirement: Budget list/table adaptive presentation
+The budgets interface SHALL present mobile-optimized list cards on small viewports and structured tables on larger viewports while preserving edit/archive operations.
+
+#### Scenario: Budgets operability on mobile
+- **WHEN** a user manages budgets from a small viewport
+- **THEN** each budget entry is actionable without horizontal scrolling and with visible state labels
+
+### Requirement: Budget filter and range control consistency
+Budget range controls SHALL maintain clear input grouping and apply behavior across all viewport sizes.
+
+#### Scenario: Applying budget month range responsively
+- **WHEN** a user changes from/to month values and applies filters on any supported viewport
+- **THEN** the page updates results and retains understandable filter context without layout breakage

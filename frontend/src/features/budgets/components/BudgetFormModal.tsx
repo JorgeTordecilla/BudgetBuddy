@@ -59,7 +59,7 @@ export default function BudgetFormModal({
           <span>Month</span>
           <input
             type="month"
-            className={`w-full rounded-md border px-3 py-2 ${fieldErrors.month ? "border-destructive" : ""}`}
+            className={`field-input ${fieldErrors.month ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.month}
             onChange={(event) => onFieldChange("month", event.target.value)}
             aria-invalid={Boolean(fieldErrors.month)}
@@ -69,7 +69,7 @@ export default function BudgetFormModal({
         <label className="space-y-1 text-sm">
           <span>Category</span>
           <select
-            className="w-full rounded-md border px-3 py-2"
+            className="field-select"
             value={state.categoryId}
             onChange={(event) => onFieldChange("categoryId", event.target.value)}
           >
@@ -84,7 +84,7 @@ export default function BudgetFormModal({
         <label className="space-y-1 text-sm">
           <span>Limit</span>
           <input
-            className={`w-full rounded-md border px-3 py-2 ${fieldErrors.limit ? "border-destructive" : ""}`}
+            className={`field-input ${fieldErrors.limit ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.limit}
             onChange={(event) => onFieldChange("limit", event.target.value)}
             placeholder="0.00"

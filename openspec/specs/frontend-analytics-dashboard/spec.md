@@ -103,3 +103,17 @@ Analytics implementation SHALL include deterministic tests and pass project veri
 #### Scenario: Verification commands pass
 - **WHEN** analytics implementation is complete
 - **THEN** `npm run test`, `npm run test:coverage`, and `npm run build` SHALL pass.
+
+### Requirement: Analytics responsive readability
+The analytics interface SHALL preserve trend and breakdown readability across mobile, tablet, and desktop by adapting chart, control, and data-summary layouts.
+
+#### Scenario: Analytics interpretation on mobile
+- **WHEN** a user opens Analytics on a small viewport
+- **THEN** trend insights and category breakdown remain legible and interpretable without requiring horizontal table interaction as the primary mode
+
+### Requirement: Analytics control consistency
+Analytics range and overlay controls SHALL remain consistently accessible and understandable at all supported breakpoints.
+
+#### Scenario: Range application with responsive controls
+- **WHEN** a user updates analytics date controls and applies changes
+- **THEN** control states, results, and error messaging remain coherent regardless of viewport size

@@ -489,6 +489,12 @@ describe("TransactionsPage", () => {
     expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
   });
 
+  it("opens create modal when action=new query param is present", async () => {
+    renderPage(["/app/transactions?action=new"]);
+    await screen.findByText("Market");
+    expect(screen.getByRole("button", { name: "Create transaction" })).toBeInTheDocument();
+  });
+
   it("navigates to import page from the more-options menu", async () => {
     renderPage();
     await screen.findByText("Market");

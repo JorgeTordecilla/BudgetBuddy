@@ -22,17 +22,19 @@ export default function PageHeader({
   children
 }: PageHeaderProps) {
   return (
-    <header className="mb-6 flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">{title}</h1>
+    <header className="mb-5 animate-rise-in space-y-3 border-b border-border/70 pb-4 sm:mb-6 sm:space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+        <h1 className="text-[clamp(1.55rem,3.4vw,2.1rem)] leading-tight">{title}</h1>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-        {children}
+        </div>
+        {actions ?? (actionLabel && onAction ? (
+          <Button type="button" className="w-full sm:w-auto" onClick={onAction} disabled={actionDisabled}>
+            {actionLabel}
+          </Button>
+        ) : null)}
       </div>
-      {actions ?? (actionLabel && onAction ? (
-        <Button type="button" className="w-full sm:w-auto" onClick={onAction} disabled={actionDisabled}>
-          {actionLabel}
-        </Button>
-      ) : null)}
+      {children ? <div>{children}</div> : null}
     </header>
   );
 }
