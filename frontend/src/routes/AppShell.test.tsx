@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -20,7 +21,7 @@ vi.mock("@/components/feedback/successToastStore", () => ({ publishSuccessToast:
 const apiClientStub = {} as ApiClient;
 
 describe("AppShell", () => {
-  function renderWithQueryClient(ui: JSX.Element) {
+  function renderWithQueryClient(ui: ReactElement) {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
     });
@@ -273,10 +274,9 @@ describe("AppShell", () => {
       date: "2026-02-28",
       merchant: null,
       note: null,
-      transfer_id: null,
+      archived_at: null,
       created_at: "2026-02-28T10:00:00Z",
-      updated_at: "2026-02-28T10:00:00Z",
-      deleted_at: null
+      updated_at: "2026-02-28T10:00:00Z"
     });
     renderShellAt(375);
 
