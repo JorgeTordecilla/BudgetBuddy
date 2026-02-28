@@ -23,7 +23,8 @@ Fail-fast rules already enforced by startup:
 
 - `ENV=production` rejects `DEBUG=true`
 - `BUDGETBUDDY_CORS_ORIGINS` must not contain `*` in production
-- `REFRESH_COOKIE_SAMESITE=none` requires `REFRESH_COOKIE_SECURE=true`
+- `REFRESH_COOKIE_SAMESITE=lax` is the recommended production baseline
+- `REFRESH_COOKIE_SAMESITE=none` still requires `REFRESH_COOKIE_SECURE=true`
 - CORS remains credentials-enabled with explicit allowlist; exposed headers are limited to `X-Request-Id` and `Retry-After`
 
 ### 1.3 Security response headers

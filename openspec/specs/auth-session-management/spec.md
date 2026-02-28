@@ -58,13 +58,14 @@ The backend MUST implement `POST /auth/logout` to revoke the refresh session rep
 ### Requirement: Refresh cookie attributes are security-hardened
 The refresh cookie MUST be emitted with enterprise-safe attributes across login and refresh flows.
 
-#### Scenario: Login emits hardened cookie attributes
-- **WHEN** `POST /auth/login` succeeds
-- **THEN** emitted `bb_refresh` cookie SHALL include `HttpOnly`, `Secure`, `SameSite=None`, `Path=/api/auth`, and `Max-Age=<refresh_ttl_seconds>`, and SHALL omit `Domain` by default unless `REFRESH_COOKIE_DOMAIN` is configured
+#### Scenario: Login emits mobile-compatible hardened cookie attributes
+- **WHEN** `POST /auth/login` succeeds in production
+- **THEN** emitted `bb_refresh` cookie SHALL include `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api/auth`, and `Max-Age=<refresh_ttl_seconds>`
+- **AND** cookie `Domain` SHALL be omitted by default unless explicitly configured.
 
-#### Scenario: Refresh rotation preserves hardened cookie attributes
-- **WHEN** `POST /auth/refresh` succeeds
-- **THEN** rotated `bb_refresh` cookie SHALL include the same hardened attributes as login, including the same default/optional `Domain` policy
+#### Scenario: Refresh rotation preserves mobile-compatible cookie attributes
+- **WHEN** `POST /auth/refresh` succeeds in production
+- **THEN** rotated `bb_refresh` cookie SHALL include the same attribute policy (`SameSite=Lax`, secure, host-only domain default).
 
 ### Requirement: Login flow behavior under throttling
 The login flow MUST preserve existing credential validation semantics under threshold and return deterministic throttling behavior over threshold.

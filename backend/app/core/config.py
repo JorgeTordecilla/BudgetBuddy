@@ -83,8 +83,9 @@ class Settings:
         self.refresh_cookie_name = os.getenv("REFRESH_COOKIE_NAME", "bb_refresh").strip() or "bb_refresh"
         self.refresh_cookie_path = os.getenv("REFRESH_COOKIE_PATH", "/api/auth").strip() or "/api/auth"
         self.refresh_cookie_secure = _env_bool("REFRESH_COOKIE_SECURE", True)
-        samesite_raw = os.getenv("REFRESH_COOKIE_SAMESITE", "none").strip().lower()
-        self.refresh_cookie_samesite = samesite_raw if samesite_raw in {"lax", "strict", "none"} else "none"
+        default_samesite = "lax" if self.runtime_env == "production" else "none"
+        samesite_raw = os.getenv("REFRESH_COOKIE_SAMESITE", default_samesite).strip().lower()
+        self.refresh_cookie_samesite = samesite_raw if samesite_raw in {"lax", "strict", "none"} else default_samesite
         domain_raw = os.getenv("REFRESH_COOKIE_DOMAIN", "").strip()
         self.refresh_cookie_domain = domain_raw or None
         self.transaction_import_max_items = _env_positive_int("TRANSACTION_IMPORT_MAX_ITEMS", "500")

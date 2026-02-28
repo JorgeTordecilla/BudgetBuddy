@@ -13,11 +13,13 @@ Use `.env.example` as the baseline.
 ## Netlify Production Checklist
 
 1. Set Netlify environment variables:
-   - `VITE_API_BASE_URL=https://<your-api-domain>/api`
+   - `VITE_API_BASE_URL=/api`
    - `VITE_APP_ENV=production`
+   - `NETLIFY_API_PROXY_TARGET=https://<your-render-service>/api`
    - optional `VITE_SENTRY_DSN`
 2. Ensure Netlify config is versioned:
    - `netlify.toml` defines build/publish, SPA redirect, and security headers.
+   - `/api/*` proxy target is injected at build time from `NETLIFY_API_PROXY_TARGET`.
    - Legacy fallback remains compatible via `public/_redirects`.
 3. Validate deep-link refresh:
    - `/app/dashboard`
@@ -35,7 +37,8 @@ For refresh-cookie cross-site auth to work, backend configuration must satisfy:
 - Refresh cookie flags:
   - `HttpOnly`
   - `Secure`
-  - `SameSite=None`
+  - `SameSite=Lax` (when using Netlify `/api` same-origin proxy strategy)
+  - `Domain` omitted (host-only cookie)
 
 Frontend behavior:
 
@@ -77,7 +80,9 @@ Frontend behavior:
 4. Cross-site cookie mismatch:
    - verify backend allowlist contains the exact Netlify origin
    - verify `Access-Control-Allow-Credentials: true`
-   - verify refresh cookie has `HttpOnly; Secure; SameSite=None`.
+   - verify refresh cookie has `HttpOnly; Secure; SameSite=Lax; Path=/api/auth`
+   - verify `REFRESH_COOKIE_DOMAIN` is empty/unset
+   - after changing cookie env vars in Render, restart the service.
 5. Telemetry redaction:
    - frontend observability sends allowlisted metadata only
    - tokens, cookies, and credential payloads are not reported.
