@@ -9,6 +9,41 @@ import { captureApiFailure } from "@/observability/runtime";
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 const REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected";
 
+let pageLifecycleBound = false;
+let pageIsUnloading = false;
+
+function bindPageLifecycleSignals(): void {
+  if (pageLifecycleBound || typeof window === "undefined") {
+    return;
+  }
+  const markUnloading = () => {
+    pageIsUnloading = true;
+  };
+  const markActive = () => {
+    pageIsUnloading = false;
+  };
+  window.addEventListener("beforeunload", markUnloading, { capture: true });
+  window.addEventListener("pagehide", markUnloading, { capture: true });
+  window.addEventListener("pageshow", markActive, { capture: true });
+  if (typeof document !== "undefined") {
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.visibilityState === "visible") {
+          markActive();
+        }
+      },
+      { capture: true }
+    );
+  }
+  pageLifecycleBound = true;
+}
+
+function isPageUnloading(): boolean {
+  bindPageLifecycleSignals();
+  return pageIsUnloading;
+}
+
 type AuthBindings = {
   getAccessToken: () => string | null;
   setSession: (next: { accessToken: string; user: User }) => void;
@@ -65,6 +100,7 @@ export async function readProblemDetails(response: Response): Promise<ProblemDet
 }
 
 export function createApiClient(bindings: AuthBindings, options: ClientOptions = {}) {
+  bindPageLifecycleSignals();
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? ENV.API_BASE_URL;
   const onAuthFailure = options.onAuthFailure ?? redirectToLogin;
@@ -76,6 +112,9 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
   };
 
   const refresh = async (options: RefreshOptions = {}): Promise<AuthSessionResponse | null> => {
+    if (isPageUnloading()) {
+      return null;
+    }
     const { silentAuthFailure = false, suppressAuthFailureRedirect = false } = options;
     if (refreshInFlight) {
       return refreshInFlight;
