@@ -1,17 +1,27 @@
-export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function toLocalIsoDate(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export function currentIsoMonth(date = new Date()): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+}
+
+export function todayIsoDate(date = new Date()): string {
+  return toLocalIsoDate(date);
 }
 
 export function monthStartIsoDate(date = new Date()): string {
-  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-  return utc.toISOString().slice(0, 10);
+  return `${currentIsoMonth(date)}-01`;
 }
 
-export function defaultAnalyticsRange(): { from: string; to: string } {
-  const now = new Date();
+export function defaultAnalyticsRange(now = new Date()): { from: string; to: string } {
   return {
     from: monthStartIsoDate(now),
-    to: todayIsoDate()
+    to: todayIsoDate(now)
   };
 }
 
@@ -19,8 +29,8 @@ export function isValidIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+  const date = new Date(`${value}T00:00:00`);
+  return !Number.isNaN(date.getTime()) && toLocalIsoDate(date) === value;
 }
 
 export function isValidDateRange(from: string, to: string): boolean {

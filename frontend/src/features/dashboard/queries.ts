@@ -4,6 +4,7 @@ import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
 import { listTransactions } from "@/api/transactions";
 import type { ApiClient } from "@/api/client";
 import type { AnalyticsByCategoryItem, AnalyticsByMonthItem, Transaction } from "@/api/types";
+import { currentIsoMonth } from "@/utils/dates";
 
 export type DashboardMonthRange = {
   month: string;
@@ -11,16 +12,24 @@ export type DashboardMonthRange = {
   to: string;
 };
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
 export function monthToDateRange(month: string): DashboardMonthRange {
   const [yearText, monthText] = month.split("-");
   const year = Number(yearText);
   const monthIndex = Number(monthText) - 1;
-  const start = new Date(Date.UTC(year, monthIndex, 1));
-  const end = new Date(Date.UTC(year, monthIndex + 1, 0));
+  const monthPart = pad2(monthIndex + 1);
+  const endDay = daysInMonth(year, monthIndex);
   return {
     month,
-    from: start.toISOString().slice(0, 10),
-    to: end.toISOString().slice(0, 10)
+    from: `${year}-${monthPart}-01`,
+    to: `${year}-${monthPart}-${pad2(endDay)}`
   };
 }
 
@@ -32,21 +41,19 @@ function monthEndFromMonth(month: string): string {
   const [yearText, monthText] = month.split("-");
   const year = Number(yearText);
   const monthIndex = Number(monthText) - 1;
-  const end = new Date(Date.UTC(year, monthIndex + 1, 0));
-  return end.toISOString().slice(0, 10);
+  return `${year}-${pad2(monthIndex + 1)}-${pad2(daysInMonth(year, monthIndex))}`;
 }
 
-export function currentUtcMonth(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+export function currentLocalMonth(): string {
+  return currentIsoMonth();
 }
 
 export function recentMonths(maxMonths = 6): string[] {
   const base = new Date();
   const items: string[] = [];
   for (let index = 0; index < maxMonths; index += 1) {
-    const value = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() - index, 1));
-    items.push(`${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`);
+    const value = new Date(base.getFullYear(), base.getMonth() - index, 1);
+    items.push(currentIsoMonth(value));
   }
   return items;
 }
@@ -99,8 +106,8 @@ export function useDashboardExpenseSample(apiClient: ApiClient, range: Dashboard
 
 export function useDashboardTrend(apiClient: ApiClient, months: string[]) {
   const orderedMonths = [...months].sort();
-  const fromMonth = orderedMonths[0] ?? currentUtcMonth();
-  const toMonth = orderedMonths[orderedMonths.length - 1] ?? currentUtcMonth();
+  const fromMonth = orderedMonths[0] ?? currentLocalMonth();
+  const toMonth = orderedMonths[orderedMonths.length - 1] ?? currentLocalMonth();
   const from = monthStartFromMonth(fromMonth);
   const to = monthEndFromMonth(toMonth);
 

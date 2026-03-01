@@ -396,6 +396,24 @@ describe("api client refresh behavior", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("skips refresh while page is unloading via pagehide", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const client = createApiClient(
+      {
+        getAccessToken: () => "old-token",
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      { fetchImpl: fetchMock, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    window.dispatchEvent(new Event("pagehide"));
+    const response = await client.request("/protected", { method: "GET" });
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("throws on login failure and on me failure", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

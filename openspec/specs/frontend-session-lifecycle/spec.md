@@ -18,7 +18,7 @@ The frontend SHALL bootstrap session state on app load by using cookie-based ref
 - **AND** protected routes SHALL redirect to `/login`.
 
 ### Requirement: Protected transport must retry once after refresh and share concurrency lock
-The frontend API client SHALL use one shared refresh promise for concurrent 401 failures and SHALL retry each failed request at most once.
+The frontend API client SHALL use one shared refresh promise for concurrent 401 failures and SHALL retry each failed request at most once, except when browser lifecycle indicates page unload.
 
 #### Scenario: Concurrent 401 requests trigger a single refresh
 - **WHEN** multiple protected requests receive `401` concurrently
@@ -34,6 +34,11 @@ The frontend API client SHALL use one shared refresh promise for concurrent 401 
 - **WHEN** retried request returns `401` again
 - **THEN** frontend SHALL NOT attempt a second refresh/retry loop
 - **AND** session SHALL transition to unauthenticated handling.
+
+#### Scenario: 401 during page unload does not trigger refresh
+- **WHEN** a protected request returns `401` while page lifecycle is in unload/teardown (`beforeunload` or `pagehide`)
+- **THEN** frontend SHALL NOT issue `POST /auth/refresh`
+- **AND** it SHALL return the original `401` result without refresh retry loop.
 
 ### Requirement: Refresh failures must distinguish auth invalidation from transient network errors
 Session teardown policy SHALL be explicit and deterministic for refresh failures.

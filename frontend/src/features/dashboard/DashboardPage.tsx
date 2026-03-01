@@ -7,7 +7,7 @@ import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import {
-  currentUtcMonth,
+  currentLocalMonth,
   monthToDateRange,
   recentMonths,
   useDashboardCategorySummary,
@@ -90,7 +90,7 @@ function toMoneyDisplayParts(currencyCode: string, cents: number): MoneyDisplayP
 export default function DashboardPage() {
   const { apiClient, user } = useAuth();
   const isDesktop = useIsDesktop();
-  const [selectedMonth, setSelectedMonth] = useState(currentUtcMonth);
+  const [selectedMonth, setSelectedMonth] = useState(currentLocalMonth);
   const monthOptions = useMemo(() => recentMonths(6), []);
   const range = useMemo(() => monthToDateRange(selectedMonth), [selectedMonth]);
 
@@ -167,7 +167,7 @@ export default function DashboardPage() {
       : healthState === "Warning"
         ? "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-200"
         : "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
-  const currentMonth = currentUtcMonth();
+  const currentMonth = currentLocalMonth();
   const monthCompletionRatio = useMemo(() => {
     if (selectedMonth < currentMonth) {
       return 1;
@@ -176,7 +176,7 @@ export default function DashboardPage() {
       return 0;
     }
     const totalDays = Number(range.to.slice(8, 10));
-    const today = Math.max(1, Math.min(totalDays, new Date().getUTCDate()));
+    const today = Math.max(1, Math.min(totalDays, new Date().getDate()));
     return totalDays > 0 ? today / totalDays : 0;
   }, [currentMonth, range.to, selectedMonth]);
   const expectedBudgetUsage = budgetLimit > 0 ? Math.round(monthCompletionRatio * 100) : null;

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
 import { listTransactions } from "@/api/transactions";
 import {
-  currentUtcMonth,
+  currentLocalMonth,
   monthToDateRange,
   recentMonths,
   useDashboardCategorySummary,
@@ -36,7 +36,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe("dashboard query helpers", () => {
   it("builds deterministic month ranges and recent months", () => {
-    const current = currentUtcMonth();
+    const current = currentLocalMonth();
     expect(current).toMatch(/^\d{4}-\d{2}$/);
     expect(recentMonths(6)).toHaveLength(6);
 

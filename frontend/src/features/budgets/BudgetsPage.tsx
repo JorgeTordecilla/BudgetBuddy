@@ -18,6 +18,7 @@ import { centsToDecimalInput, isValidMonth, isValidMonthRange, parseLimitInputTo
 import { normalizeMonthParam } from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { currentIsoMonth } from "@/utils/dates";
 
 const BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid";
 const MONEY_AMOUNT_PREFIX = "https://api.budgetbuddy.dev/problems/money-amount-";
@@ -34,8 +35,7 @@ const EMPTY_FORM: BudgetFormState = {
 };
 
 function currentMonth(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  return currentIsoMonth();
 }
 
 function toLocalProblem(problem: ProblemDetails): ApiProblemError {

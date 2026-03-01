@@ -41,9 +41,9 @@ The frontend SHALL expose a protected transactions experience under the private 
 - **THEN** frontend SHALL update URL query params with normalized keys and values
 - **AND** shared or reloaded URL SHALL reproduce the same filter state.
 
-#### Scenario: Invalid query filters fall back safely
+#### Scenario: Invalid query filters fall back safely using client local range
 - **WHEN** URL query params are invalid or unsupported
-- **THEN** frontend SHALL fallback to existing default filter values
+- **THEN** frontend SHALL fallback to existing default filter values using client local month-to-date for `from` and `to`
 - **AND** SHALL avoid emitting invalid list requests from initialization.
 
 ### Requirement: Transaction create and update flows must follow contract

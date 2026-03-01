@@ -12,9 +12,9 @@ The frontend SHALL expose an authenticated cockpit view at `/app/dashboard` that
 - **THEN** frontend SHALL render cockpit content inside `AppShell`
 - **AND** unauthenticated access SHALL continue to follow existing auth guard behavior.
 
-#### Scenario: Month selector defaults to current month
+#### Scenario: Month selector defaults to current month in client local time
 - **WHEN** cockpit page loads
-- **THEN** selected month SHALL default to current month
+- **THEN** selected month SHALL default to the current month calculated in client local time
 - **AND** frontend SHALL support switching to prior recent months.
 
 ### Requirement: Cockpit KPIs must be derived from analytics by-month contract
