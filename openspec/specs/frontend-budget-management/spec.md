@@ -42,9 +42,9 @@ The frontend SHALL expose a protected budgets page under the authenticated app s
 - **THEN** frontend SHALL write normalized query params to URL
 - **AND** copied/reloaded URL SHALL reproduce the same budgets range view.
 
-#### Scenario: Invalid month query falls back safely
+#### Scenario: Invalid month query falls back safely in client local month
 - **WHEN** `month` query param is absent or invalid
-- **THEN** frontend SHALL fallback to existing current-month default behavior
+- **THEN** frontend SHALL fallback to current-month default behavior calculated in client local time
 - **AND** SHALL avoid issuing invalid month-range requests during initialization.
 
 ### Requirement: Budget create and update flows must be contract-strict

@@ -34,9 +34,9 @@ The frontend SHALL expose an authenticated analytics page under the app shell, l
 - **THEN** frontend SHALL update URL query params for `from` and `to`
 - **AND** copied/reloaded URL SHALL reproduce the same analytics view.
 
-#### Scenario: Invalid URL range falls back safely
+#### Scenario: Invalid URL range falls back safely using client local dates
 - **WHEN** URL query params are missing or invalid for analytics date range
-- **THEN** frontend SHALL fallback to existing default range behavior
+- **THEN** frontend SHALL fallback to default range behavior using client local month-to-date (`from=<local YYYY-MM-01>`, `to=<local today YYYY-MM-DD>`)
 - **AND** SHALL avoid issuing invalid-date requests during initialization.
 
 ### Requirement: Monthly analytics trend must render income, expense, and budget overlay context

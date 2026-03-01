@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultAnalyticsRange, isValidDateRange, isValidIsoDate, monthStartIsoDate } from "@/utils/dates";
+import { currentIsoMonth, defaultAnalyticsRange, isValidDateRange, isValidIsoDate, monthStartIsoDate, todayIsoDate } from "@/utils/dates";
 
 describe("date helpers", () => {
   it("returns month-start in ISO format", () => {
@@ -21,5 +21,24 @@ describe("date helpers", () => {
     const range = defaultAnalyticsRange();
     expect(range.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(range.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("uses local date getters instead of UTC getters for defaults", () => {
+    const fakeLocalDate = {
+      getFullYear: () => 2026,
+      getMonth: () => 1,
+      getDate: () => 3,
+      getUTCFullYear: () => 1999,
+      getUTCMonth: () => 10,
+      getUTCDate: () => 30
+    } as unknown as Date;
+
+    expect(currentIsoMonth(fakeLocalDate)).toBe("2026-02");
+    expect(monthStartIsoDate(fakeLocalDate)).toBe("2026-02-01");
+    expect(todayIsoDate(fakeLocalDate)).toBe("2026-02-03");
+    expect(defaultAnalyticsRange(fakeLocalDate)).toEqual({
+      from: "2026-02-01",
+      to: "2026-02-03"
+    });
   });
 });

@@ -12,6 +12,7 @@ import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
+import { todayIsoDate } from "@/utils/dates";
 import { cn } from "@/lib/utils";
 
 const appLinks = [
@@ -125,7 +126,7 @@ export default function AppShell() {
     setFormProblem(null);
     setFormState((previous) => ({
       ...EMPTY_FORM,
-      date: previous.date || new Date().toISOString().slice(0, 10)
+      date: previous.date || todayIsoDate()
     }));
     setFormOpen(true);
   }

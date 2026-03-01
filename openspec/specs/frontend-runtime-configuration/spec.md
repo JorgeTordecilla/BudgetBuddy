@@ -16,3 +16,8 @@ The frontend deployment runtime SHALL rely on explicit environment values for AP
 - **THEN** `VITE_API_BASE_URL` SHALL remain `/api`
 - **AND** components SHALL not hardcode backend host URLs.
 
+#### Scenario: Vite development proxy target is environment-resolved
+- **WHEN** frontend runs in Vite development mode with local `/api` proxy enabled
+- **THEN** proxy target SHALL resolve from `VITE_DEV_API_TARGET` when provided
+- **AND** SHALL fallback to `http://localhost:8000` when the variable is absent.
+
