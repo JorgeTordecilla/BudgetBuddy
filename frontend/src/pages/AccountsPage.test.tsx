@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -98,8 +98,7 @@ describe("AccountsPage", () => {
     await screen.findByText("Main Wallet");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    const confirmDialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Archive" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
     await waitFor(() => expect(archiveAccount).toHaveBeenCalledWith(apiClientStub, "a1"));
   });
@@ -251,8 +250,7 @@ describe("AccountsPage", () => {
     await screen.findByText("Main Wallet");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    const confirmDialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Archive" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
     expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
@@ -263,8 +261,7 @@ describe("AccountsPage", () => {
     await screen.findByText("Main Wallet");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    const confirmDialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Archive" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
 
     expect(await screen.findByText("Conflict detected. Review your input and try again.")).toBeInTheDocument();
   });

@@ -4,8 +4,6 @@ import type { Category } from "@/api/types";
 import DatePickerField from "@/components/DatePickerField";
 import ModalForm from "@/components/ModalForm";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
-import SelectField from "@/components/SelectField";
-import { Input } from "@/ui/input";
 
 export type BudgetFormState = {
   month: string;
@@ -72,21 +70,24 @@ export default function BudgetFormModal({
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Category</span>
-          <SelectField
-            ariaLabel="Category"
+          <select
+            className={`field-select ${fieldErrors.categoryId ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.categoryId}
-            onChange={(value) => onFieldChange("categoryId", value)}
-            invalid={Boolean(fieldErrors.categoryId)}
-            options={[
-              { value: "", label: "Select category" },
-              ...categories.map((category) => ({ value: category.id, label: getCategoryLabel(category) }))
-            ]}
-          />
+            onChange={(event) => onFieldChange("categoryId", event.target.value)}
+            aria-invalid={Boolean(fieldErrors.categoryId)}
+          >
+            <option value="">Select category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {getCategoryLabel(category)}
+              </option>
+            ))}
+          </select>
           {fieldErrors.categoryId ? <p className="text-xs text-destructive">{fieldErrors.categoryId}</p> : null}
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Limit</span>
-          <Input
+          <input
             className={`field-input ${fieldErrors.limit ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.limit}
             onChange={(event) => onFieldChange("limit", event.target.value)}

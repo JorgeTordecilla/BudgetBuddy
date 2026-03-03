@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import type { Budget, Category } from "@/api/types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
 
 type Props = {
   items: Budget[];
@@ -68,26 +67,27 @@ export default function BudgetsTable({ items, categoriesById, formatMoney, onEdi
       </ul>
       ) : null}
       {isDesktop ? (
-        <Table className="min-w-[760px]">
-          <TableHeader className="bg-muted/50 text-left">
-            <TableRow>
-              <TableHead className="px-3 py-2">Month</TableHead>
-              <TableHead className="px-3 py-2">Category</TableHead>
-              <TableHead className="px-3 py-2 text-right">Limit</TableHead>
-              <TableHead className="px-3 py-2">State</TableHead>
-              <TableHead className="px-3 py-2 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full text-sm">
+          <thead className="bg-muted/50 text-left">
+            <tr>
+              <th className="px-3 py-2">Month</th>
+              <th className="px-3 py-2">Category</th>
+              <th className="px-3 py-2 text-right">Limit</th>
+              <th className="px-3 py-2">State</th>
+              <th className="px-3 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
             {orderedItems.map((budget) => {
               const category = categoriesById.get(budget.category_id);
               return (
-                <TableRow key={budget.id}>
-                  <TableCell className="px-3 py-2">{budget.month}</TableCell>
-                  <TableCell className="px-3 py-2">{category ? getCategoryLabel(category) : budget.category_id}</TableCell>
-                  <TableCell className="px-3 py-2 text-right">{formatMoney(budget.limit_cents)}</TableCell>
-                  <TableCell className="px-3 py-2">{budget.archived_at ? "Archived" : "Active"}</TableCell>
-                  <TableCell className="px-3 py-2 text-right">
+                <tr key={budget.id} className="border-t">
+                  <td className="px-3 py-2">{budget.month}</td>
+                  <td className="px-3 py-2">{category ? getCategoryLabel(category) : budget.category_id}</td>
+                  <td className="px-3 py-2 text-right">{formatMoney(budget.limit_cents)}</td>
+                  <td className="px-3 py-2">{budget.archived_at ? "Archived" : "Active"}</td>
+                  <td className="px-3 py-2 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => onEdit(budget)}>
                         Edit
@@ -98,12 +98,13 @@ export default function BudgetsTable({ items, categoriesById, formatMoney, onEdi
                         </Button>
                       ) : null}
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
+      </div>
       ) : null}
     </div>
   );
