@@ -557,36 +557,40 @@ export default function TransactionsPage() {
   const mobileCards = useMemo(
     () =>
       items.map((transaction) => (
-        <li key={transaction.id} className="surface-panel space-y-2 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">{transaction.merchant ?? "(no merchant)"}</p>
-              <p className="text-xs text-muted-foreground">{transaction.date}</p>
-            </div>
-            <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-1 text-[11px] font-semibold uppercase">
-              {transaction.type}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Amount (cents)</p>
-              <p className="font-semibold tabular-nums">{transaction.amount_cents}</p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">State</p>
-              <p className="font-semibold">{transaction.archived_at ? "Archived" : "Active"}</p>
-            </div>
-          </div>
-          {transaction.note ? <p className="text-xs text-muted-foreground">{transaction.note}</p> : null}
-          <div className="flex justify-end">
-            <TransactionRowActions
-              transaction={transaction}
-              restoringId={restoringId}
-              onEdit={openEditModal}
-              onArchive={setArchiveTarget}
-              onRestore={(transactionId) => void handleRestore(transactionId)}
-            />
-          </div>
+        <li key={transaction.id}>
+          <Card>
+            <CardContent className="space-y-2 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">{transaction.merchant ?? "(no merchant)"}</p>
+                  <p className="text-xs text-muted-foreground">{transaction.date}</p>
+                </div>
+                <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-1 text-[11px] font-semibold uppercase">
+                  {transaction.type}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Amount (cents)</p>
+                  <p className="font-semibold tabular-nums">{transaction.amount_cents}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">State</p>
+                  <p className="font-semibold">{transaction.archived_at ? "Archived" : "Active"}</p>
+                </div>
+              </div>
+              {transaction.note ? <p className="text-xs text-muted-foreground">{transaction.note}</p> : null}
+              <div className="flex justify-end">
+                <TransactionRowActions
+                  transaction={transaction}
+                  restoringId={restoringId}
+                  onEdit={openEditModal}
+                  onArchive={setArchiveTarget}
+                  onRestore={(transactionId) => void handleRestore(transactionId)}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </li>
       )),
     [items, restoringId]
@@ -645,8 +649,9 @@ export default function TransactionsPage() {
         )}
       />
 
-      <div className="surface-panel overflow-x-hidden p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
+      <Card>
+        <CardContent className="overflow-x-hidden p-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
           <label className="min-w-0 space-y-1">
             <span className="block">From</span>
             <DatePickerField
@@ -749,11 +754,12 @@ export default function TransactionsPage() {
               Show archived
             </span>
           </label>
-        </div>
-        {isDateRangeInvalid ? (
-          <p className="mt-2 text-sm text-destructive">From date must be on or before To date.</p>
-        ) : null}
-      </div>
+          </div>
+          {isDateRangeInvalid ? (
+            <p className="mt-2 text-sm text-destructive">From date must be on or before To date.</p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {pageProblem ? <ProblemDetailsInline error={pageProblem} onRetry={() => void transactionsQuery.refetch()} /> : null}
 

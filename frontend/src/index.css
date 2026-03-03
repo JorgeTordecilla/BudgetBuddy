@@ -51,7 +51,7 @@
 
 @layer components {
   .field-input {
-    @apply min-h-10 min-w-0 w-full max-w-full rounded-lg border border-border/80 bg-background/95 px-3 py-2 text-base md:text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2;
+    @apply min-h-10 min-w-0 w-full max-w-full rounded-lg border border-border/80 bg-background/95 px-3 py-2 text-base md:text-sm shadow-sm outline-none transition focus-visible:border-primary/60 focus-visible:ring-0 focus-visible:ring-offset-0;
   }
 
   .field-select {

@@ -1,4 +1,6 @@
 import type { AnalyticsByCategoryItem } from "@/api/types";
+import { Button } from "@/ui/button";
+import { Card, CardContent } from "@/ui/card";
 import { budgetUsagePercent, formatCents } from "@/utils/money";
 
 type MetricType = "expense" | "income";
@@ -21,20 +23,22 @@ export default function CategoryBreakdown({ items, currencyCode, metric, onMetri
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
-          className={`rounded-md px-3 py-1 text-sm ${metric === "expense" ? "bg-muted font-medium" : "border"}`}
+          variant={metric === "expense" ? "secondary" : "outline"}
+          size="sm"
           onClick={() => onMetricChange("expense")}
         >
           Expense categories
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className={`rounded-md px-3 py-1 text-sm ${metric === "income" ? "bg-muted font-medium" : "border"}`}
+          variant={metric === "income" ? "secondary" : "outline"}
+          size="sm"
           onClick={() => onMetricChange("income")}
         >
           Income categories
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-2">
@@ -44,38 +48,40 @@ export default function CategoryBreakdown({ items, currencyCode, metric, onMetri
           const limit = item.budget_limit_cents ?? 0;
           const usage = budgetUsagePercent(spent, limit);
           return (
-            <div key={item.category_id} className="rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium" data-testid="category-name">{item.category_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {metric === "expense" ? "Expense total" : "Income total"}: {formatCents(currencyCode, total)}
-                  </p>
-                </div>
-                {showBudgetOverlay ? (
-                  <div className="text-right text-sm">
-                    {limit > 0 ? (
-                      <>
-                        <p>{formatCents(currencyCode, spent)} / {formatCents(currencyCode, limit)}</p>
-                        <p className="text-muted-foreground">{usage ?? 0}% used</p>
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground">No budget</p>
-                    )}
+            <Card key={item.category_id}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium" data-testid="category-name">{item.category_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {metric === "expense" ? "Expense total" : "Income total"}: {formatCents(currencyCode, total)}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Overlay off</p>
-                )}
-              </div>
-              {showBudgetOverlay && limit > 0 ? (
-                <div className="mt-2 h-2 rounded bg-muted">
-                  <div
-                    className="h-2 rounded bg-primary"
-                    style={{ width: `${Math.min(100, usage ?? 0)}%` }}
-                  />
+                  {showBudgetOverlay ? (
+                    <div className="text-right text-sm">
+                      {limit > 0 ? (
+                        <>
+                          <p>{formatCents(currencyCode, spent)} / {formatCents(currencyCode, limit)}</p>
+                          <p className="text-muted-foreground">{usage ?? 0}% used</p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">No budget</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Overlay off</p>
+                  )}
                 </div>
-              ) : null}
-            </div>
+                {showBudgetOverlay && limit > 0 ? (
+                  <div className="mt-2 h-2 rounded bg-muted">
+                    <div
+                      className="h-2 rounded bg-primary"
+                      style={{ width: `${Math.min(100, usage ?? 0)}%` }}
+                    />
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
           );
         })}
       </div>

@@ -1,5 +1,6 @@
 import type { AnalyticsByMonthItem } from "@/api/types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { Card, CardContent } from "@/ui/card";
 import { budgetUsagePercent, formatCents } from "@/utils/money";
 
 type Props = {
@@ -50,21 +51,25 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
           const limit = item.budget_limit_cents ?? 0;
           const usage = budgetUsagePercent(spent, limit);
           return (
-            <li key={item.month} className="surface-panel space-y-2 p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{item.month}</p>
-                <p className="text-xs text-muted-foreground">
-                  {showBudgetOverlay && usage !== null ? `${usage}% used` : "No budget"}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <p>Income: {formatCents(currencyCode, item.income_total_cents)}</p>
-                <p>Expense: {formatCents(currencyCode, item.expense_total_cents)}</p>
-                <p>Net: {formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</p>
-                <p>
-                  Budget: {showBudgetOverlay && limit > 0 ? formatCents(currencyCode, spent) : "No budget"}
-                </p>
-              </div>
+            <li key={item.month}>
+              <Card>
+                <CardContent className="space-y-2 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">{item.month}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {showBudgetOverlay && usage !== null ? `${usage}% used` : "No budget"}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <p>Income: {formatCents(currencyCode, item.income_total_cents)}</p>
+                    <p>Expense: {formatCents(currencyCode, item.expense_total_cents)}</p>
+                    <p>Net: {formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</p>
+                    <p>
+                      Budget: {showBudgetOverlay && limit > 0 ? formatCents(currencyCode, spent) : "No budget"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </li>
           );
         })}

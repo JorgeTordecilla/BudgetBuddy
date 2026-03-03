@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { Budget, Category } from "@/api/types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
+import { Card, CardContent } from "@/ui/card";
 
 type Props = {
   items: Budget[];
@@ -40,27 +41,31 @@ export default function BudgetsTable({ items, categoriesById, formatMoney, onEdi
         {orderedItems.map((budget) => {
           const category = categoriesById.get(budget.category_id);
           return (
-            <li key={budget.id} className="surface-panel space-y-2 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">{budget.month}</p>
-                  <p className="text-xs text-muted-foreground">{category ? getCategoryLabel(category) : budget.category_id}</p>
-                </div>
-                <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
-                  {budget.archived_at ? "Archived" : "Active"}
-                </span>
-              </div>
-              <p className="text-sm font-semibold tabular-nums">{formatMoney(budget.limit_cents)}</p>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(budget)}>
-                  Edit
-                </Button>
-                {!budget.archived_at ? (
-                  <Button type="button" size="sm" onClick={() => onArchive(budget)}>
-                    Archive
-                  </Button>
-                ) : null}
-              </div>
+            <li key={budget.id}>
+              <Card>
+                <CardContent className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{budget.month}</p>
+                      <p className="text-xs text-muted-foreground">{category ? getCategoryLabel(category) : budget.category_id}</p>
+                    </div>
+                    <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
+                      {budget.archived_at ? "Archived" : "Active"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">{formatMoney(budget.limit_cents)}</p>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => onEdit(budget)}>
+                      Edit
+                    </Button>
+                    {!budget.archived_at ? (
+                      <Button type="button" size="sm" onClick={() => onArchive(budget)}>
+                        Archive
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
             </li>
           );
         })}

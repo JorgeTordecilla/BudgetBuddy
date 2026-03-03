@@ -278,18 +278,16 @@ export default function AppShell() {
                 {link.label}
               </NavLink>
             ))}
-            <button
+            <Button
               type="button"
-              className={cn(
-                "flex min-h-12 items-center justify-center rounded-xl px-2 text-[11px] font-semibold transition-colors",
-                overflowOpen ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70"
-              )}
+              variant={overflowOpen ? "secondary" : "ghost"}
+              className="flex min-h-12 items-center justify-center rounded-xl px-2 text-[11px] font-semibold"
               aria-expanded={overflowOpen}
               aria-controls="mobile-nav-overflow"
               onClick={() => setOverflowOpen((current) => !current)}
             >
               More
-            </button>
+            </Button>
           </div>
           {overflowOpen ? (
             <div id="mobile-nav-overflow" className="mt-2 grid gap-1 border-t border-border/70 pt-2">
@@ -308,16 +306,17 @@ export default function AppShell() {
                   {link.label}
                 </NavLink>
               ))}
-              <button
+              <Button
                 type="button"
-                className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                variant="ghost"
+                className="justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   setOverflowOpen(false);
                   void handleLogout();
                 }}
               >
                 Logout
-              </button>
+              </Button>
             </div>
           ) : null}
         </nav>

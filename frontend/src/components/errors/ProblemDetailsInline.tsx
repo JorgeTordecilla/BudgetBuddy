@@ -3,6 +3,7 @@ import { useState } from "react";
 import { resolveProblemUi } from "@/api/problemMapping";
 import { copyToClipboard } from "@/utils/clipboard";
 import { toSupportCode } from "@/components/errors/supportCode";
+import { Button } from "@/ui/button";
 
 type ProblemDetailsInlineProps = {
   error: unknown;
@@ -30,20 +31,20 @@ export default function ProblemDetailsInline({ error, onRetry, onDismiss }: Prob
       {ui.requestId ? (
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>Support code: {toSupportCode(ui.requestId)}</span>
-          <button type="button" className="underline" onClick={handleCopy}>
+          <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={handleCopy}>
             {copied ? "Copied" : "Copy"}
-          </button>
+          </Button>
         </div>
       ) : null}
       {onDismiss ? (
-        <button type="button" className="mt-2 text-xs underline" onClick={onDismiss}>
+        <Button type="button" variant="link" className="mt-2 h-auto p-0 text-xs" onClick={onDismiss}>
           Dismiss
-        </button>
+        </Button>
       ) : null}
       {onRetry ? (
-        <button type="button" className="mt-2 text-xs underline" onClick={onRetry}>
+        <Button type="button" variant="link" className="mt-2 h-auto p-0 text-xs" onClick={onRetry}>
           Retry
-        </button>
+        </Button>
       ) : null}
     </div>
   );

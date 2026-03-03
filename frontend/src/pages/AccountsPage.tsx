@@ -231,28 +231,32 @@ export default function AccountsPage() {
   const mobileCards = useMemo(
     () =>
       items.map((account) => (
-        <li key={account.id} className="surface-panel space-y-2 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">{account.name}</p>
-              <p className="text-xs text-muted-foreground uppercase">{account.type}</p>
-            </div>
-            <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
-              {account.archived_at ? "Archived" : "Active"}
-            </span>
-          </div>
-          <p className="text-sm tabular-nums">Initial cents: {account.initial_balance_cents}</p>
-          {account.note ? <p className="text-xs text-muted-foreground">{account.note}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(account)}>
-              Edit
-            </Button>
-            {!account.archived_at ? (
-              <Button type="button" size="sm" onClick={() => setArchiveTarget(account)}>
-                Archive
-              </Button>
-            ) : null}
-          </div>
+        <li key={account.id}>
+          <Card>
+            <CardContent className="space-y-2 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">{account.name}</p>
+                  <p className="text-xs text-muted-foreground uppercase">{account.type}</p>
+                </div>
+                <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
+                  {account.archived_at ? "Archived" : "Active"}
+                </span>
+              </div>
+              <p className="text-sm tabular-nums">Initial cents: {account.initial_balance_cents}</p>
+              {account.note ? <p className="text-xs text-muted-foreground">{account.note}</p> : null}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(account)}>
+                  Edit
+                </Button>
+                {!account.archived_at ? (
+                  <Button type="button" size="sm" onClick={() => setArchiveTarget(account)}>
+                    Archive
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
         </li>
       )),
     [items]

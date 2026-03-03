@@ -248,37 +248,41 @@ export default function CategoriesPage() {
   const mobileCards = useMemo(
     () =>
       items.map((category) => (
-        <li key={category.id} className="surface-panel space-y-2 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">{category.name}</p>
-              <p className="text-xs uppercase text-muted-foreground">{category.type}</p>
-            </div>
-            <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
-              {category.archived_at ? "Archived" : "Active"}
-            </span>
-          </div>
-          {category.note ? <p className="text-xs text-muted-foreground">{category.note}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(category)}>
-              Edit
-            </Button>
-            {category.archived_at ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={restoringId === category.id}
-                onClick={() => void handleRestore(category.id)}
-              >
-                {restoringId === category.id ? "Restoring..." : "Restore"}
-              </Button>
-            ) : (
-              <Button type="button" size="sm" onClick={() => setArchiveTarget(category)}>
-                Archive
-              </Button>
-            )}
-          </div>
+        <li key={category.id}>
+          <Card>
+            <CardContent className="space-y-2 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">{category.name}</p>
+                  <p className="text-xs uppercase text-muted-foreground">{category.type}</p>
+                </div>
+                <span className="rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-[11px] font-semibold">
+                  {category.archived_at ? "Archived" : "Active"}
+                </span>
+              </div>
+              {category.note ? <p className="text-xs text-muted-foreground">{category.note}</p> : null}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(category)}>
+                  Edit
+                </Button>
+                {category.archived_at ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={restoringId === category.id}
+                    onClick={() => void handleRestore(category.id)}
+                  >
+                    {restoringId === category.id ? "Restoring..." : "Restore"}
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" onClick={() => setArchiveTarget(category)}>
+                    Archive
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </li>
       )),
     [items, restoringId]

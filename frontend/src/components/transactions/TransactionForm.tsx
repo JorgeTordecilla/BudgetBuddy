@@ -131,10 +131,10 @@ export default function TransactionForm({
         <label className="min-w-0 space-y-1 text-sm">
           <span>Note</span>
           <textarea
-            className="field-textarea"
+            className="field-input h-10 min-h-10 resize-none"
             value={state.note}
             onChange={(event) => onFieldChange("note", event.target.value)}
-            rows={3}
+            rows={1}
           />
         </label>
         {problem ? <ProblemDetailsInline error={problem} /> : null}

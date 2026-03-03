@@ -5,6 +5,7 @@ import type { ProblemDetails } from "@/api/types";
 import { resolveProblemUi } from "@/api/problemMapping";
 import { copyToClipboard } from "@/utils/clipboard";
 import { toSupportCode } from "@/components/errors/supportCode";
+import { Button } from "@/ui/button";
 
 type ProblemBannerProps = {
   problem: unknown | null;
@@ -40,16 +41,16 @@ export default function ProblemBanner({ problem, onClose }: ProblemBannerProps) 
           {ui.requestId ? (
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span>Support code: {toSupportCode(ui.requestId)}</span>
-              <button type="button" className="underline" onClick={handleCopy}>
+              <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={handleCopy}>
                 {copied ? "Copied" : "Copy"}
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>
         {onClose ? (
-          <button type="button" className="text-xs text-muted-foreground underline" onClick={onClose}>
+          <Button type="button" variant="link" className="h-auto p-0 text-xs text-muted-foreground" onClick={onClose}>
             Dismiss
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

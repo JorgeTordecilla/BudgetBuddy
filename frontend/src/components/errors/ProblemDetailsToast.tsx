@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { copyToClipboard } from "@/utils/clipboard";
 import { subscribeProblemToast, type ProblemToastPayload } from "@/components/errors/problemToastStore";
 import { toSupportCode } from "@/components/errors/supportCode";
+import { Button } from "@/ui/button";
+import { Card, CardContent } from "@/ui/card";
 
 type ToastState = ProblemToastPayload & { copied: boolean };
 
@@ -35,25 +37,28 @@ export default function ProblemDetailsToast() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(26rem,90vw)] flex-col gap-2">
       {toasts.map((toast) => (
-        <div key={toast.id} role="status" className="pointer-events-auto rounded-md border bg-background p-3 shadow-md">
-          <p className="text-sm font-semibold">{toast.problem.message}</p>
-          {toast.problem.detail ? <p className="mt-1 text-xs text-muted-foreground">{toast.problem.detail}</p> : null}
-          {toast.problem.retryAfter ? (
-            <p className="mt-1 text-xs text-muted-foreground">Retry-After: {toast.problem.retryAfter}s</p>
-          ) : null}
-          {toast.problem.requestId ? (
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="truncate">Support code: {toSupportCode(toast.problem.requestId)}</span>
-              <button
-                type="button"
-                className="underline"
-                onClick={() => handleCopy(toast.id, toast.problem.requestId as string)}
-              >
-                {toast.copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <Card key={toast.id} role="status" className="pointer-events-auto">
+          <CardContent className="p-3">
+            <p className="text-sm font-semibold">{toast.problem.message}</p>
+            {toast.problem.detail ? <p className="mt-1 text-xs text-muted-foreground">{toast.problem.detail}</p> : null}
+            {toast.problem.retryAfter ? (
+              <p className="mt-1 text-xs text-muted-foreground">Retry-After: {toast.problem.retryAfter}s</p>
+            ) : null}
+            {toast.problem.requestId ? (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="truncate">Support code: {toSupportCode(toast.problem.requestId)}</span>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-xs"
+                  onClick={() => handleCopy(toast.id, toast.problem.requestId as string)}
+                >
+                  {toast.copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
