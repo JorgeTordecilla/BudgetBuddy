@@ -80,6 +80,9 @@ class Transaction(Base):
     type: Mapped[str] = mapped_column(String(16), nullable=False)
     account_id: Mapped[str] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     category_id: Mapped[str] = mapped_column(String(36), ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    income_source_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("income_sources.id", ondelete="SET NULL"), nullable=True
+    )
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(160), nullable=True)
@@ -112,6 +115,34 @@ class Budget(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), onupdate=lambda: datetime.now(tz=UTC), nullable=False)
+
+
+class IncomeSource(Base):
+    __tablename__ = "income_sources"
+    __table_args__ = (
+        Index(
+            "uq_income_sources_user_name_active",
+            "user_id",
+            "name",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+            sqlite_where=text("archived_at IS NULL"),
+        ),
+        Index("idx_income_sources_user_created", "user_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    expected_amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    frequency: Mapped[str] = mapped_column(String(16), nullable=False, default="monthly")
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), onupdate=lambda: datetime.now(tz=UTC), nullable=False
+    )
 
 
 class AuditEvent(Base):

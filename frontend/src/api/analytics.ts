@@ -1,6 +1,10 @@
 import type { ApiClient } from "@/api/client";
 import { throwApiError } from "@/api/errors";
-import type { AnalyticsByCategoryResponse, AnalyticsByMonthResponse } from "@/api/types";
+import type {
+  AnalyticsByCategoryResponse,
+  AnalyticsByMonthResponse,
+  IncomeAnalyticsResponse
+} from "@/api/types";
 
 type AnalyticsDateRange = {
   from: string;
@@ -30,6 +34,15 @@ export async function getAnalyticsByCategory(client: ApiClient, params: Analytic
     await throwApiError(response, "analytics_by_category_failed");
   }
   return (await response.json()) as AnalyticsByCategoryResponse;
+}
+
+export async function getAnalyticsIncome(client: ApiClient, params: AnalyticsDateRange): Promise<IncomeAnalyticsResponse> {
+  const query = buildRangeQuery(params);
+  const response = await client.request(`/analytics/income?${query}`, { method: "GET" });
+  if (!response.ok) {
+    await throwApiError(response, "analytics_income_failed");
+  }
+  return (await response.json()) as IncomeAnalyticsResponse;
 }
 
 export type { AnalyticsDateRange };

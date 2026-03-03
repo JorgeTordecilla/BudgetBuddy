@@ -3,6 +3,7 @@ from app.repositories.sqlalchemy import (
     SQLAlchemyAuditEventRepository,
     SQLAlchemyBudgetRepository,
     SQLAlchemyCategoryRepository,
+    SQLAlchemyIncomeSourceRepository,
     SQLAlchemyRefreshTokenRepository,
     SQLAlchemyTransactionRepository,
     SQLAlchemyUserRepository,
@@ -15,5 +16,6 @@ __all__ = [
     "SQLAlchemyAuditEventRepository",
     "SQLAlchemyBudgetRepository",
     "SQLAlchemyCategoryRepository",
+    "SQLAlchemyIncomeSourceRepository",
     "SQLAlchemyTransactionRepository",
 ]

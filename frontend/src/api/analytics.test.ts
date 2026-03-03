@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createApiClient } from "@/api/client";
 import type { ApiProblemError } from "@/api/problem";
-import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
+import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
 
 function makeClient(fetchImpl: typeof fetch) {
   return createApiClient(
@@ -30,16 +30,25 @@ describe("analytics api wrappers", () => {
           status: 200,
           headers: { "content-type": "application/json" }
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
       );
     const client = makeClient(fetchMock);
 
     await getAnalyticsByMonth(client, { from: "2026-02-01", to: "2026-02-28" });
     await getAnalyticsByCategory(client, { from: "2026-02-01", to: "2026-02-28" });
+    await getAnalyticsIncome(client, { from: "2026-02-01", to: "2026-02-28" });
 
     const firstCall = fetchMock.mock.calls[0];
     const secondCall = fetchMock.mock.calls[1];
+    const thirdCall = fetchMock.mock.calls[2];
     expect(String(firstCall?.[0])).toContain("/analytics/by-month?from=2026-02-01&to=2026-02-28");
     expect(String(secondCall?.[0])).toContain("/analytics/by-category?from=2026-02-01&to=2026-02-28");
+    expect(String(thirdCall?.[0])).toContain("/analytics/income?from=2026-02-01&to=2026-02-28");
     expect(new Headers(firstCall?.[1]?.headers).get("Accept")).toBe("application/vnd.budgetbuddy.v1+json");
     expect(new Headers(firstCall?.[1]?.headers).get("Authorization")).toBe("Bearer access-123");
     expect(firstCall?.[1]?.credentials).toBe("include");
@@ -71,12 +80,19 @@ describe("analytics api wrappers", () => {
           status: 406,
           headers: { "content-type": "application/problem+json" }
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ type: "about:blank", title: "Invalid request", status: 400 }), {
+          status: 400,
+          headers: { "content-type": "application/problem+json" }
+        })
       );
     const client = makeClient(fetchMock);
 
     await expect(getAnalyticsByMonth(client, { from: "2026-02-01", to: "2026-02-28" })).rejects.toMatchObject({ status: 400 });
     await expect(getAnalyticsByCategory(client, { from: "2026-02-01", to: "2026-02-28" })).rejects.toMatchObject({ status: 401 });
     await expect(getAnalyticsByMonth(client, { from: "2026-03-01", to: "2026-03-31" })).rejects.toMatchObject({ status: 406 });
+    await expect(getAnalyticsIncome(client, { from: "2026-03-01", to: "2026-03-31" })).rejects.toMatchObject({ status: 400 });
   });
 
   it("attaches Retry-After metadata on 429 responses", async () => {

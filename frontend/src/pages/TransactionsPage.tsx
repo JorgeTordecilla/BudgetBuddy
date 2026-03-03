@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
+import { listIncomeSources } from "@/api/incomeSources";
 import { ApiProblemError } from "@/api/errors";
 import {
   archiveTransaction,
@@ -17,6 +18,7 @@ import type {
   ProblemDetails,
   Transaction,
   TransactionCreate,
+  IncomeSource,
   TransactionType,
   TransactionUpdate
 } from "@/api/types";
@@ -48,6 +50,7 @@ const EMPTY_FORM: TransactionFormState = {
   type: "expense",
   accountId: "",
   categoryId: "",
+  incomeSourceId: "",
   amountCents: "",
   date: "",
   merchant: "",
@@ -205,6 +208,11 @@ export default function TransactionsPage() {
         type: "all",
         limit: 100
       })
+  });
+  const incomeSourcesQuery = useQuery({
+    queryKey: ["income-sources-options"],
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => listIncomeSources(apiClient, { includeArchived: false })
   });
 
   const transactionsQuery = useQuery({
@@ -386,6 +394,7 @@ export default function TransactionsPage() {
       const next = { ...previous, [field]: value };
       if (field === "type") {
         next.categoryId = "";
+        next.incomeSourceId = "";
       }
       return next;
     });
@@ -406,6 +415,7 @@ export default function TransactionsPage() {
       type: transaction.type,
       accountId: transaction.account_id,
       categoryId: transaction.category_id,
+      incomeSourceId: transaction.income_source_id ?? "",
       amountCents: String(transaction.amount_cents),
       date: transaction.date,
       merchant: transaction.merchant ?? "",
@@ -438,6 +448,7 @@ export default function TransactionsPage() {
       type: formState.type,
       account_id: formState.accountId,
       category_id: formState.categoryId,
+      income_source_id: formState.type === "income" ? formState.incomeSourceId || null : null,
       amount_cents: amount,
       date: formState.date,
       merchant: formState.merchant.trim() || undefined,
@@ -458,6 +469,10 @@ export default function TransactionsPage() {
     }
     if (formState.categoryId !== editing.category_id) {
       payload.category_id = formState.categoryId;
+    }
+    const incomeSourceId = formState.type === "income" ? formState.incomeSourceId || null : null;
+    if (incomeSourceId !== (editing.income_source_id ?? null)) {
+      payload.income_source_id = incomeSourceId;
     }
     if (formState.amountCents !== String(editing.amount_cents)) {
       const amount = Number(formState.amountCents);
@@ -600,6 +615,7 @@ export default function TransactionsPage() {
 
   const accountOptions = accountsQuery.data?.items ?? [];
   const categoryOptions = categoriesQuery.data?.items ?? [];
+  const incomeSourceOptions: IncomeSource[] = incomeSourcesQuery.data?.items ?? [];
 
   return (
     <section className="space-y-4">
@@ -817,6 +833,7 @@ export default function TransactionsPage() {
         state={formState}
         accounts={accountOptions}
         categories={categoryOptions}
+        incomeSources={incomeSourceOptions}
         problem={formProblem}
         onFieldChange={setField}
         onClose={() => setFormOpen(false)}

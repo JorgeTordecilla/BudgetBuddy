@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 
-import type { Account, Category, TransactionType } from "@/api/types";
+import type { Account, Category, IncomeSource, TransactionType } from "@/api/types";
 import DatePickerField from "@/components/DatePickerField";
 import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
@@ -12,6 +12,7 @@ export type TransactionFormState = {
   type: TransactionType;
   accountId: string;
   categoryId: string;
+  incomeSourceId: string;
   amountCents: string;
   date: string;
   merchant: string;
@@ -26,6 +27,7 @@ type TransactionFormProps = {
   state: TransactionFormState;
   accounts: Account[];
   categories: Category[];
+  incomeSources?: IncomeSource[];
   problem: unknown | null;
   onFieldChange: (field: keyof TransactionFormState, value: string) => void;
   onClose: () => void;
@@ -41,6 +43,7 @@ export default function TransactionForm({
   state,
   accounts,
   categories,
+  incomeSources = [],
   problem,
   onFieldChange,
   onClose,
@@ -96,6 +99,22 @@ export default function TransactionForm({
             ]}
           />
         </label>
+        {state.type === "income" ? (
+          <label className="min-w-0 space-y-1 text-sm">
+            <span>Income source</span>
+            <SelectField
+              ariaLabel="Income source"
+              value={state.incomeSourceId}
+              onChange={(value) => onFieldChange("incomeSourceId", value)}
+              options={[
+                { value: "", label: "Unassigned" },
+                ...incomeSources
+                  .filter((source) => !source.archived_at)
+                  .map((source) => ({ value: source.id, label: source.name }))
+              ]}
+            />
+          </label>
+        ) : null}
         <label className="min-w-0 space-y-1 text-sm">
           <span>Amount (cents)</span>
           <Input

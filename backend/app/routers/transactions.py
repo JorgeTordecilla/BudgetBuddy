@@ -30,7 +30,12 @@ from app.errors import (
     rate_limited_error,
 )
 from app.models import Account, Category, Transaction, User
-from app.repositories import SQLAlchemyAccountRepository, SQLAlchemyCategoryRepository, SQLAlchemyTransactionRepository
+from app.repositories import (
+    SQLAlchemyAccountRepository,
+    SQLAlchemyCategoryRepository,
+    SQLAlchemyIncomeSourceRepository,
+    SQLAlchemyTransactionRepository,
+)
 from app.schemas import (
     TransactionCreate,
     TransactionImportFailure,
@@ -69,11 +74,32 @@ def _owned_category_or_conflict(db: Session, user_id: str, category_id: str) -> 
     return category
 
 
+def _owned_active_income_source_or_conflict(db: Session, user_id: str, income_source_id: str):
+    income_source = SQLAlchemyIncomeSourceRepository(db).get_owned(user_id, income_source_id)
+    if not income_source:
+        raise APIError(status=409, title="Conflict", detail="Business rule conflict")
+    if income_source.archived_at is not None:
+        raise APIError(status=409, title="Conflict", detail="Business rule conflict")
+    return income_source
+
+
+def _validate_income_source_rule(db: Session, user_id: str, payload: dict) -> None:
+    income_source_id = payload.get("income_source_id")
+    if payload["type"] == "expense":
+        if income_source_id is not None:
+            raise APIError(status=400, title="Invalid request", detail="income_source_id is only allowed for income transactions")
+        return
+    if income_source_id is None:
+        return
+    _owned_active_income_source_or_conflict(db, user_id, income_source_id)
+
+
 def _validate_business_rules(db: Session, user_id: str, payload: dict):
     account = _owned_account_or_conflict(db, user_id, payload["account_id"])
     category = _owned_category_or_conflict(db, user_id, payload["category_id"])
     if payload["type"] != category.type:
         raise category_type_mismatch_error()
+    _validate_income_source_rule(db, user_id, payload)
     return account, category
 
 
@@ -418,15 +444,18 @@ def patch_transaction(
     merged_amount = data.get("amount_cents", row.amount_cents)
     _validate_money_rules(current_user, merged_type, merged_amount)
 
-    if any(k in data for k in ["type", "account_id", "category_id"]):
+    if any(k in data for k in ["type", "account_id", "category_id", "income_source_id"]):
         merged = {
             "type": merged_type,
             "account_id": data.get("account_id", row.account_id),
             "category_id": data.get("category_id", row.category_id),
+            "income_source_id": data.get("income_source_id", row.income_source_id),
         }
         _validate_business_rules(db, current_user.id, merged)
     else:
         _owned_category_or_conflict(db, current_user.id, row.category_id)
+        if row.income_source_id is not None:
+            _owned_active_income_source_or_conflict(db, current_user.id, row.income_source_id)
 
     for key, value in data.items():
         setattr(row, key, value)

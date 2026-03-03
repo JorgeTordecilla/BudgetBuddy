@@ -2,7 +2,7 @@
 Define analytics and reporting contract expectations, including deterministic aggregation and archive-policy behavior.
 ## Requirements
 ### Requirement: Monthly analytics aggregation
-The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return totals grouped by `YYYY-MM`, computed deterministically using integer cents only, with budget comparison fields when a matching monthly category budget exists.
+The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return deterministic totals grouped by `YYYY-MM`, including additive expected-vs-actual income fields.
 
 #### Scenario: Monthly analytics success
 - **WHEN** a valid authenticated request includes valid `from` and `to` dates
@@ -23,6 +23,22 @@ The backend MUST implement `GET /analytics/by-month` with required `from` and `t
 #### Scenario: Monthly analytics include budget comparison context
 - **WHEN** a month/category slice has a matching budget for the authenticated user
 - **THEN** analytics output SHALL include integer-cents budget comparison values for spent and limit without changing existing totals semantics
+
+#### Scenario: Monthly analytics response remains backward compatible
+- **WHEN** `GET /analytics/by-month` succeeds
+- **THEN** existing fields (`month`, `income_total_cents`, `expense_total_cents`, `budget_spent_cents`, `budget_limit_cents`) SHALL remain present and semantically unchanged
+
+#### Scenario: Monthly analytics includes additive expected-vs-actual income
+- **WHEN** monthly analytics is computed
+- **THEN** each row SHALL include `expected_income_cents` and `actual_income_cents` as integer fields
+
+#### Scenario: Actual income in monthly response is transaction-derived
+- **WHEN** `actual_income_cents` is computed for a month
+- **THEN** value SHALL be derived from non-archived transactions of type `income` within that month for the authenticated user
+
+#### Scenario: Expected income in monthly response is source-derived
+- **WHEN** `expected_income_cents` is computed for a month
+- **THEN** value SHALL be derived from active income sources according to the documented frequency policy
 
 ### Requirement: Category analytics aggregation
 The backend MUST implement `GET /analytics/by-category` with required `from` and `to` parameters and return totals grouped by category, computed deterministically using integer cents only, with budget comparison fields when matching monthly category budgets exist in range.
@@ -64,4 +80,3 @@ Analytics totals MUST apply one explicit policy for archived transactions.
 #### Scenario: Analytics policy is stable under archive toggling
 - **WHEN** a transaction is archived or restored
 - **THEN** analytics totals SHALL deterministically reflect exclusion on archive and inclusion on restore
-

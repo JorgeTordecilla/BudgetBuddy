@@ -89,6 +89,7 @@ export type Transaction = {
   type: TransactionType;
   account_id: string;
   category_id: string;
+  income_source_id?: string | null;
   amount_cents: number;
   date: string;
   merchant?: string | null;
@@ -107,6 +108,7 @@ export type TransactionCreate = {
   type: TransactionType;
   account_id: string;
   category_id: string;
+  income_source_id?: string | null;
   amount_cents: number;
   date: string;
   merchant?: string;
@@ -117,6 +119,7 @@ export type TransactionUpdate = {
   type?: TransactionType;
   account_id?: string;
   category_id?: string;
+  income_source_id?: string | null;
   amount_cents?: number;
   date?: string;
   merchant?: string | null;
@@ -174,6 +177,8 @@ export type AnalyticsByMonthItem = {
   month: string;
   income_total_cents: number;
   expense_total_cents: number;
+  expected_income_cents?: number;
+  actual_income_cents?: number;
   budget_spent_cents?: number;
   budget_limit_cents?: number;
 };
@@ -193,4 +198,57 @@ export type AnalyticsByCategoryItem = {
 
 export type AnalyticsByCategoryResponse = {
   items: AnalyticsByCategoryItem[];
+};
+
+export type IncomeFrequency = "monthly";
+
+export type IncomeSource = {
+  id: string;
+  name: string;
+  expected_amount_cents: number;
+  frequency: IncomeFrequency;
+  is_active: boolean;
+  note?: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IncomeSourceListResponse = {
+  items: IncomeSource[];
+};
+
+export type IncomeSourceCreate = {
+  name: string;
+  expected_amount_cents: number;
+  frequency: IncomeFrequency;
+  is_active: boolean;
+  note?: string;
+};
+
+export type IncomeSourceUpdate = {
+  name?: string;
+  expected_amount_cents?: number;
+  frequency?: IncomeFrequency;
+  is_active?: boolean;
+  note?: string | null;
+  archived_at?: string | null;
+};
+
+export type IncomeSourceAnalyticsRow = {
+  income_source_id: string | null;
+  income_source_name: string;
+  expected_income_cents: number;
+  actual_income_cents: number;
+};
+
+export type IncomeAnalyticsItem = {
+  month: string;
+  expected_income_cents: number;
+  actual_income_cents: number;
+  rows: IncomeSourceAnalyticsRow[];
+};
+
+export type IncomeAnalyticsResponse = {
+  items: IncomeAnalyticsItem[];
 };

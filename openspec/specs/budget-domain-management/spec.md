@@ -126,6 +126,21 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 - **WHEN** a transaction write resolves to a money operation with a currency different from the authenticated user's `currency_code`
 - **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
 
+### Requirement: Transactions support explicit income-source attribution
+Transaction domain behavior MUST support optional linkage to user-owned income sources for deterministic analytics attribution.
+
+#### Scenario: Income transaction may reference income source
+- **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` sets `income_source_id` and effective type is `income`
+- **THEN** the API SHALL accept only owned, non-archived income source identifiers
+
+#### Scenario: Expense transaction cannot reference income source
+- **WHEN** transaction effective type is `expense` and `income_source_id` is provided
+- **THEN** the API SHALL reject the write with canonical validation `400` ProblemDetails
+
+#### Scenario: Linked non-owned income source is rejected
+- **WHEN** a transaction write references an income source not owned by authenticated user
+- **THEN** the API SHALL reject with canonical `403` or documented conflict semantics consistently across transaction ownership rules
+
 ### Requirement: Ownership and access control across domain resources
 The backend MUST enforce authenticated user ownership for accounts, categories, and transactions.
 
@@ -299,4 +314,3 @@ Runtime behaviors that consume archived resources MUST follow the same archive p
 #### Scenario: Import/write paths continue to enforce archived conflicts
 - **WHEN** import or write operations reference archived account/category resources where forbidden by domain rules
 - **THEN** runtime SHALL return canonical business-rule conflicts consistently
-

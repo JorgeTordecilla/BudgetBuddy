@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
+import { listIncomeSources } from "@/api/incomeSources";
 import { ApiProblemError } from "@/api/problem";
 import {
   archiveTransaction,
@@ -25,6 +26,10 @@ vi.mock("@/api/accounts", () => ({
 
 vi.mock("@/api/categories", () => ({
   listCategories: vi.fn()
+}));
+
+vi.mock("@/api/incomeSources", () => ({
+  listIncomeSources: vi.fn()
 }));
 
 vi.mock("@/api/transactions", () => ({
@@ -95,6 +100,9 @@ describe("TransactionsPage", () => {
         { id: "c2", name: "Salary", type: "income", note: null, archived_at: null }
       ],
       next_cursor: null
+    });
+    vi.mocked(listIncomeSources).mockResolvedValue({
+      items: [{ id: "s1", name: "Paycheck 1", expected_amount_cents: 250000, frequency: "monthly", is_active: true, archived_at: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }]
     });
     vi.mocked(listTransactions).mockResolvedValue({
       items: [

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 
-import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
+import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
 import { ApiProblemError } from "@/api/problem";
 import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
@@ -11,7 +11,8 @@ import AnalyticsPage from "@/features/analytics/AnalyticsPage";
 
 vi.mock("@/api/analytics", () => ({
   getAnalyticsByMonth: vi.fn(),
-  getAnalyticsByCategory: vi.fn()
+  getAnalyticsByCategory: vi.fn(),
+  getAnalyticsIncome: vi.fn()
 }));
 
 const apiClientStub = {} as ApiClient;
@@ -52,6 +53,8 @@ describe("AnalyticsPage", () => {
           month: "2026-02",
           income_total_cents: 500000,
           expense_total_cents: 300000,
+          expected_income_cents: 550000,
+          actual_income_cents: 500000,
           budget_spent_cents: 250000,
           budget_limit_cents: 350000
         }
@@ -74,6 +77,23 @@ describe("AnalyticsPage", () => {
           expense_total_cents: 0,
           budget_spent_cents: 0,
           budget_limit_cents: 0
+        }
+      ]
+    });
+    vi.mocked(getAnalyticsIncome).mockResolvedValue({
+      items: [
+        {
+          month: "2026-02",
+          expected_income_cents: 550000,
+          actual_income_cents: 500000,
+          rows: [
+            {
+              income_source_id: "s1",
+              income_source_name: "Paycheck 1",
+              expected_income_cents: 550000,
+              actual_income_cents: 500000
+            }
+          ]
         }
       ]
     });
@@ -219,6 +239,8 @@ describe("AnalyticsPage", () => {
           month: "2026-02",
           income_total_cents: 500000,
           expense_total_cents: 300000,
+          expected_income_cents: 0,
+          actual_income_cents: 500000,
           budget_spent_cents: 0,
           budget_limit_cents: 0
         }

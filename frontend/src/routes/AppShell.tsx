@@ -4,9 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
+import { listIncomeSources } from "@/api/incomeSources";
 import { ApiProblemError } from "@/api/errors";
 import { createTransaction } from "@/api/transactions";
-import type { Account, Category, ProblemDetails, TransactionCreate } from "@/api/types";
+import type { Account, Category, IncomeSource, ProblemDetails, TransactionCreate } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
@@ -20,6 +21,7 @@ const appLinks = [
   { to: "/app/analytics", label: "Analytics" },
   { to: "/app/accounts", label: "Accounts" },
   { to: "/app/categories", label: "Categories" },
+  { to: "/app/income-sources", label: "Income Sources" },
   { to: "/app/budgets", label: "Budgets" },
   { to: "/app/transactions", label: "Transactions" }
 ];
@@ -33,7 +35,8 @@ const mobilePrimaryLinks = [
 
 const mobileSecondaryLinks = [
   { to: "/app/accounts", label: "Accounts" },
-  { to: "/app/categories", label: "Categories" }
+  { to: "/app/categories", label: "Categories" },
+  { to: "/app/income-sources", label: "Income Sources" }
 ];
 const mobileSectionTitles: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (path) => path.startsWith("/app/dashboard"), title: "Dashboard" },
@@ -42,13 +45,15 @@ const mobileSectionTitles: Array<{ match: (path: string) => boolean; title: stri
   { match: (path) => path.startsWith("/app/budgets"), title: "Budgets" },
   { match: (path) => path.startsWith("/app/analytics"), title: "Analytics" },
   { match: (path) => path.startsWith("/app/accounts"), title: "Accounts" },
-  { match: (path) => path.startsWith("/app/categories"), title: "Categories" }
+  { match: (path) => path.startsWith("/app/categories"), title: "Categories" },
+  { match: (path) => path.startsWith("/app/income-sources"), title: "Income Sources" }
 ];
 
 const EMPTY_FORM: TransactionFormState = {
   type: "expense",
   accountId: "",
   categoryId: "",
+  incomeSourceId: "",
   amountCents: "",
   date: "",
   merchant: "",
@@ -65,6 +70,7 @@ export default function AppShell() {
   const [submitting, setSubmitting] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const isDesktop = useIsDesktop();
@@ -84,14 +90,16 @@ export default function AppShell() {
     let active = true;
     void Promise.all([
       listAccounts(apiClient, { includeArchived: false, limit: 100 }),
-      listCategories(apiClient, { includeArchived: false, type: "all", limit: 100 })
+      listCategories(apiClient, { includeArchived: false, type: "all", limit: 100 }),
+      listIncomeSources(apiClient, { includeArchived: false })
     ])
-      .then(([accountsResponse, categoriesResponse]) => {
+      .then(([accountsResponse, categoriesResponse, incomeSourcesResponse]) => {
         if (!active) {
           return;
         }
         setAccounts(accountsResponse.items);
         setCategories(categoriesResponse.items);
+        setIncomeSources(incomeSourcesResponse.items);
       })
       .catch((error) => {
         if (!active) {
@@ -117,6 +125,7 @@ export default function AppShell() {
       const next = { ...previous, [field]: value };
       if (field === "type") {
         next.categoryId = "";
+        next.incomeSourceId = "";
       }
       return next;
     });
@@ -162,6 +171,7 @@ export default function AppShell() {
       type: formState.type,
       account_id: formState.accountId,
       category_id: formState.categoryId,
+      income_source_id: formState.type === "income" ? formState.incomeSourceId || null : null,
       amount_cents: amount,
       date: formState.date,
       merchant: formState.merchant.trim() || undefined,
@@ -359,6 +369,7 @@ export default function AppShell() {
         state={formState}
         accounts={accounts}
         categories={categories}
+        incomeSources={incomeSources}
         problem={formProblem}
         onFieldChange={setField}
         onClose={closeQuickTransaction}

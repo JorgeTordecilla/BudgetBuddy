@@ -195,6 +195,34 @@ def _transaction_flow(client: TestClient, access: str, account_id: str, category
     return tx_id
 
 
+def _income_source_flow(client: TestClient, access: str) -> str:
+    headers = _auth_headers(access)
+    listed = client.get("/api/income-sources", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
+    _assert_contract(listed, "/income-sources", "get")
+
+    created = client.post(
+        "/api/income-sources",
+        json={"name": "Paycheck 1", "expected_amount_cents": 250000, "frequency": "monthly", "is_active": True, "note": "salary"},
+        headers=headers,
+    )
+    _assert_contract(created, "/income-sources", "post")
+    income_source_id = created.json()["id"]
+
+    fetched = client.get(
+        f"/api/income-sources/{income_source_id}",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(fetched, "/income-sources/{income_source_id}", "get")
+
+    patched = client.patch(
+        f"/api/income-sources/{income_source_id}",
+        json={"note": "updated"},
+        headers=headers,
+    )
+    _assert_contract(patched, "/income-sources/{income_source_id}", "patch")
+    return income_source_id
+
+
 def _analytics_flow(client: TestClient, access: str) -> None:
     by_month = client.get(
         "/api/analytics/by-month?from=2026-01-01&to=2026-12-31",
@@ -207,6 +235,12 @@ def _analytics_flow(client: TestClient, access: str) -> None:
         headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
     )
     _assert_contract(by_category, "/analytics/by-category", "get")
+
+    income = client.get(
+        "/api/analytics/income?from=2026-01-01&to=2026-12-31",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(income, "/analytics/income", "get")
 
 
 def _me_flow(client: TestClient, access: str) -> None:
@@ -255,7 +289,15 @@ def _budget_invalid_month_flow(client: TestClient, access: str) -> None:
     assert body["status"] == 400
 
 
-def _teardown_flow(client: TestClient, access: str, refresh_token: str, account_id: str, category_id: str, transaction_id: str) -> None:
+def _teardown_flow(
+    client: TestClient,
+    access: str,
+    refresh_token: str,
+    account_id: str,
+    category_id: str,
+    transaction_id: str,
+    income_source_id: str,
+) -> None:
     delete_tx = client.delete(f"/api/transactions/{transaction_id}", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
     _assert_contract(delete_tx, "/transactions/{transaction_id}", "delete")
 
@@ -264,6 +306,12 @@ def _teardown_flow(client: TestClient, access: str, refresh_token: str, account_
 
     delete_account = client.delete(f"/api/accounts/{account_id}", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
     _assert_contract(delete_account, "/accounts/{account_id}", "delete")
+
+    delete_income_source = client.delete(
+        f"/api/income-sources/{income_source_id}",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(delete_income_source, "/income-sources/{income_source_id}", "delete")
 
     logout = client.post(
         "/api/auth/logout",
@@ -477,7 +525,7 @@ def test_openapi_examples_coverage_and_canonical_problem_examples():
 
 
 def test_openapi_archived_policy_contract_wording_is_explicit():
-    for path in ("/accounts", "/categories", "/transactions"):
+    for path in ("/accounts", "/categories", "/transactions", "/income-sources"):
         op = SPEC["paths"][path]["get"]
         description = op.get("description", "")
         assert "excluded by default" in description
@@ -487,13 +535,13 @@ def test_openapi_archived_policy_contract_wording_is_explicit():
         assert include_archived_param["schema"]["default"] is False
         assert "Defaults to false" in include_archived_param.get("description", "")
 
-    for path in ("/accounts/{account_id}", "/categories/{category_id}", "/transactions/{transaction_id}"):
+    for path in ("/accounts/{account_id}", "/categories/{category_id}", "/transactions/{transaction_id}", "/income-sources/{income_source_id}"):
         get_description = SPEC["paths"][path]["get"].get("description", "")
         assert "regardless of archive state" in get_description
         delete_204_description = SPEC["paths"][path]["delete"]["responses"]["204"]["description"]
         assert "Archived (soft-delete)" in delete_204_description
 
-    for path in ("/analytics/by-month", "/analytics/by-category"):
+    for path in ("/analytics/by-month", "/analytics/by-category", "/analytics/income"):
         description = SPEC["paths"][path]["get"].get("description", "")
         assert "archived transactions are excluded" in description
 
@@ -505,13 +553,14 @@ def test_openapi_e2e_contract_flow():
         account_id = _account_flow(client, access)
         category_id = _category_flow(client, access)
         transaction_id = _transaction_flow(client, access, account_id, category_id)
+        income_source_id = _income_source_flow(client, access)
         _transaction_import_export_flow(client, access, account_id, category_id)
         _me_flow(client, access)
         list_audit = client.get("/api/audit?limit=20", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
         _assert_contract(list_audit, "/audit", "get")
         _analytics_flow(client, access)
         _budget_invalid_month_flow(client, access)
-        _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id)
+        _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id, income_source_id)
 
         unauthorized = client.get("/api/accounts", headers={"accept": VENDOR})
         _assert_contract(unauthorized, "/accounts", "get")

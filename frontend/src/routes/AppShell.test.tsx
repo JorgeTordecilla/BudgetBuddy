@@ -2,12 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
+import { listIncomeSources } from "@/api/incomeSources";
 import { createTransaction } from "@/api/transactions";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import AppShell from "@/routes/AppShell";
@@ -15,12 +16,18 @@ import RequireAuth from "@/routes/RequireAuth";
 
 vi.mock("@/api/accounts", () => ({ listAccounts: vi.fn() }));
 vi.mock("@/api/categories", () => ({ listCategories: vi.fn() }));
+vi.mock("@/api/incomeSources", () => ({ listIncomeSources: vi.fn() }));
 vi.mock("@/api/transactions", () => ({ createTransaction: vi.fn() }));
 vi.mock("@/components/feedback/successToastStore", () => ({ publishSuccessToast: vi.fn() }));
 
 const apiClientStub = {} as ApiClient;
 
 describe("AppShell", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listIncomeSources).mockResolvedValue({ items: [] });
+  });
+
   function renderWithQueryClient(ui: ReactElement) {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
@@ -36,6 +43,9 @@ describe("AppShell", () => {
     vi.mocked(listCategories).mockResolvedValue({
       items: [{ id: "c1", name: "Food", type: "expense", archived_at: null }],
       next_cursor: null
+    });
+    vi.mocked(listIncomeSources).mockResolvedValue({
+      items: []
     });
   }
 
@@ -166,6 +176,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Accounts" })).toHaveAttribute("href", "/app/accounts");
     expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("href", "/app/analytics");
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/app/categories");
+    expect(screen.getByRole("link", { name: "Income Sources" })).toHaveAttribute("href", "/app/income-sources");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/app/budgets");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute("href", "/app/transactions");
   });
@@ -205,6 +216,7 @@ describe("AppShell", () => {
               <Route path="dashboard" element={<div>Dashboard view</div>} />
               <Route path="accounts" element={<div>Accounts view</div>} />
               <Route path="categories" element={<div>Categories view</div>} />
+              <Route path="income-sources" element={<div>Income Sources view</div>} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -218,6 +230,10 @@ describe("AppShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByRole("link", { name: "Categories" }));
     expect(await screen.findByText("Categories view")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("link", { name: "Income Sources" }));
+    expect(await screen.findByText("Income Sources view")).toBeInTheDocument();
   });
 
   it("reflows shell controls when crossing mobile to tablet breakpoint", () => {

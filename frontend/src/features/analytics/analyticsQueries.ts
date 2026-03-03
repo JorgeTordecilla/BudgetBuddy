@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getAnalyticsByCategory, getAnalyticsByMonth } from "@/api/analytics";
+import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
 import type { ApiClient } from "@/api/client";
 
 type AnalyticsRange = {
@@ -24,6 +24,16 @@ export function useAnalyticsByCategory(apiClient: ApiClient, range: AnalyticsRan
     enabled,
     meta: { skipGlobalErrorToast: true },
     queryFn: () => getAnalyticsByCategory(apiClient, range),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useAnalyticsIncome(apiClient: ApiClient, range: AnalyticsRange, enabled: boolean) {
+  return useQuery({
+    queryKey: ["analytics", "income", { from: range.from, to: range.to }] as const,
+    enabled,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => getAnalyticsIncome(apiClient, range),
     placeholderData: (previous) => previous
   });
 }

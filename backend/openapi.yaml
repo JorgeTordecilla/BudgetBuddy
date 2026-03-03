@@ -1114,6 +1114,299 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem406'
+  /income-sources:
+    get:
+      summary: List income sources
+      description: 'Archived policy: income sources are excluded by default and included only when `include_archived=true`.'
+      parameters:
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: Include archived income sources when true. Defaults to false (active sources only).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/IncomeSourceListOut'
+              example:
+                items:
+                - id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+                  name: Paycheck 1
+                  expected_amount_cents: 250000
+                  frequency: monthly
+                  is_active: true
+                  note: Primary salary
+                  archived_at: null
+                  created_at: '2026-02-01T00:00:00Z'
+                  updated_at: '2026-02-01T00:00:00Z'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    post:
+      summary: Create income source
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/IncomeSourceCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/IncomeSourceOut'
+              example:
+                id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+                name: Paycheck 1
+                expected_amount_cents: 250000
+                frequency: monthly
+                is_active: true
+                note: Primary salary
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '409':
+          description: Income source name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem409Conflict'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /income-sources/{income_source_id}:
+    parameters:
+    - name: income_source_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: Get income source
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/IncomeSourceOut'
+              example:
+                id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+                name: Paycheck 1
+                expected_amount_cents: 250000
+                frequency: monthly
+                is_active: true
+                note: Primary salary
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+      description: Returns an owned income source regardless of archive state (active or archived).
+    patch:
+      summary: Update income source
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/IncomeSourceUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/IncomeSourceOut'
+              example:
+                id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+                name: Paycheck 1
+                expected_amount_cents: 250000
+                frequency: monthly
+                is_active: true
+                note: Primary salary
+                archived_at: null
+                created_at: '2026-02-01T00:00:00Z'
+                updated_at: '2026-02-01T00:00:00Z'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Income source name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem409Conflict'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    delete:
+      summary: Archive income source
+      responses:
+        '204':
+          description: Archived (soft-delete). No Content
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidRequest'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
   /transactions:
     get:
       summary: List transactions (ordered by date desc, then created_at desc)
@@ -2097,6 +2390,8 @@ paths:
                 - month: 2026-01
                   income_total_cents: 520000
                   expense_total_cents: 300000
+                  expected_income_cents: 550000
+                  actual_income_cents: 520000
                   budget_spent_cents: 300000
                   budget_limit_cents: 350000
         '400':
@@ -2127,6 +2422,71 @@ paths:
                 canonical:
                   $ref: '#/components/examples/Problem406'
       description: 'Retention policy: archived transactions are excluded from analytics totals. Restored transactions re-enter totals deterministically.'
+  /analytics/income:
+    get:
+      summary: Income analytics totals by month and source
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/IncomeAnalyticsOut'
+              example:
+                items:
+                - month: 2026-01
+                  expected_income_cents: 500000
+                  actual_income_cents: 490000
+                  rows:
+                  - income_source_id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+                    income_source_name: Paycheck 1
+                    expected_income_cents: 250000
+                    actual_income_cents: 245000
+                  - income_source_id: null
+                    income_source_name: Unassigned
+                    expected_income_cents: 0
+                    actual_income_cents: 10000
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidDateRange'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+      description: 'Retention policy: archived transactions are excluded. Archived or inactive income sources are excluded from expected totals; linked actuals not mapped to active sources are reported under `Unassigned`.'
   /analytics/by-category:
     get:
       summary: Analytics totals by category (income and expense)
@@ -2588,6 +2948,7 @@ components:
       - type
       - account_id
       - category_id
+      - income_source_id
       - amount_cents
       - date
       - archived_at
@@ -2607,6 +2968,11 @@ components:
           format: uuid
         category_id:
           type: string
+          format: uuid
+        income_source_id:
+          type:
+          - string
+          - 'null'
           format: uuid
         amount_cents:
           type: integer
@@ -2655,6 +3021,11 @@ components:
         category_id:
           type: string
           format: uuid
+        income_source_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
         amount_cents:
           type: integer
           minimum: 1
@@ -2679,6 +3050,11 @@ components:
           format: uuid
         category_id:
           type: string
+          format: uuid
+        income_source_id:
+          type:
+          - string
+          - 'null'
           format: uuid
         amount_cents:
           type: integer
@@ -2920,6 +3296,8 @@ components:
       - month
       - income_total_cents
       - expense_total_cents
+      - expected_income_cents
+      - actual_income_cents
       properties:
         month:
           type: string
@@ -2927,6 +3305,10 @@ components:
         income_total_cents:
           type: integer
         expense_total_cents:
+          type: integer
+        expected_income_cents:
+          type: integer
+        actual_income_cents:
           type: integer
         budget_spent_cents:
           type: integer
@@ -2946,8 +3328,188 @@ components:
         - month: 2026-01
           income_total_cents: 520000
           expense_total_cents: 300000
+          expected_income_cents: 550000
+          actual_income_cents: 520000
           budget_spent_cents: 300000
           budget_limit_cents: 350000
+    IncomeFrequency:
+      type: string
+      enum:
+      - monthly
+    IncomeSourceCreate:
+      type: object
+      required:
+      - name
+      - expected_amount_cents
+      - frequency
+      - is_active
+      properties:
+        name:
+          type: string
+          minLength: 1
+        expected_amount_cents:
+          type: integer
+          minimum: 1
+          maximum: 999999999999
+        frequency:
+          $ref: '#/components/schemas/IncomeFrequency'
+        is_active:
+          type: boolean
+          default: true
+        note:
+          type:
+          - string
+          - 'null'
+    IncomeSourceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        expected_amount_cents:
+          type: integer
+          minimum: 1
+          maximum: 999999999999
+        frequency:
+          $ref: '#/components/schemas/IncomeFrequency'
+        is_active:
+          type: boolean
+        note:
+          type:
+          - string
+          - 'null'
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    IncomeSourceOut:
+      type: object
+      required:
+      - id
+      - name
+      - expected_amount_cents
+      - frequency
+      - is_active
+      - archived_at
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        expected_amount_cents:
+          type: integer
+        frequency:
+          $ref: '#/components/schemas/IncomeFrequency'
+        is_active:
+          type: boolean
+        note:
+          type:
+          - string
+          - 'null'
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      example:
+        id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+        name: Paycheck 1
+        expected_amount_cents: 250000
+        frequency: monthly
+        is_active: true
+        note: Primary salary
+        archived_at: null
+        created_at: '2026-02-01T00:00:00Z'
+        updated_at: '2026-02-01T00:00:00Z'
+    IncomeSourceListOut:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncomeSourceOut'
+      example:
+        items:
+        - id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+          name: Paycheck 1
+          expected_amount_cents: 250000
+          frequency: monthly
+          is_active: true
+          note: Primary salary
+          archived_at: null
+          created_at: '2026-02-01T00:00:00Z'
+          updated_at: '2026-02-01T00:00:00Z'
+    IncomeSourceAnalyticsRow:
+      type: object
+      required:
+      - income_source_id
+      - income_source_name
+      - expected_income_cents
+      - actual_income_cents
+      properties:
+        income_source_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        income_source_name:
+          type: string
+        expected_income_cents:
+          type: integer
+        actual_income_cents:
+          type: integer
+    IncomeAnalyticsOut:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - month
+            - expected_income_cents
+            - actual_income_cents
+            - rows
+            properties:
+              month:
+                type: string
+                pattern: ^\d{4}-\d{2}$
+              expected_income_cents:
+                type: integer
+              actual_income_cents:
+                type: integer
+              rows:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncomeSourceAnalyticsRow'
+      example:
+        items:
+        - month: 2026-01
+          expected_income_cents: 500000
+          actual_income_cents: 490000
+          rows:
+          - income_source_id: bfd4ff89-c2d6-4d22-b0fd-23dce0a2f05e
+            income_source_name: Paycheck 1
+            expected_income_cents: 250000
+            actual_income_cents: 245000
+          - income_source_id: null
+            income_source_name: Unassigned
+            expected_income_cents: 0
+            actual_income_cents: 10000
     AnalyticsByCategoryItem:
       type: object
       required:
@@ -3111,9 +3673,5 @@ components:
         title: Service Unavailable
         status: 503
         detail: Service temporarily unavailable, please retry.
-
-
-
-
 
 

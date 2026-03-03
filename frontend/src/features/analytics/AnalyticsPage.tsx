@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ApiProblemError } from "@/api/errors";
-import type { AnalyticsByCategoryItem, AnalyticsByMonthItem } from "@/api/types";
+import type { AnalyticsByCategoryItem, AnalyticsByMonthItem, IncomeAnalyticsItem } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import { useAnalyticsByCategory, useAnalyticsByMonth } from "@/features/analytics/analyticsQueries";
+import { useAnalyticsByCategory, useAnalyticsByMonth, useAnalyticsIncome } from "@/features/analytics/analyticsQueries";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
 import { Button } from "@/ui/button";
@@ -21,9 +21,11 @@ type MetricType = "expense" | "income";
 function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsByCategoryItem[]) {
   const incomeTotal = monthItems.reduce((sum, row) => sum + row.income_total_cents, 0);
   const expenseTotal = monthItems.reduce((sum, row) => sum + row.expense_total_cents, 0);
+  const expectedIncome = monthItems.reduce((sum, row) => sum + (row.expected_income_cents ?? row.income_total_cents), 0);
+  const actualIncome = monthItems.reduce((sum, row) => sum + (row.actual_income_cents ?? row.income_total_cents), 0);
   const budgetSpent = categoryItems.reduce((sum, row) => sum + (row.budget_spent_cents ?? 0), 0);
   const budgetLimit = categoryItems.reduce((sum, row) => sum + (row.budget_limit_cents ?? 0), 0);
-  return { incomeTotal, expenseTotal, budgetSpent, budgetLimit };
+  return { incomeTotal, expenseTotal, expectedIncome, actualIncome, budgetSpent, budgetLimit };
 }
 
 export default function AnalyticsPage() {
@@ -55,6 +57,7 @@ export default function AnalyticsPage() {
   const rangeValid = isValidDateRange(appliedRange.from, appliedRange.to);
   const monthQuery = useAnalyticsByMonth(apiClient, appliedRange, rangeValid);
   const categoryQuery = useAnalyticsByCategory(apiClient, appliedRange, rangeValid);
+  const incomeQuery = useAnalyticsIncome(apiClient, appliedRange, rangeValid);
 
   const monthItems = monthQuery.data?.items ?? [];
   const categoryItems = categoryQuery.data?.items ?? [];
@@ -67,7 +70,7 @@ export default function AnalyticsPage() {
     [monthItems, categoryItems]
   );
 
-  const combinedError = monthQuery.error ?? categoryQuery.error ?? null;
+  const combinedError = monthQuery.error ?? categoryQuery.error ?? incomeQuery.error ?? null;
 
   function applyRange() {
     if (!isValidDateRange(draftRange.from, draftRange.to)) {
@@ -134,6 +137,7 @@ export default function AnalyticsPage() {
           onRetry={() => {
             void monthQuery.refetch();
             void categoryQuery.refetch();
+            void incomeQuery.refetch();
           }}
         />
       ) : null}
@@ -149,6 +153,14 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Total expense</CardTitle></CardHeader>
           <CardContent>{formatCents(currencyCode, summary.expenseTotal)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Expected income</CardTitle></CardHeader>
+          <CardContent>{formatCents(currencyCode, summary.expectedIncome)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Actual income</CardTitle></CardHeader>
+          <CardContent>{formatCents(currencyCode, summary.actualIncome)}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Net</CardTitle></CardHeader>
@@ -173,6 +185,38 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">No monthly analytics for selected range.</p>
           ) : (
             <MonthTrendChart items={monthItems} currencyCode={currencyCode} showBudgetOverlay={showBudgetOverlay} />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Income sources breakdown</CardTitle></CardHeader>
+        <CardContent>
+          {incomeQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading income analytics...</p>
+          ) : (incomeQuery.data?.items.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">No income source analytics for selected range.</p>
+          ) : (
+            <div className="space-y-3">
+              {incomeQuery.data?.items.map((item: IncomeAnalyticsItem) => (
+                <div key={item.month} className="rounded-md border p-3">
+                  <p className="text-sm font-semibold">{item.month}</p>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Expected {formatCents(currencyCode, item.expected_income_cents)} | Actual {formatCents(currencyCode, item.actual_income_cents)}
+                  </p>
+                  <div className="space-y-1 text-sm">
+                    {item.rows.map((row) => (
+                      <div key={`${item.month}-${row.income_source_id ?? "unassigned"}`} className="flex items-center justify-between gap-2">
+                        <span>{row.income_source_name}</span>
+                        <span className="text-muted-foreground">
+                          {formatCents(currencyCode, row.actual_income_cents)} / {formatCents(currencyCode, row.expected_income_cents)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

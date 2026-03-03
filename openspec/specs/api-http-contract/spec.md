@@ -2,7 +2,7 @@
 Define the canonical HTTP/API contract for BudgetBuddy, including media types, error semantics, and endpoint behavior guarantees.
 ## Requirements
 ### Requirement: Vendor media type for successful payloads
-The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`.
+The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`, including new income-source and income-analytics endpoints.
 
 #### Scenario: Successful endpoint response uses vendor media type
 - **WHEN** a client calls a successful endpoint that returns a JSON body
@@ -16,8 +16,16 @@ The backend MUST return response bodies for successful non-204 operations using 
 - **WHEN** `PATCH /transactions/{transaction_id}` sets `archived_at` to `null` for an owned transaction
 - **THEN** the API SHALL return `200` with `Content-Type: application/vnd.budgetbuddy.v1+json` and `Transaction` payload
 
+#### Scenario: Income-source success payloads use vendor media type
+- **WHEN** `GET /income-sources`, `POST /income-sources`, `GET /income-sources/{income_source_id}`, or `PATCH /income-sources/{income_source_id}` succeeds
+- **THEN** the response SHALL use `Content-Type: application/vnd.budgetbuddy.v1+json`
+
+#### Scenario: Income analytics success payload uses vendor media type
+- **WHEN** `GET /analytics/income` succeeds
+- **THEN** the response SHALL use `Content-Type: application/vnd.budgetbuddy.v1+json`
+
 ### Requirement: ProblemDetails for error payloads
-The backend MUST return all error payloads as `application/problem+json` and include required `ProblemDetails` fields: `type`, `title`, and `status`.
+The backend MUST return all error payloads as `application/problem+json` for income-source and income-analytics endpoints, aligned with canonical API behavior.
 
 #### Scenario: Validation error is returned as ProblemDetails
 - **WHEN** request data violates schema constraints
@@ -86,6 +94,14 @@ The backend MUST return all error payloads as `application/problem+json` and inc
 #### Scenario: Money validation failures do not leak internals
 - **WHEN** money-validation errors are returned to clients
 - **THEN** response payloads SHALL NOT include stack traces, ORM internals, or validator implementation details
+
+#### Scenario: Income-source authz and validation errors use ProblemDetails
+- **WHEN** income-source endpoints fail with `400`, `401`, `403`, `406`, or `409`
+- **THEN** the API SHALL return `application/problem+json` containing required `ProblemDetails` fields
+
+#### Scenario: Income analytics request failures use ProblemDetails
+- **WHEN** `GET /analytics/income` fails due to validation/auth/media negotiation
+- **THEN** the API SHALL return `application/problem+json` containing required `ProblemDetails` fields
 
 ### Requirement: Cross-user ownership policy
 The backend MUST enforce a single deterministic ownership policy for scoped domain resources.
@@ -608,4 +624,3 @@ Refresh contract MUST preserve rotation and replay-protection semantics while al
 #### Scenario: Refresh documents transient operational failure response
 - **WHEN** `POST /auth/refresh` contract is reviewed
 - **THEN** OpenAPI SHALL document canonical `503` ProblemDetails for transient database connectivity failure
-

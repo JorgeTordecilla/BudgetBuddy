@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import Account, AuditEvent, Budget, Category, RefreshToken, Transaction, User
+from app.models import Account, AuditEvent, Budget, Category, IncomeSource, RefreshToken, Transaction, User
 
 
 class SQLAlchemyUserRepository:
@@ -131,6 +131,23 @@ class SQLAlchemyBudgetRepository:
 
     def add(self, budget: Budget) -> None:
         self.db.add(budget)
+
+
+class SQLAlchemyIncomeSourceRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get_owned(self, user_id: str, income_source_id: str) -> IncomeSource | None:
+        return self.db.scalar(select(IncomeSource).where(and_(IncomeSource.id == income_source_id, IncomeSource.user_id == user_id)))
+
+    def list_for_user(self, user_id: str, include_archived: bool) -> list[IncomeSource]:
+        stmt = select(IncomeSource).where(IncomeSource.user_id == user_id)
+        if not include_archived:
+            stmt = stmt.where(IncomeSource.archived_at.is_(None))
+        return list(self.db.scalars(stmt))
+
+    def add(self, income_source: IncomeSource) -> None:
+        self.db.add(income_source)
 
 
 class SQLAlchemyAuditEventRepository:

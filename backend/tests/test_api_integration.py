@@ -163,6 +163,30 @@ def _create_budget(client: TestClient, headers: dict[str, str], *, month: str, c
     return response.status_code, body
 
 
+def _create_income_source(
+    client: TestClient,
+    headers: dict[str, str],
+    *,
+    name: str,
+    expected_amount_cents: int = 250000,
+    frequency: str = "monthly",
+    is_active: bool = True,
+    note: str = "salary",
+) -> tuple[int, dict]:
+    response = client.post(
+        "/api/income-sources",
+        json={
+            "name": name,
+            "expected_amount_cents": expected_amount_cents,
+            "frequency": frequency,
+            "is_active": is_active,
+            "note": note,
+        },
+        headers=headers,
+    )
+    return response.status_code, response.json()
+
+
 def _create_transaction(
     client: TestClient,
     headers: dict[str, str],
@@ -172,6 +196,7 @@ def _create_transaction(
     category_id: str,
     note: str,
     date: str = "2026-02-01",
+    income_source_id: str | None = None,
 ) -> tuple[int, dict]:
     response = client.post(
         "/api/transactions",
@@ -179,6 +204,7 @@ def _create_transaction(
             "type": type_,
             "account_id": account_id,
             "category_id": category_id,
+            "income_source_id": income_source_id,
             "amount_cents": 7000,
             "date": date,
             "merchant": "Acme",
@@ -1336,6 +1362,8 @@ def test_domain_and_analytics_flow():
 
         account_id = _create_account(client, auth_headers, "wallet")
         category_id = _create_category(client, auth_headers, "salary", "income")
+        income_source_status, income_source_body = _create_income_source(client, auth_headers, name="salary-main")
+        assert income_source_status == 201
         status, _ = _create_transaction(
             client,
             auth_headers,
@@ -1344,6 +1372,7 @@ def test_domain_and_analytics_flow():
             category_id=category_id,
             note="salary",
             date="2026-01-15",
+            income_source_id=income_source_body["id"],
         )
         assert status == 201
 
@@ -1351,10 +1380,18 @@ def test_domain_and_analytics_flow():
         assert by_month.status_code == 200
         assert by_month.headers["content-type"].startswith(VENDOR)
         assert isinstance(by_month.json()["items"], list)
+        month_item = by_month.json()["items"][0]
+        assert isinstance(month_item["expected_income_cents"], int)
+        assert isinstance(month_item["actual_income_cents"], int)
 
         by_category = client.get("/api/analytics/by-category?from=2026-01-01&to=2026-12-31", headers=auth_headers)
         assert by_category.status_code == 200
         assert by_category.headers["content-type"].startswith(VENDOR)
+
+        income_analytics = client.get("/api/analytics/income?from=2026-01-01&to=2026-12-31", headers=auth_headers)
+        assert income_analytics.status_code == 200
+        assert income_analytics.headers["content-type"].startswith(VENDOR)
+        assert isinstance(income_analytics.json()["items"], list)
 
         forbidden = client.get(f"/api/accounts/{uuid.uuid4()}", headers=auth_headers)
         assert forbidden.status_code == 403
@@ -1443,6 +1480,131 @@ def test_include_archived_toggle_policy_is_consistent_across_list_endpoints():
         transaction_ids_with_archived = {item["id"] for item in transactions_with_archived.json()["items"]}
         assert tx_active_body["id"] in transaction_ids_with_archived
         assert tx_archived_body["id"] in transaction_ids_with_archived
+
+
+def test_income_sources_crud_and_archive_flow():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+
+        created_status, created_body = _create_income_source(client, headers, name="income-source-main")
+        assert created_status == 201
+        income_source_id = created_body["id"]
+        assert created_body["frequency"] == "monthly"
+        assert created_body["is_active"] is True
+
+        listed = client.get("/api/income-sources", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert listed.status_code == 200
+        ids = {item["id"] for item in listed.json()["items"]}
+        assert income_source_id in ids
+
+        fetched = client.get(
+            f"/api/income-sources/{income_source_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert fetched.status_code == 200
+        assert fetched.json()["id"] == income_source_id
+
+        patched = client.patch(
+            f"/api/income-sources/{income_source_id}",
+            json={"note": "updated", "is_active": False},
+            headers=headers,
+        )
+        assert patched.status_code == 200
+        assert patched.json()["note"] == "updated"
+        assert patched.json()["is_active"] is False
+
+        deleted = client.delete(
+            f"/api/income-sources/{income_source_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert deleted.status_code == 204
+
+        default_list = client.get("/api/income-sources", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert income_source_id not in {item["id"] for item in default_list.json()["items"]}
+
+        archived_list = client.get(
+            "/api/income-sources?include_archived=true",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert income_source_id in {item["id"] for item in archived_list.json()["items"]}
+
+
+def test_income_sources_authz_and_conflict_rules():
+    with TestClient(app) as client:
+        user_a = _register_user(client)
+        user_b = _register_user(client)
+        headers_a = _auth_headers(user_a["access"])
+        headers_b = _auth_headers(user_b["access"])
+
+        status, body = _create_income_source(client, headers_a, name="paycheck-conflict")
+        assert status == 201
+        income_source_id = body["id"]
+
+        duplicate = client.post(
+            "/api/income-sources",
+            json={"name": "paycheck-conflict", "expected_amount_cents": 200000, "frequency": "monthly", "is_active": True},
+            headers=headers_a,
+        )
+        assert duplicate.status_code == 409
+        assert duplicate.headers["content-type"].startswith(PROBLEM)
+
+        unauthorized = client.get("/api/income-sources", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(unauthorized)
+
+        forbidden = client.get(
+            f"/api/income-sources/{income_source_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user_b['access']}"},
+        )
+        _assert_forbidden_problem(forbidden)
+
+        forbidden_patch = client.patch(
+            f"/api/income-sources/{income_source_id}",
+            json={"note": "x"},
+            headers=headers_b,
+        )
+        _assert_forbidden_problem(forbidden_patch)
+
+
+def test_transactions_income_source_linking_rules():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "tx-income-source-account")
+        income_category_id = _create_category(client, headers, "tx-income-source-income", "income")
+        expense_category_id = _create_category(client, headers, "tx-income-source-expense", "expense")
+        status, source = _create_income_source(client, headers, name="tx-source")
+        assert status == 201
+        source_id = source["id"]
+
+        ok_income = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "income_source_id": source_id,
+                "amount_cents": 10000,
+                "date": "2026-10-10",
+            },
+            headers=headers,
+        )
+        assert ok_income.status_code == 201
+        assert ok_income.json()["income_source_id"] == source_id
+
+        expense_with_source = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "income_source_id": source_id,
+                "amount_cents": 1000,
+                "date": "2026-10-11",
+            },
+            headers=headers,
+        )
+        _assert_invalid_request_problem(expense_with_source)
 
 
 def test_analytics_excludes_archived_transactions_and_restores_on_unarchive():
@@ -1892,6 +2054,8 @@ def test_analytics_totals_are_integer_cents_and_enforce_currency_context():
         for item in by_month.json()["items"]:
             assert isinstance(item["income_total_cents"], int)
             assert isinstance(item["expense_total_cents"], int)
+            assert isinstance(item["expected_income_cents"], int)
+            assert isinstance(item["actual_income_cents"], int)
 
         by_category = client.get("/api/analytics/by-category?from=2026-03-01&to=2026-03-31", headers=auth_headers)
         assert by_category.status_code == 200
@@ -1919,6 +2083,55 @@ def test_analytics_totals_are_integer_cents_and_enforce_currency_context():
             MONEY_CURRENCY_MISMATCH_TYPE,
             MONEY_CURRENCY_MISMATCH_TITLE,
         )
+
+
+def test_income_analytics_breakdown_includes_unassigned_income_rows():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "income-analytics-account")
+        income_category_id = _create_category(client, headers, "income-analytics-category", "income")
+        source_status, source_body = _create_income_source(client, headers, name="Income Source A", expected_amount_cents=300000)
+        assert source_status == 201
+
+        linked = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "income_source_id": source_body["id"],
+                "amount_cents": 250000,
+                "date": "2026-08-03",
+            },
+            headers=headers,
+        )
+        assert linked.status_code == 201
+
+        unlinked = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 10000,
+                "date": "2026-08-05",
+            },
+            headers=headers,
+        )
+        assert unlinked.status_code == 201
+
+        income_analytics = client.get("/api/analytics/income?from=2026-08-01&to=2026-08-31", headers=headers)
+        assert income_analytics.status_code == 200
+        body = income_analytics.json()
+        assert body["items"]
+        august = body["items"][0]
+        assert august["month"] == "2026-08"
+        assert august["expected_income_cents"] == 300000
+        assert august["actual_income_cents"] == 260000
+        row_names = {row["income_source_name"] for row in august["rows"]}
+        assert "Income Source A" in row_names
+        assert "Unassigned" in row_names
 
 
 def _seed_filter_domain_data(client: TestClient, auth_headers: dict[str, str]) -> tuple[str, str, str, str]:
