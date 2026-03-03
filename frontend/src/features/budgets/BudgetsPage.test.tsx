@@ -113,7 +113,10 @@ describe("BudgetsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New budget" }));
 
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByLabelText("Month")).toHaveClass("field-date-input");
+    const monthInput = within(dialog).getByLabelText("Month");
+    expect(monthInput).toHaveClass("field-date-input");
+    expect(monthInput).toHaveClass("w-full");
+    expect(monthInput.closest("label")).toHaveClass("w-full");
     const categorySelect = within(dialog).getByLabelText("Category");
     expect(within(dialog).getByRole("option", { name: "Food (expense)" })).toBeInTheDocument();
     expect(within(dialog).getByRole("option", { name: "Salary (income)" })).toBeInTheDocument();

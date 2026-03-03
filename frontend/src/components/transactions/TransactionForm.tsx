@@ -110,10 +110,10 @@ export default function TransactionForm({
             required={!isEdit}
           />
         </label>
-        <label className="min-w-0 space-y-1 text-sm">
+        <label className="min-w-0 w-full space-y-1 text-sm">
           <span>Date</span>
           <input
-            className="field-date-input"
+            className="field-date-input w-full"
             type="date"
             value={state.date}
             onChange={(event) => onFieldChange("date", event.target.value)}

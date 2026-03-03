@@ -22,6 +22,11 @@ The frontend SHALL render native `input[type="date"]` and `input[type="month"]` 
 - **THEN** intrinsic date/month control width behavior SHALL remain visually bounded
 - **AND** responsive layout integrity SHALL remain consistent across those browsers.
 
+#### Scenario: iOS WebKit container-level overflow remains bounded
+- **WHEN** date/month controls are rendered on iOS Safari, iOS Chrome, and iOS Brave
+- **THEN** the input element SHALL NOT overflow its immediate label/container bounds
+- **AND** modal/grid wrapper containers SHALL remain horizontally stable while editing values.
+
 ### Requirement: Shared date field styling SHALL be reusable across pages and modals
 The frontend SHALL use one shared date/month field styling contract so all date selectors inherit the same overflow protections.
 
@@ -34,3 +39,18 @@ The frontend SHALL use one shared date/month field styling contract so all date 
 - **WHEN** transaction or budget forms render date/month inputs inside modal dialogs
 - **THEN** each control SHALL use the shared date field style contract
 - **AND** modal content SHALL remain horizontally stable during interaction.
+
+#### Scenario: Mobile WebKit date value element is width-bounded
+- **WHEN** mobile WebKit browsers render localized date text via `::-webkit-date-and-time-value`
+- **THEN** the rendered value container SHALL resolve to the available input width
+- **AND** rendered date text SHALL avoid causing horizontal overflow in its parent container.
+
+#### Scenario: Date field wrappers participate in width resolution
+- **WHEN** native date/month controls render inside grid or modal form wrappers
+- **THEN** wrapper containers SHALL provide full-width layout constraints to child date/month controls
+- **AND** width resolution SHALL remain deterministic across page and modal contexts.
+
+#### Scenario: Localized long date values remain container-safe on iOS
+- **WHEN** iOS WebKit renders long localized date/month strings
+- **THEN** rendered value text SHALL remain clipped or fitted within the input and wrapper constraints
+- **AND** neither the field container nor modal/page section SHALL introduce horizontal overflow.

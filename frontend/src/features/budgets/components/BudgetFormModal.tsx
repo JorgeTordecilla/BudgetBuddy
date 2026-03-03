@@ -56,11 +56,11 @@ export default function BudgetFormModal({
       onSubmit={onSubmit}
     >
       <div className="grid gap-3 overflow-x-hidden">
-        <label className="min-w-0 space-y-1 text-sm">
+        <label className="min-w-0 w-full space-y-1 text-sm">
           <span>Month</span>
           <input
             type="month"
-            className={`field-date-input ${fieldErrors.month ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+            className={`field-date-input w-full ${fieldErrors.month ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.month}
             onChange={(event) => onFieldChange("month", event.target.value)}
             aria-invalid={Boolean(fieldErrors.month)}

@@ -19,6 +19,12 @@ describe("global mobile-safe form styles", () => {
     expect(css).toContain(".field-date-input");
     expect(css).toContain("input[type=\"date\"]::-webkit-datetime-edit-fields-wrapper");
     expect(css).toContain("input[type=\"month\"]::-webkit-datetime-edit-fields-wrapper");
+    expect(css).toContain("input[type=\"date\"]::-webkit-date-and-time-value");
+    expect(css).toContain("input[type=\"month\"]::-webkit-date-and-time-value");
+    expect(css).toContain("width: 100%;");
+    expect(css).toContain("text-overflow: ellipsis;");
+    expect(css).toContain("white-space: nowrap;");
+    expect(css).toContain("box-sizing: border-box;");
     expect(css).toContain("min-inline-size: 0;");
     expect(css).toContain("max-inline-size: 100%;");
   });

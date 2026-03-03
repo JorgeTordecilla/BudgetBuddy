@@ -333,7 +333,10 @@ describe("shared components", () => {
     expect(screen.getByRole("option", { name: "Food" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Salary" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Amount (cents)")).toHaveClass("field-input");
-    expect(screen.getByLabelText("Date")).toHaveClass("field-date-input");
+    const dateInput = screen.getByLabelText("Date");
+    expect(dateInput).toHaveClass("field-date-input");
+    expect(dateInput).toHaveClass("w-full");
+    expect(dateInput.closest("label")).toHaveClass("w-full");
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "income" } });
     expect(onFieldChange).toHaveBeenCalledWith("type", "income");
   });

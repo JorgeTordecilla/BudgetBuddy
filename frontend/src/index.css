@@ -80,14 +80,25 @@ input[type="date"] {
   inline-size: 100%;
   max-width: 100%;
   max-inline-size: 100%;
+  box-sizing: border-box;
 }
 
 input[type="date"]::-webkit-datetime-edit,
-input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-input[type="date"]::-webkit-date-and-time-value {
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
   min-width: 0;
   min-inline-size: 0;
   overflow: hidden;
+  padding: 0;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  width: 100%;
+  inline-size: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 input[type="month"] {
@@ -96,14 +107,25 @@ input[type="month"] {
   inline-size: 100%;
   max-width: 100%;
   max-inline-size: 100%;
+  box-sizing: border-box;
 }
 
 input[type="month"]::-webkit-datetime-edit,
-input[type="month"]::-webkit-datetime-edit-fields-wrapper,
-input[type="month"]::-webkit-date-and-time-value {
+input[type="month"]::-webkit-datetime-edit-fields-wrapper {
   min-width: 0;
   min-inline-size: 0;
   overflow: hidden;
+  padding: 0;
+}
+
+input[type="month"]::-webkit-date-and-time-value {
+  width: 100%;
+  inline-size: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @layer utilities {

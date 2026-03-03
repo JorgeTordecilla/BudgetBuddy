@@ -15,8 +15,19 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] }
+      name: "desktop-chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /mobile-.*\.spec\.ts/
+    },
+    {
+      name: "mobile-chromium",
+      use: { ...devices["Pixel 7"] },
+      testMatch: /mobile-.*\.spec\.ts/
+    },
+    {
+      name: "mobile-webkit",
+      use: { ...devices["iPhone 13"], browserName: "webkit" },
+      testMatch: /mobile-.*\.spec\.ts/
     }
   ],
   webServer: externalBaseUrl
