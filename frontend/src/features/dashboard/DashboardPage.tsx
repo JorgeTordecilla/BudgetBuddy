@@ -198,11 +198,11 @@ export default function DashboardPage() {
   return (
     <section className="relative mx-auto w-full max-w-6xl space-y-4 overflow-hidden pb-3 sm:space-y-5">
       <PageHeader title="Dashboard" description="Current month health snapshot with actionable alerts and quick execution flows.">
-        <div className="flex w-full flex-wrap items-center gap-2 text-sm text-muted-foreground sm:w-auto sm:gap-3">
-          <label className="inline-flex items-center gap-2">
-            <span>Month</span>
+        <div className="grid w-full grid-cols-1 gap-2 text-sm text-muted-foreground sm:w-auto sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+          <label className="min-w-0 space-y-1">
+            <span className="block">Month</span>
             <select
-              className="min-h-10 rounded-lg border border-border/70 bg-background/90 px-3 py-2 text-sm shadow-sm outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="field-select"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
               aria-label="Dashboard month"

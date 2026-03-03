@@ -206,7 +206,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0">
+    <div className="min-h-screen pb-[calc(8.75rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border/50 bg-card/70 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6">
           {isDesktop ? (
@@ -259,7 +259,7 @@ export default function AppShell() {
 
       {!isDesktop ? (
         <nav
-          className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-border/80 bg-card/95 p-2 shadow-lg backdrop-blur"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-border/80 bg-card/95 p-2 shadow-lg backdrop-blur"
           aria-label="Main"
         >
           <div className="grid grid-cols-5 gap-1">

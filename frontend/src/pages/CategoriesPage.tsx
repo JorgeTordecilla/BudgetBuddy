@@ -287,9 +287,9 @@ export default function CategoriesPage() {
   return (
     <section className="space-y-4">
       <PageHeader title="Categories" description="Manage income and expense category configuration." actionLabel="New category" onAction={openCreateModal}>
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <label className="inline-flex items-center gap-2">
-            <span>Type</span>
+        <div className="grid w-full grid-cols-1 gap-3 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:items-end sm:gap-4">
+          <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
+            <span className="block">Type</span>
             <select
               className="field-select"
               value={typeFilter}
@@ -300,7 +300,7 @@ export default function CategoriesPage() {
               <option value="expense">expense</option>
             </select>
           </label>
-          <label className="inline-flex items-center gap-2">
+          <label className="inline-flex min-w-0 items-center gap-2">
             <input
               type="checkbox"
               checked={includeArchived}
@@ -369,8 +369,8 @@ export default function CategoriesPage() {
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       >
-        <div className="grid gap-3">
-          <label className="space-y-1 text-sm">
+        <div className="grid gap-3 overflow-x-hidden">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Name</span>
             <input
               className="field-input"
@@ -379,7 +379,7 @@ export default function CategoriesPage() {
               required
             />
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Type</span>
             <select
               className="field-select"
@@ -391,7 +391,7 @@ export default function CategoriesPage() {
               <option value="expense">expense</option>
             </select>
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Note</span>
             <textarea
               className="field-textarea"

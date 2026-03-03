@@ -55,8 +55,8 @@ export default function TransactionForm({
       onClose={onClose}
       onSubmit={onSubmit}
     >
-      <div className="grid gap-3">
-        <label className="space-y-1 text-sm">
+      <div className="grid gap-3 overflow-x-hidden">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Type</span>
           <select
             className="field-select"
@@ -67,7 +67,7 @@ export default function TransactionForm({
             <option value="income">income</option>
           </select>
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Account</span>
           <select
             className="field-select"
@@ -84,7 +84,7 @@ export default function TransactionForm({
             ))}
           </select>
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Category</span>
           <select
             className="field-select"
@@ -101,7 +101,7 @@ export default function TransactionForm({
             ))}
           </select>
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Amount (cents)</span>
           <input
             className="field-input"
@@ -110,7 +110,7 @@ export default function TransactionForm({
             required={!isEdit}
           />
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Date</span>
           <input
             className="field-input"
@@ -120,7 +120,7 @@ export default function TransactionForm({
             required={!isEdit}
           />
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Merchant</span>
           <input
             className="field-input"
@@ -128,7 +128,7 @@ export default function TransactionForm({
             onChange={(event) => onFieldChange("merchant", event.target.value)}
           />
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Note</span>
           <textarea
             className="field-textarea"

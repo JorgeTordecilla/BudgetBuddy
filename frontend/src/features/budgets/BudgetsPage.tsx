@@ -359,9 +359,9 @@ export default function BudgetsPage() {
         actionLabel="New budget"
         onAction={openCreateModal}
       >
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <label className="inline-flex items-center gap-2">
-            <span>From</span>
+        <div className="grid w-full grid-cols-1 gap-3 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:items-end">
+          <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
+            <span className="block">From</span>
             <input
               type="month"
               className="field-input"
@@ -370,8 +370,8 @@ export default function BudgetsPage() {
               aria-label="From month"
             />
           </label>
-          <label className="inline-flex items-center gap-2">
-            <span>To</span>
+          <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
+            <span className="block">To</span>
             <input
               type="month"
               className="field-input"
@@ -380,7 +380,7 @@ export default function BudgetsPage() {
               aria-label="To month"
             />
           </label>
-          <Button type="button" variant="outline" onClick={applyRange}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={applyRange}>
             Apply
           </Button>
         </div>

@@ -85,3 +85,8 @@ The app shell SHALL present a consistent visual hierarchy for title, contextual 
 - **WHEN** a user on a mobile viewport opens and closes the virtual keyboard while interacting with `/login` or `/register`
 - **THEN** the layout SHALL return to a stable viewport-aligned position
 - **AND** the page SHALL NOT remain in an unintended zoomed visual state
+
+#### Scenario: Fixed mobile navigation preserves page reachability
+- **WHEN** fixed bottom navigation and floating transaction action controls are present on mobile routes
+- **THEN** app shell spacing SHALL account for safe-area insets and fixed control stack height
+- **AND** bottom page content and interactive controls SHALL remain reachable without being obscured.
