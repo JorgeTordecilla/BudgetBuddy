@@ -60,7 +60,7 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-[100svh] items-center justify-center p-6 md:min-h-screen">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create your BudgetBuddy account</CardTitle>
@@ -69,7 +69,7 @@ export default function Register() {
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
               name="username"
               placeholder="Username"
               value={username}
@@ -78,7 +78,7 @@ export default function Register() {
               required
             />
             <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
               name="password"
               type="password"
               placeholder="Password"
@@ -88,7 +88,7 @@ export default function Register() {
               required
             />
             <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
               name="confirmPassword"
               type="password"
               placeholder="Confirm password"
@@ -100,7 +100,7 @@ export default function Register() {
             <label className="block space-y-1 text-sm">
               <span className="text-muted-foreground">Currency</span>
               <select
-                className="w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
                 value={currencyCode}
                 onChange={(event) => setCurrencyCode(event.target.value as (typeof CURRENCIES)[number])}
                 required

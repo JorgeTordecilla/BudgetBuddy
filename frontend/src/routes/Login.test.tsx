@@ -16,6 +16,41 @@ import Login from "@/routes/Login";
 const apiClientStub = {} as ApiClient;
 
 describe("Login route", () => {
+  it("uses mobile-safe auth container and input classes", async () => {
+    render(
+      <AuthContext.Provider
+        value={{
+          apiClient: apiClientStub,
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isBootstrapping: false,
+          login: async () => undefined,
+          register: async () => undefined,
+          logout: async () => undefined,
+          bootstrapSession: async () => false
+        }}
+      >
+        <MemoryRouter initialEntries={["/login"]}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    const username = await screen.findByPlaceholderText("Username");
+    const page = username.closest("div.flex");
+    expect(page).toHaveClass("min-h-[100svh]");
+    expect(page).toHaveClass("md:min-h-screen");
+
+    const password = screen.getByPlaceholderText("Password");
+    expect(username).toHaveClass("text-base");
+    expect(username).toHaveClass("md:text-sm");
+    expect(password).toHaveClass("text-base");
+    expect(password).toHaveClass("md:text-sm");
+  });
+
   it("shows full-screen session loader before bootstrap attempt completes", async () => {
     const bootstrapSession = vi.fn(
       () =>
@@ -167,5 +202,3 @@ describe("Login route", () => {
     expect(screen.queryByText(/API base:/)).not.toBeInTheDocument();
   });
 });
-
-

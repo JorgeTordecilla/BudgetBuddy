@@ -75,8 +75,13 @@ The frontend SHALL provide persistent, thumb-friendly primary navigation for aut
 - **THEN** the UI shows persistent primary navigation that allows direct access to Dashboard, Analytics, Accounts, Categories, Budgets, and Transactions without relying on wrapped header links
 
 ### Requirement: Responsive app shell hierarchy
-The app shell SHALL present a consistent visual hierarchy for title, contextual actions, and navigation across mobile, tablet, and desktop breakpoints.
+The app shell SHALL present a consistent visual hierarchy for title, contextual actions, and navigation across mobile, tablet, and desktop breakpoints, including keyboard-driven viewport transitions on mobile.
 
 #### Scenario: Shell layout at breakpoint transitions
 - **WHEN** the viewport changes between mobile, tablet, and desktop widths
 - **THEN** shell content reflows without overlap, clipped controls, or hidden primary actions
+
+#### Scenario: Mobile auth layout remains stable around virtual keyboard transitions
+- **WHEN** a user on a mobile viewport opens and closes the virtual keyboard while interacting with `/login` or `/register`
+- **THEN** the layout SHALL return to a stable viewport-aligned position
+- **AND** the page SHALL NOT remain in an unintended zoomed visual state

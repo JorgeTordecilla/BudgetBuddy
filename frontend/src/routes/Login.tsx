@@ -75,7 +75,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-[100svh] items-center justify-center p-6 md:min-h-screen">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome to BudgetBuddy</CardTitle>
@@ -84,7 +84,7 @@ export default function Login() {
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
               name="username"
               placeholder="Username"
               value={username}
@@ -93,7 +93,7 @@ export default function Login() {
               required
             />
             <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-base md:text-sm"
               name="password"
               type="password"
               placeholder="Password"
