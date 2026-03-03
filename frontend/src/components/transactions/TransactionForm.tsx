@@ -2,8 +2,11 @@ import type { FormEvent } from "react";
 
 import type { Account, Category, TransactionType } from "@/api/types";
 import DatePickerField from "@/components/DatePickerField";
+import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ModalForm from "@/components/ModalForm";
+import { Input } from "@/ui/input";
+import { Textarea } from "@/ui/textarea";
 
 export type TransactionFormState = {
   type: TransactionType;
@@ -59,52 +62,43 @@ export default function TransactionForm({
       <div className="grid gap-3 overflow-x-hidden">
         <label className="min-w-0 space-y-1 text-sm">
           <span>Type</span>
-          <select
-            className="field-select"
+          <SelectField
+            ariaLabel="Type"
             value={state.type}
-            onChange={(event) => onFieldChange("type", event.target.value)}
-          >
-            <option value="expense">expense</option>
-            <option value="income">income</option>
-          </select>
+            onChange={(value) => onFieldChange("type", value)}
+            options={[
+              { value: "expense", label: "expense" },
+              { value: "income", label: "income" }
+            ]}
+          />
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Account</span>
-          <select
-            className="field-select"
+          <SelectField
+            ariaLabel="Account"
             value={state.accountId}
-            onChange={(event) => onFieldChange("accountId", event.target.value)}
-          >
-            <option value="" disabled>
-              Select account
-            </option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => onFieldChange("accountId", value)}
+            options={[
+              { value: "", label: "Select account", disabled: true },
+              ...accounts.map((account) => ({ value: account.id, label: account.name }))
+            ]}
+          />
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Category</span>
-          <select
-            className="field-select"
+          <SelectField
+            ariaLabel="Category"
             value={state.categoryId}
-            onChange={(event) => onFieldChange("categoryId", event.target.value)}
-          >
-            <option value="" disabled>
-              Select category
-            </option>
-            {visibleCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => onFieldChange("categoryId", value)}
+            options={[
+              { value: "", label: "Select category", disabled: true },
+              ...visibleCategories.map((category) => ({ value: category.id, label: category.name }))
+            ]}
+          />
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Amount (cents)</span>
-          <input
+          <Input
             className="field-input"
             value={state.amountCents}
             onChange={(event) => onFieldChange("amountCents", event.target.value)}
@@ -122,7 +116,7 @@ export default function TransactionForm({
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Merchant</span>
-          <input
+          <Input
             className="field-input"
             value={state.merchant}
             onChange={(event) => onFieldChange("merchant", event.target.value)}
@@ -130,7 +124,7 @@ export default function TransactionForm({
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           <span>Note</span>
-          <textarea
+          <Textarea
             className="field-input h-10 min-h-10 resize-none"
             value={state.note}
             onChange={(event) => onFieldChange("note", event.target.value)}

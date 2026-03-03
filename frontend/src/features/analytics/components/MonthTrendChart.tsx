@@ -1,6 +1,7 @@
 import type { AnalyticsByMonthItem } from "@/api/types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Card, CardContent } from "@/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { budgetUsagePercent, formatCents } from "@/utils/money";
 
 type Props = {
@@ -77,39 +78,37 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
       ) : null}
 
       {isDesktop ? (
-      <div className="overflow-x-auto">
-        <table className="min-w-[760px] w-full text-sm">
-          <thead className="bg-muted/50 text-left">
-            <tr>
-              <th className="px-3 py-2">Month</th>
-              <th className="px-3 py-2 text-right">Income</th>
-              <th className="px-3 py-2 text-right">Expense</th>
-              <th className="px-3 py-2 text-right">Net</th>
-              <th className="px-3 py-2 text-right">Budget spent</th>
-              <th className="px-3 py-2 text-right">Budget limit</th>
-              <th className="px-3 py-2 text-right">% used</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="min-w-[760px]">
+          <TableHeader className="bg-muted/50 text-left">
+            <TableRow>
+              <TableHead className="px-3 py-2">Month</TableHead>
+              <TableHead className="px-3 py-2 text-right">Income</TableHead>
+              <TableHead className="px-3 py-2 text-right">Expense</TableHead>
+              <TableHead className="px-3 py-2 text-right">Net</TableHead>
+              <TableHead className="px-3 py-2 text-right">Budget spent</TableHead>
+              <TableHead className="px-3 py-2 text-right">Budget limit</TableHead>
+              <TableHead className="px-3 py-2 text-right">% used</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {items.map((item) => {
               const spent = item.budget_spent_cents ?? 0;
               const limit = item.budget_limit_cents ?? 0;
               const usage = budgetUsagePercent(spent, limit);
               return (
-                <tr key={item.month} className="border-t">
-                  <td className="px-3 py-2">{item.month}</td>
-                  <td className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents)}</td>
-                  <td className="px-3 py-2 text-right">{formatCents(currencyCode, item.expense_total_cents)}</td>
-                  <td className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</td>
-                  <td className="px-3 py-2 text-right">{showBudgetOverlay ? formatCents(currencyCode, spent) : "-"}</td>
-                  <td className="px-3 py-2 text-right">{showBudgetOverlay && limit > 0 ? formatCents(currencyCode, limit) : "No budget"}</td>
-                  <td className="px-3 py-2 text-right">{showBudgetOverlay && usage !== null ? `${usage}%` : "No budget"}</td>
-                </tr>
+                <TableRow key={item.month}>
+                  <TableCell className="px-3 py-2">{item.month}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents)}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.expense_total_cents)}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{showBudgetOverlay ? formatCents(currencyCode, spent) : "-"}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{showBudgetOverlay && limit > 0 ? formatCents(currencyCode, limit) : "No budget"}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{showBudgetOverlay && usage !== null ? `${usage}%` : "No budget"}</TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
       ) : null}
     </div>
   );

@@ -3,7 +3,7 @@
 Define a baseline accessibility contract for frontend modal and dialog primitives across keyboard interaction, focus management, ARIA semantics, and responsive usability.
 ## Requirements
 ### Requirement: Shared modal and dialog primitives MUST be keyboard accessible
-Frontend modal and dialog components SHALL implement deterministic keyboard navigation and ARIA semantics.
+Frontend modal and dialog components SHALL implement deterministic keyboard navigation and ARIA semantics using shared shadcn `Dialog` and `AlertDialog` primitives.
 
 #### Scenario: Dialog traps focus while open
 - **WHEN** a modal or dialog opens
@@ -19,6 +19,11 @@ Frontend modal and dialog components SHALL implement deterministic keyboard navi
 - **WHEN** user presses `Escape` in a dismissible dialog
 - **THEN** dialog SHALL close
 - **AND** non-dismissible/confirming states SHALL block close with clear UX behavior.
+
+#### Scenario: Confirmation dialogs use alert semantics
+- **WHEN** a destructive or confirm-required action is presented
+- **THEN** the UI SHALL expose alert-dialog semantics compatible with assistive technology
+- **AND** explicit cancel/confirm actions SHALL remain available and keyboard operable.
 
 ### Requirement: Modal behavior MUST remain usable across responsive breakpoints
 Modal and dialog layouts SHALL remain accessible and readable on mobile and desktop, including during virtual keyboard open/close transitions.

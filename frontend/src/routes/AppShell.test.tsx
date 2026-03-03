@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -288,7 +288,8 @@ describe("AppShell", () => {
     fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1200" } });
     fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-28" } });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Create transaction" })[1]);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create transaction" }));
 
     await waitFor(() => {
       expect(createTransaction).toHaveBeenCalledTimes(1);
@@ -444,4 +445,3 @@ describe("AppShell", () => {
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 });
-

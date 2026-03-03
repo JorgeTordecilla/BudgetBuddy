@@ -5,6 +5,7 @@ import type { AnalyticsByCategoryItem } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
+import SelectField from "@/components/SelectField";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import {
   currentLocalMonth,
@@ -201,18 +202,12 @@ export default function DashboardPage() {
         <div className="grid w-full grid-cols-1 gap-2 text-sm text-muted-foreground sm:w-auto sm:flex sm:flex-wrap sm:items-end sm:gap-3">
           <label className="min-w-0 space-y-1">
             <span className="block">Month</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Dashboard month"
               value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              aria-label="Dashboard month"
-            >
-              {monthOptions.map((month) => (
-                <option key={month} value={month}>
-                  {month}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedMonth}
+              options={monthOptions.map((month) => ({ value: month, label: month }))}
+            />
           </label>
         </div>
       </PageHeader>

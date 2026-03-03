@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -201,7 +201,8 @@ describe("TransactionsPage", () => {
     await screen.findByText("Market");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[1]!);
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     await waitFor(() => expect(archiveTransaction).toHaveBeenCalledWith(apiClientStub, "t1"));
     expect(await screen.findByText("No transactions found.")).toBeInTheDocument();

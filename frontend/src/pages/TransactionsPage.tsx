@@ -23,6 +23,7 @@ import type {
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DatePickerField from "@/components/DatePickerField";
+import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import PageHeader from "@/components/PageHeader";
@@ -39,6 +40,7 @@ import {
 } from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { defaultAnalyticsRange } from "@/utils/dates";
 import { downloadBlob, resolveCsvFilename } from "@/utils/download";
 
@@ -682,60 +684,55 @@ export default function TransactionsPage() {
           </label>
           <label className="min-w-0 space-y-1">
             <span className="block">Type</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Type"
               value={filters.type}
-              onChange={(event) =>
+              onChange={(value) =>
                 setFilters((previous) => ({
                   ...previous,
-                  type: event.target.value as TransactionType | "all"
+                  type: value as TransactionType | "all"
                 }))
               }
-            >
-              <option value="all">All</option>
-              <option value="income">income</option>
-              <option value="expense">expense</option>
-            </select>
+              options={[
+                { value: "all", label: "All" },
+                { value: "income", label: "income" },
+                { value: "expense", label: "expense" }
+              ]}
+            />
           </label>
           <label className="min-w-0 space-y-1">
             <span className="block">Account</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Account"
               value={filters.accountId}
-              onChange={(event) =>
+              onChange={(value) =>
                 setFilters((previous) => ({
                   ...previous,
-                  accountId: event.target.value
+                  accountId: value
                 }))
               }
-            >
-              <option value="">All</option>
-              {accountOptions.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "All" },
+                ...accountOptions.map((account) => ({ value: account.id, label: account.name }))
+              ]}
+            />
           </label>
           <label className="min-w-0 space-y-1">
             <span className="block">Category</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Category"
               value={filters.categoryId}
-              onChange={(event) =>
+              onChange={(value) =>
                 setFilters((previous) => ({
                   ...previous,
-                  categoryId: event.target.value
+                  categoryId: value
                 }))
               }
-            >
-              <option value="">All</option>
-              {categoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "All" },
+                ...categoryOptions.map((category) => ({ value: category.id, label: category.name }))
+              ]}
+            />
           </label>
           <label className="min-w-0 space-y-1">
             <span className="block opacity-0">Options</span>
@@ -774,20 +771,20 @@ export default function TransactionsPage() {
               {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
               {isDesktop ? (
                 <div className="overflow-x-auto">
-                <table className="min-w-[760px] w-full text-sm">
-                  <thead className="bg-muted/50 text-left">
-                    <tr>
-                      <th className="px-3 py-2">Date</th>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2 text-right">Amount cents</th>
-                      <th className="px-3 py-2">Merchant</th>
-                      <th className="px-3 py-2">Note</th>
-                      <th className="px-3 py-2">State</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>{rows}</tbody>
-                </table>
+                  <Table className="min-w-[760px]">
+                    <TableHeader className="bg-muted/50 text-left">
+                      <TableRow>
+                        <TableHead className="px-3 py-2">Date</TableHead>
+                        <TableHead className="px-3 py-2">Type</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Amount cents</TableHead>
+                        <TableHead className="px-3 py-2">Merchant</TableHead>
+                        <TableHead className="px-3 py-2">Note</TableHead>
+                        <TableHead className="px-3 py-2">State</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{rows}</TableBody>
+                  </Table>
                 </div>
               ) : null}
             </div>

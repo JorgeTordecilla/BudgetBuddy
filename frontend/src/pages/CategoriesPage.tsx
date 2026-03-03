@@ -13,6 +13,7 @@ import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModalForm from "@/components/ModalForm";
 import PageHeader from "@/components/PageHeader";
+import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ProblemBanner from "@/components/ProblemBanner";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
@@ -20,6 +21,9 @@ import { appendCursorPage } from "@/lib/pagination";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { Input } from "@/ui/input";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
+import { Textarea } from "@/ui/textarea";
 
 type CategoryFormState = {
   name: string;
@@ -294,15 +298,16 @@ export default function CategoriesPage() {
         <div className="grid w-full grid-cols-1 gap-3 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:items-end sm:gap-4">
           <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="block">Type</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Type"
               value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as CategoryType | "all")}
-            >
-              <option value="all">All</option>
-              <option value="income">income</option>
-              <option value="expense">expense</option>
-            </select>
+              onChange={(value) => setTypeFilter(value as CategoryType | "all")}
+              options={[
+                { value: "all", label: "All" },
+                { value: "income", label: "income" },
+                { value: "expense", label: "expense" }
+              ]}
+            />
           </label>
           <label className="inline-flex min-w-0 items-center gap-2">
             <input
@@ -328,18 +333,18 @@ export default function CategoriesPage() {
               {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
               {isDesktop ? (
                 <div className="overflow-x-auto">
-                <table className="min-w-[620px] w-full text-sm">
-                  <thead className="bg-muted/50 text-left">
-                    <tr>
-                      <th className="px-3 py-2">Name</th>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2">Note</th>
-                      <th className="px-3 py-2">State</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>{tableRows}</tbody>
-                </table>
+                  <Table className="min-w-[620px]">
+                    <TableHeader className="bg-muted/50 text-left">
+                      <TableRow>
+                        <TableHead className="px-3 py-2">Name</TableHead>
+                        <TableHead className="px-3 py-2">Type</TableHead>
+                        <TableHead className="px-3 py-2">Note</TableHead>
+                        <TableHead className="px-3 py-2">State</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{tableRows}</TableBody>
+                  </Table>
                 </div>
               ) : null}
             </div>
@@ -376,7 +381,7 @@ export default function CategoriesPage() {
         <div className="grid gap-3 overflow-x-hidden">
           <label className="min-w-0 space-y-1 text-sm">
             <span>Name</span>
-            <input
+            <Input
               className="field-input"
               value={formState.name}
               onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
@@ -385,19 +390,20 @@ export default function CategoriesPage() {
           </label>
           <label className="min-w-0 space-y-1 text-sm">
             <span>Type</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Type"
               value={formState.type}
-              onChange={(event) => setFormState((prev) => ({ ...prev, type: event.target.value as CategoryType }))}
+              onChange={(value) => setFormState((prev) => ({ ...prev, type: value as CategoryType }))}
               disabled={isEditing}
-            >
-              <option value="income">income</option>
-              <option value="expense">expense</option>
-            </select>
+              options={[
+                { value: "income", label: "income" },
+                { value: "expense", label: "expense" }
+              ]}
+            />
           </label>
           <label className="min-w-0 space-y-1 text-sm">
             <span>Note</span>
-            <textarea
+            <Textarea
               className="field-textarea"
               value={formState.note}
               onChange={(event) => setFormState((prev) => ({ ...prev, note: event.target.value }))}

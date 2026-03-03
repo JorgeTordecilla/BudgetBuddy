@@ -8,6 +8,7 @@ import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModalForm from "@/components/ModalForm";
 import PageHeader from "@/components/PageHeader";
+import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ProblemBanner from "@/components/ProblemBanner";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
@@ -15,6 +16,9 @@ import { appendCursorPage } from "@/lib/pagination";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { Input } from "@/ui/input";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
+import { Textarea } from "@/ui/textarea";
 
 type AccountFormState = {
   name: string;
@@ -288,19 +292,19 @@ export default function AccountsPage() {
               {!isDesktop ? <ul className="space-y-3">{mobileCards}</ul> : null}
               {isDesktop ? (
                 <div className="overflow-x-auto">
-                <table className="min-w-[680px] w-full text-sm">
-                  <thead className="bg-muted/50 text-left">
-                    <tr>
-                      <th className="px-3 py-2">Name</th>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2 text-right">Initial cents</th>
-                      <th className="px-3 py-2">Note</th>
-                      <th className="px-3 py-2">State</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>{tableRows}</tbody>
-                </table>
+                  <Table className="min-w-[680px]">
+                    <TableHeader className="bg-muted/50 text-left">
+                      <TableRow>
+                        <TableHead className="px-3 py-2">Name</TableHead>
+                        <TableHead className="px-3 py-2">Type</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Initial cents</TableHead>
+                        <TableHead className="px-3 py-2">Note</TableHead>
+                        <TableHead className="px-3 py-2">State</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{tableRows}</TableBody>
+                  </Table>
                 </div>
               ) : null}
             </div>
@@ -337,7 +341,7 @@ export default function AccountsPage() {
         <div className="grid gap-3 overflow-x-hidden">
           <label className="min-w-0 space-y-1 text-sm">
             <span>Name</span>
-            <input
+            <Input
               className="field-input"
               value={formState.name}
               onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
@@ -346,20 +350,21 @@ export default function AccountsPage() {
           </label>
           <label className="min-w-0 space-y-1 text-sm">
             <span>Type</span>
-            <select
-              className="field-select"
+            <SelectField
+              ariaLabel="Type"
               value={formState.type}
-              onChange={(event) => setFormState((prev) => ({ ...prev, type: event.target.value as AccountType }))}
-            >
-              <option value="cash">cash</option>
-              <option value="debit">debit</option>
-              <option value="credit">credit</option>
-              <option value="bank">bank</option>
-            </select>
+              onChange={(value) => setFormState((prev) => ({ ...prev, type: value as AccountType }))}
+              options={[
+                { value: "cash", label: "cash" },
+                { value: "debit", label: "debit" },
+                { value: "credit", label: "credit" },
+                { value: "bank", label: "bank" }
+              ]}
+            />
           </label>
           <label className="min-w-0 space-y-1 text-sm">
             <span>Initial balance (cents)</span>
-            <input
+            <Input
               className="field-input"
               value={formState.initialBalanceCents}
               onChange={(event) => setFormState((prev) => ({ ...prev, initialBalanceCents: event.target.value }))}
@@ -368,7 +373,7 @@ export default function AccountsPage() {
           </label>
           <label className="min-w-0 space-y-1 text-sm">
             <span>Note</span>
-            <textarea
+            <Textarea
               className="field-textarea"
               value={formState.note}
               onChange={(event) => setFormState((prev) => ({ ...prev, note: event.target.value }))}

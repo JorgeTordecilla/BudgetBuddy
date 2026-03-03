@@ -11,6 +11,8 @@ import { parseImportInput } from "@/features/transactions/import/parseImportInpu
 import { invalidateTransactionsAnalyticsAndBudgets } from "@/features/transactions/transactionCache";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
+import { Textarea } from "@/ui/textarea";
 
 export default function TransactionsImportPage() {
   const { apiClient } = useAuth();
@@ -106,7 +108,7 @@ export default function TransactionsImportPage() {
               <label htmlFor="import-json" className="text-sm font-medium">
                 JSON input
               </label>
-              <textarea
+              <Textarea
                 id="import-json"
                 aria-label="JSON input"
                 value={input}
@@ -157,30 +159,30 @@ export default function TransactionsImportPage() {
 
             {result.failures.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="min-w-[760px] w-full text-sm">
-                  <thead className="bg-muted/50 text-left">
-                    <tr>
-                      <th className="px-3 py-2">Index</th>
-                      <th className="px-3 py-2">Message</th>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2">Title</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Detail</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="min-w-[760px]">
+                  <TableHeader className="bg-muted/50 text-left">
+                    <TableRow>
+                      <TableHead className="px-3 py-2">Index</TableHead>
+                      <TableHead className="px-3 py-2">Message</TableHead>
+                      <TableHead className="px-3 py-2">Type</TableHead>
+                      <TableHead className="px-3 py-2">Title</TableHead>
+                      <TableHead className="px-3 py-2">Status</TableHead>
+                      <TableHead className="px-3 py-2">Detail</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {result.failures.map((failure) => (
-                      <tr key={`${failure.index}-${failure.message}`} className="border-t">
-                        <td className="px-3 py-2">{failure.index}</td>
-                        <td className="px-3 py-2">{failure.message}</td>
-                        <td className="px-3 py-2">{failure.problem?.type ?? "-"}</td>
-                        <td className="px-3 py-2">{failure.problem?.title ?? "-"}</td>
-                        <td className="px-3 py-2">{failure.problem?.status ?? "-"}</td>
-                        <td className="px-3 py-2">{failure.problem?.detail ?? "-"}</td>
-                      </tr>
+                      <TableRow key={`${failure.index}-${failure.message}`}>
+                        <TableCell className="px-3 py-2">{failure.index}</TableCell>
+                        <TableCell className="px-3 py-2">{failure.message}</TableCell>
+                        <TableCell className="px-3 py-2">{failure.problem?.type ?? "-"}</TableCell>
+                        <TableCell className="px-3 py-2">{failure.problem?.title ?? "-"}</TableCell>
+                        <TableCell className="px-3 py-2">{failure.problem?.status ?? "-"}</TableCell>
+                        <TableCell className="px-3 py-2">{failure.problem?.detail ?? "-"}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No row failures.</p>

@@ -373,7 +373,7 @@ describe("BudgetsPage", () => {
     await screen.findByText("2026-03");
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     expect(await screen.findByText("You do not have access to this resource.")).toBeInTheDocument();
@@ -384,7 +384,7 @@ describe("BudgetsPage", () => {
     await screen.findByText("2026-03");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     await waitFor(() => expect(archiveBudget).toHaveBeenCalled());

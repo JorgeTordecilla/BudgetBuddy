@@ -49,11 +49,16 @@ Until HU-FE-02 is implemented, the auth guard MUST always treat users as unauthe
 - **AND** it SHALL allow private routes when refresh/bootstrap succeeds
 
 ### Requirement: UI system baseline is verified in login route
-The frontend MUST initialize Tailwind and shadcn/ui and render baseline components on `/login`.
+The frontend MUST initialize Tailwind and shadcn/ui and render baseline components on `/login`, and authenticated route surfaces MUST compose page actions and data views from shared shadcn primitives.
 
 #### Scenario: Login page uses shadcn primitives
 - **WHEN** a user opens `/login`
 - **THEN** the page SHALL render `Card` and `Button` components generated in the configured shadcn UI path
+
+#### Scenario: Authenticated route actions use shared shadcn controls
+- **WHEN** a user navigates to authenticated routes such as Dashboard, Transactions, Budgets, or Analytics
+- **THEN** page-level actions and form controls SHALL be composed from shared shadcn-based primitives
+- **AND** route behavior and navigation outcomes SHALL remain unchanged.
 
 ### Requirement: API base URL comes from environment configuration
 Frontend code MUST source backend base URL from Vite environment variables through a dedicated config module.

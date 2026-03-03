@@ -110,7 +110,7 @@ describe("shared components", () => {
     expect(nameInput).toHaveFocus();
   });
 
-  it("restores focus to trigger when modal form closes", () => {
+  it("restores focus to trigger when modal form closes", async () => {
     function ModalHarness() {
       const [open, setOpen] = useState(false);
       return (
@@ -138,7 +138,7 @@ describe("shared components", () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(trigger).toHaveFocus();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("hides modal form and dialog when closed", () => {
@@ -175,7 +175,7 @@ describe("shared components", () => {
       />
     );
 
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByRole("alertdialog")).toHaveAttribute("aria-modal", "true");
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -194,11 +194,11 @@ describe("shared components", () => {
       />
     );
 
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("restores focus to trigger when confirm dialog closes", () => {
+  it("restores focus to trigger when confirm dialog closes", async () => {
     function ConfirmHarness() {
       const [open, setOpen] = useState(false);
       return (
@@ -224,7 +224,7 @@ describe("shared components", () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(trigger).toHaveFocus();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("keeps confirm dialog actions visible on narrow viewport", () => {
