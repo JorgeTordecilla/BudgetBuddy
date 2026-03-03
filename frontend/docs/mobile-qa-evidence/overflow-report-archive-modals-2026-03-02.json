@@ -1,0 +1,14 @@
+[
+  {
+    "name": "accounts-modal-archive-confirm",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "hasOverflow": false
+  },
+  {
+    "name": "categories-modal-archive-confirm",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "hasOverflow": false
+  }
+]

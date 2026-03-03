@@ -55,8 +55,8 @@ export default function BudgetFormModal({
       onClose={onClose}
       onSubmit={onSubmit}
     >
-      <div className="grid gap-3">
-        <label className="space-y-1 text-sm">
+      <div className="grid gap-3 overflow-x-hidden">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Month</span>
           <input
             type="month"
@@ -67,7 +67,7 @@ export default function BudgetFormModal({
           />
           {fieldErrors.month ? <p className="text-xs text-destructive">{fieldErrors.month}</p> : null}
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Category</span>
           <select
             className={`field-select ${fieldErrors.categoryId ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
@@ -84,7 +84,7 @@ export default function BudgetFormModal({
           </select>
           {fieldErrors.categoryId ? <p className="text-xs text-destructive">{fieldErrors.categoryId}</p> : null}
         </label>
-        <label className="space-y-1 text-sm">
+        <label className="min-w-0 space-y-1 text-sm">
           <span>Limit</span>
           <input
             className={`field-input ${fieldErrors.limit ? "border-destructive focus-visible:ring-destructive/40" : ""}`}

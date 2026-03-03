@@ -102,7 +102,7 @@ export default function TransactionsImportPage() {
               </label>
             </fieldset>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <label htmlFor="import-json" className="text-sm font-medium">
                 JSON input
               </label>
@@ -126,12 +126,13 @@ export default function TransactionsImportPage() {
               </ul>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={runValidation}>
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={runValidation}>
                 Validate
               </Button>
               <Button
                 type="submit"
+                className="w-full sm:w-auto"
                 disabled={importMutation.isPending || !payload || validationErrors.length > 0}
               >
                 {importMutation.isPending ? "Importing..." : "Import"}

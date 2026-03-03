@@ -91,8 +91,8 @@ export default function AnalyticsPage() {
   return (
     <section className="space-y-4">
       <PageHeader title="Analytics" description="Track monthly trends, category concentration, and budget adherence.">
-        <div className="flex flex-wrap items-end gap-3 text-sm">
-          <label className="space-y-1">
+        <div className="grid w-full grid-cols-1 gap-3 text-sm sm:flex sm:flex-wrap sm:items-end">
+          <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="text-muted-foreground">From</span>
             <input
               type="date"
@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
               aria-label="From date"
             />
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="text-muted-foreground">To</span>
             <input
               type="date"
@@ -112,10 +112,10 @@ export default function AnalyticsPage() {
               aria-label="To date"
             />
           </label>
-          <Button type="button" onClick={applyRange}>
+          <Button type="button" className="w-full sm:w-auto" onClick={applyRange}>
             Apply
           </Button>
-          <label className="inline-flex items-center gap-2 text-muted-foreground">
+          <label className="inline-flex min-w-0 items-center gap-2 text-muted-foreground">
             <input
               type="checkbox"
               checked={showBudgetOverlay}

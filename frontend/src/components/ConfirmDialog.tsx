@@ -56,12 +56,12 @@ export default function ConfirmDialog({
           </CardTitle>
           <CardDescription id={descriptionId}>{description}</CardDescription>
         </CardHeader>
-        <CardContent className="bg-card/98 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:pb-4">
+        <CardContent className="overflow-x-hidden bg-card/98 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:pb-4">
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onCancel} disabled={confirming}>
               Cancel
             </Button>
-            <Button type="button" className="w-full min-w-32 sm:w-auto" onClick={() => void onConfirm()} disabled={confirming}>
+            <Button type="button" className="w-full sm:min-w-32 sm:w-auto" onClick={() => void onConfirm()} disabled={confirming}>
               {confirming ? "Working..." : confirmLabel}
             </Button>
           </div>

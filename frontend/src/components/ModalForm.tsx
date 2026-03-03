@@ -61,7 +61,7 @@ export default function ModalForm({
             {description ? <CardDescription id={descriptionId}>{description}</CardDescription> : null}
           </CardHeader>
 
-          <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <CardContent className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
             <form id={formId} className="space-y-3 pb-2" onSubmit={onSubmit}>
               {children}
             </form>

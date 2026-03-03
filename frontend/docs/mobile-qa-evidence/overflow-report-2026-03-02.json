@@ -1,0 +1,132 @@
+[
+  {
+    "viewport": "pixel7",
+    "checks": [
+      {
+        "name": "dashboard",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "transactions",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "transactions-modal-create",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "analytics",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "budgets",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "budgets-modal-create",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "accounts",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "accounts-modal-create",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "categories",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      },
+      {
+        "name": "categories-modal-create",
+        "scrollWidth": 412,
+        "innerWidth": 412,
+        "hasOverflow": false
+      }
+    ]
+  },
+  {
+    "viewport": "iphone13",
+    "checks": [
+      {
+        "name": "dashboard",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "transactions",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "transactions-modal-create",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "analytics",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "budgets",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "budgets-modal-create",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "accounts",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "accounts-modal-create",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "categories",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      },
+      {
+        "name": "categories-modal-create",
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "hasOverflow": false
+      }
+    ]
+  }
+]

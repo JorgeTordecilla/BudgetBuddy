@@ -601,7 +601,7 @@ export default function TransactionsPage() {
         description="Create, update, restore, and archive transactions with contract-safe behavior."
         actions={(
           <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
-            <Button type="button" size="sm" className="min-w-36" onClick={openCreateModal}>
+            <Button type="button" size="sm" className="hidden min-w-36 sm:inline-flex" onClick={openCreateModal}>
               New transaction
             </Button>
             <div className="relative" ref={moreActionsRef}>
@@ -644,9 +644,9 @@ export default function TransactionsPage() {
         )}
       />
 
-      <div className="surface-panel p-3 sm:p-4">
+      <div className="surface-panel overflow-x-hidden p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block">From</span>
             <input
               type="date"
@@ -661,7 +661,7 @@ export default function TransactionsPage() {
               }
             />
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block">To</span>
             <input
               type="date"
@@ -676,7 +676,7 @@ export default function TransactionsPage() {
               }
             />
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block">Type</span>
             <select
               className="field-select"
@@ -693,7 +693,7 @@ export default function TransactionsPage() {
               <option value="expense">expense</option>
             </select>
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block">Account</span>
             <select
               className="field-select"
@@ -713,7 +713,7 @@ export default function TransactionsPage() {
               ))}
             </select>
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block">Category</span>
             <select
               className="field-select"
@@ -733,9 +733,9 @@ export default function TransactionsPage() {
               ))}
             </select>
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="block opacity-0">Options</span>
-            <span className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
+            <span className="inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
               <input
                 type="checkbox"
                 aria-label="Show archived"

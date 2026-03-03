@@ -261,7 +261,7 @@ export default function AccountsPage() {
   return (
     <section className="space-y-4">
       <PageHeader title="Accounts" description="Manage account setup for transaction tracking." actionLabel="New account" onAction={openCreateModal}>
-        <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+        <label className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={includeArchived}
@@ -330,8 +330,8 @@ export default function AccountsPage() {
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       >
-        <div className="grid gap-3">
-          <label className="space-y-1 text-sm">
+        <div className="grid gap-3 overflow-x-hidden">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Name</span>
             <input
               className="field-input"
@@ -340,7 +340,7 @@ export default function AccountsPage() {
               required
             />
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Type</span>
             <select
               className="field-select"
@@ -353,7 +353,7 @@ export default function AccountsPage() {
               <option value="bank">bank</option>
             </select>
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Initial balance (cents)</span>
             <input
               className="field-input"
@@ -362,7 +362,7 @@ export default function AccountsPage() {
               required
             />
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="min-w-0 space-y-1 text-sm">
             <span>Note</span>
             <textarea
               className="field-textarea"
