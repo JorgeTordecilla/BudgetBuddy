@@ -17,6 +17,45 @@ import Register from "@/routes/Register";
 const apiClientStub = {} as ApiClient;
 
 describe("Register route", () => {
+  it("uses mobile-safe auth container and input classes", () => {
+    render(
+      <AuthContext.Provider
+        value={{
+          apiClient: apiClientStub,
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isBootstrapping: false,
+          login: async () => undefined,
+          register: async () => undefined,
+          logout: async () => undefined,
+          bootstrapSession: async () => false
+        }}
+      >
+        <MemoryRouter initialEntries={["/register"]}>
+          <Routes>
+            <Route path="/register" element={<Register />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    const username = screen.getByPlaceholderText("Username");
+    const page = username.closest("div.flex");
+    expect(page).toHaveClass("min-h-[100svh]");
+    expect(page).toHaveClass("md:min-h-screen");
+
+    const password = screen.getByPlaceholderText("Password");
+    const confirmPassword = screen.getByPlaceholderText("Confirm password");
+    const currency = screen.getByRole("combobox");
+    expect(username).toHaveClass("text-base");
+    expect(password).toHaveClass("text-base");
+    expect(confirmPassword).toHaveClass("text-base");
+    expect(currency).toHaveClass("text-base");
+    expect(username).toHaveClass("md:text-sm");
+    expect(currency).toHaveClass("md:text-sm");
+  });
+
   it("submits registration and redirects to dashboard", async () => {
     const register = vi.fn(async () => undefined);
 

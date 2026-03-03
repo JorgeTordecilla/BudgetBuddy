@@ -53,7 +53,7 @@ export default function ModalForm({
     >
       <div className="flex min-h-full items-start justify-center px-3 py-3 sm:items-center sm:px-4 sm:py-6">
       <Card className="w-full max-w-xl overflow-hidden">
-        <div className="flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col sm:max-h-[min(90dvh,56rem)]">
+        <div className="flex max-h-[calc(100svh-1.5rem)] min-h-0 flex-col sm:max-h-[min(90dvh,56rem)]">
           <CardHeader className="shrink-0 border-b border-border/60 bg-card/95">
             <CardTitle id={titleId} className="text-xl">
               {title}
@@ -61,7 +61,7 @@ export default function ModalForm({
             {description ? <CardDescription id={descriptionId}>{description}</CardDescription> : null}
           </CardHeader>
 
-          <CardContent className="min-h-0 flex-1 overflow-y-auto">
+          <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <form id={formId} className="space-y-3 pb-2" onSubmit={onSubmit}>
               {children}
             </form>

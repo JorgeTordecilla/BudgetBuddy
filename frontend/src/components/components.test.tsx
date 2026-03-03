@@ -51,7 +51,14 @@ describe("shared components", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    const mobileViewportContainer = Array.from(dialog.querySelectorAll("div")).find((element) =>
+      element.className.includes("max-h-[calc(100svh-1.5rem)]")
+    );
+    expect(mobileViewportContainer).toBeTruthy();
+    const contentScrollContainer = dialog.querySelector(".overscroll-contain");
+    expect(contentScrollContainer).toBeTruthy();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -283,6 +290,7 @@ describe("shared components", () => {
 
     expect(screen.getByRole("option", { name: "Food" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Salary" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Amount (cents)")).toHaveClass("field-input");
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "income" } });
     expect(onFieldChange).toHaveBeenCalledWith("type", "income");
   });
