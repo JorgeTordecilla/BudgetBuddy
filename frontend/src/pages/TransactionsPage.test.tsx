@@ -256,15 +256,15 @@ describe("TransactionsPage", () => {
     renderPage();
     await screen.findByText("Market");
 
-    expect(screen.getByLabelText("From")).toHaveClass("field-date-input");
-    expect(screen.getByLabelText("To")).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("From", { selector: "input" })).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("To", { selector: "input" })).toHaveClass("field-date-input");
 
     fireEvent.click(screen.getByRole("button", { name: "New transaction" }));
-    expect(screen.getByLabelText("Date")).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("Date", { selector: "input" })).toHaveClass("field-date-input");
     fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
     fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
     fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1200" } });
-    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-02-20" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
     await waitFor(() =>
@@ -288,7 +288,7 @@ describe("TransactionsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New transaction" }));
     fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
     fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
-    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-02-20" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
     fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
@@ -513,8 +513,8 @@ describe("TransactionsPage", () => {
     renderPage();
     await screen.findByText("Market");
 
-    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-01" } });
-    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-02-01" } });
+    fireEvent.change(screen.getByLabelText("From", { selector: "input" }), { target: { value: "2026-03-01" } });
+    fireEvent.change(screen.getByLabelText("To", { selector: "input" }), { target: { value: "2026-02-01" } });
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
 
     expect(screen.getByText("From date must be on or before To date.")).toBeInTheDocument();

@@ -111,11 +111,11 @@ describe("AnalyticsPage", () => {
     renderPage();
     await screen.findAllByTestId("category-name");
 
-    expect(screen.getByLabelText("From date")).toHaveClass("field-date-input");
-    expect(screen.getByLabelText("To date")).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("From date", { selector: "input" })).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("To date", { selector: "input" })).toHaveClass("field-date-input");
 
-    fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-31" } });
-    fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-01" } });
+    fireEvent.change(screen.getByLabelText("From date", { selector: "input" }), { target: { value: "2026-03-31" } });
+    fireEvent.change(screen.getByLabelText("To date", { selector: "input" }), { target: { value: "2026-03-01" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(screen.getByText("From date must be on or before To date.")).toBeInTheDocument();

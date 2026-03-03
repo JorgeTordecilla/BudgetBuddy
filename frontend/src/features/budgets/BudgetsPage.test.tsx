@@ -107,13 +107,13 @@ describe("BudgetsPage", () => {
     renderPage();
     await screen.findByText("2026-03");
 
-    expect(screen.getByLabelText("From month")).toHaveClass("field-date-input");
-    expect(screen.getByLabelText("To month")).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("From month", { selector: "input" })).toHaveClass("field-date-input");
+    expect(screen.getByLabelText("To month", { selector: "input" })).toHaveClass("field-date-input");
 
     fireEvent.click(screen.getByRole("button", { name: "New budget" }));
 
     const dialog = screen.getByRole("dialog");
-    const monthInput = within(dialog).getByLabelText("Month");
+    const monthInput = within(dialog).getByLabelText("Month", { selector: "input" });
     expect(monthInput).toHaveClass("field-date-input");
     expect(monthInput).toHaveClass("w-full");
     expect(monthInput.closest("label")).toHaveClass("w-full");
@@ -142,8 +142,8 @@ describe("BudgetsPage", () => {
 
     expect(listBudgets).toHaveBeenCalledTimes(1);
 
-    fireEvent.change(screen.getByLabelText("From month"), { target: { value: "2026-01" } });
-    fireEvent.change(screen.getByLabelText("To month"), { target: { value: "2026-04" } });
+    fireEvent.change(screen.getByLabelText("From month", { selector: "input" }), { target: { value: "2026-01" } });
+    fireEvent.change(screen.getByLabelText("To month", { selector: "input" }), { target: { value: "2026-04" } });
 
     await waitFor(() => expect(listBudgets).toHaveBeenCalledTimes(1));
 
@@ -217,8 +217,8 @@ describe("BudgetsPage", () => {
     renderPage();
     await screen.findByText("2026-03");
 
-    fireEvent.change(screen.getByLabelText("From month"), { target: { value: "2026-05" } });
-    fireEvent.change(screen.getByLabelText("To month"), { target: { value: "2026-01" } });
+    fireEvent.change(screen.getByLabelText("From month", { selector: "input" }), { target: { value: "2026-05" } });
+    fireEvent.change(screen.getByLabelText("To month", { selector: "input" }), { target: { value: "2026-01" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
@@ -297,7 +297,7 @@ describe("BudgetsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New budget" }));
 
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Month"), { target: { value: "2026/02" } });
+    fireEvent.change(within(dialog).getByLabelText("Month", { selector: "input" }), { target: { value: "2026/02" } });
     fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "100" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));

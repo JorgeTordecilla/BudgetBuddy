@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 
 import type { Account, Category, TransactionType } from "@/api/types";
+import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ModalForm from "@/components/ModalForm";
 
@@ -112,12 +113,11 @@ export default function TransactionForm({
         </label>
         <label className="min-w-0 w-full space-y-1 text-sm">
           <span>Date</span>
-          <input
-            className="field-date-input w-full"
-            type="date"
+          <DatePickerField
+            mode="date"
+            ariaLabel="Date"
             value={state.date}
-            onChange={(event) => onFieldChange("date", event.target.value)}
-            required={!isEdit}
+            onChange={(value) => onFieldChange("date", value)}
           />
         </label>
         <label className="min-w-0 space-y-1 text-sm">

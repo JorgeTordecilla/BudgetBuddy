@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { ApiProblemError } from "@/api/errors";
 import type { AnalyticsByCategoryItem, AnalyticsByMonthItem } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
+import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
 import { useAnalyticsByCategory, useAnalyticsByMonth } from "@/features/analytics/analyticsQueries";
@@ -94,22 +95,20 @@ export default function AnalyticsPage() {
         <div className="grid w-full grid-cols-1 gap-3 text-sm sm:flex sm:flex-wrap sm:items-end">
           <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="text-muted-foreground">From</span>
-            <input
-              type="date"
-              className="field-date-input"
+            <DatePickerField
+              mode="date"
+              ariaLabel="From date"
               value={draftRange.from}
-              onChange={(event) => setDraftRange((previous) => ({ ...previous, from: event.target.value }))}
-              aria-label="From date"
+              onChange={(value) => setDraftRange((previous) => ({ ...previous, from: value }))}
             />
           </label>
           <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="text-muted-foreground">To</span>
-            <input
-              type="date"
-              className="field-date-input"
+            <DatePickerField
+              mode="date"
+              ariaLabel="To date"
               value={draftRange.to}
-              onChange={(event) => setDraftRange((previous) => ({ ...previous, to: event.target.value }))}
-              aria-label="To date"
+              onChange={(value) => setDraftRange((previous) => ({ ...previous, to: value }))}
             />
           </label>
           <Button type="button" className="w-full sm:w-auto" onClick={applyRange}>

@@ -22,6 +22,7 @@ import type {
 } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import PageHeader from "@/components/PageHeader";
@@ -648,30 +649,28 @@ export default function TransactionsPage() {
         <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
           <label className="min-w-0 space-y-1">
             <span className="block">From</span>
-            <input
-              type="date"
-              aria-label="From"
-              className="field-date-input"
+            <DatePickerField
+              mode="date"
+              ariaLabel="From"
               value={filters.from}
-              onChange={(event) =>
+              onChange={(value) =>
                 setFilters((previous) => ({
                   ...previous,
-                  from: event.target.value
+                  from: value
                 }))
               }
             />
           </label>
           <label className="min-w-0 space-y-1">
             <span className="block">To</span>
-            <input
-              type="date"
-              aria-label="To"
-              className="field-date-input"
+            <DatePickerField
+              mode="date"
+              ariaLabel="To"
               value={filters.to}
-              onChange={(event) =>
+              onChange={(value) =>
                 setFilters((previous) => ({
                   ...previous,
-                  to: event.target.value
+                  to: value
                 }))
               }
             />

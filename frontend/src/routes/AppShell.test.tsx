@@ -286,7 +286,7 @@ describe("AppShell", () => {
     fireEvent.change(screen.getByLabelText("Account"), { target: { value: "a1" } });
     fireEvent.change(screen.getByLabelText("Category"), { target: { value: "c1" } });
     fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1200" } });
-    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-02-28" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-28" } });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Create transaction" })[1]);
 
@@ -444,5 +444,4 @@ describe("AppShell", () => {
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 });
-
 

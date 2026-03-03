@@ -11,21 +11,6 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
 }
 
-async function assertWebkitDateValueBounded(page: Page, selector: string) {
-  const styles = await page.evaluate((inputSelector) => {
-    const input = document.querySelector(inputSelector) as HTMLInputElement | null;
-    if (!input) {
-      return null;
-    }
-    const pseudo = getComputedStyle(input, "::-webkit-date-and-time-value");
-    return {
-      pseudoWidth: pseudo.width
-    };
-  }, selector);
-  expect(styles).not.toBeNull();
-  expect(styles?.pseudoWidth).not.toBe("auto");
-}
-
 type ContainerMetric = {
   role: "input" | "label" | "wrapper";
   scrollWidth: number;
@@ -81,21 +66,18 @@ test.describe("mobile layout resilience", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.waitForURL(/\/app\/dashboard/);
 
-    await page.getByRole("link", { name: "Transactions" }).first().click();
+    await page.goto("/app/transactions");
     await page.waitForURL(/\/app\/transactions/);
-    await expect(page.getByLabel("From")).toHaveClass(/field-date-input/);
-    await expect(page.getByLabel("To")).toHaveClass(/field-date-input/);
-    await assertWebkitDateValueBounded(page, 'input[aria-label="From"]');
-    await assertWebkitDateValueBounded(page, 'input[aria-label="To"]');
+    await expect(page.locator('input[aria-label="From"]')).toHaveClass(/field-date-input/);
+    await expect(page.locator('input[aria-label="To"]')).toHaveClass(/field-date-input/);
     await assertDateContainersBounded(page, 'input[aria-label="From"]');
     await assertDateContainersBounded(page, 'input[aria-label="To"]');
     await assertNoHorizontalOverflow(page);
 
     await page.getByRole("button", { name: "Create transaction" }).first().click();
     await page.getByRole("heading", { name: "Create transaction" }).waitFor();
-    await expect(page.getByLabel("Date")).toHaveClass(/field-date-input/);
-    await assertWebkitDateValueBounded(page, 'input[type="date"]');
-    await assertDateContainersBounded(page, 'input[type="date"]');
+    await expect(page.locator('input[aria-label="Date"]')).toHaveClass(/field-date-input/);
+    await assertDateContainersBounded(page, 'input[aria-label="Date"]');
     await assertNoHorizontalOverflow(page);
     await page.getByRole("button", { name: "Cancel" }).click();
 
@@ -110,31 +92,26 @@ test.describe("mobile layout resilience", () => {
       expect(fabBox.y + fabBox.height).toBeLessThan(navBox.y);
     }
 
-    await page.getByRole("link", { name: "Analytics" }).first().click();
+    await page.goto("/app/analytics");
     await page.waitForURL(/\/app\/analytics/);
-    await expect(page.getByLabel("From date")).toHaveClass(/field-date-input/);
-    await expect(page.getByLabel("To date")).toHaveClass(/field-date-input/);
-    await assertWebkitDateValueBounded(page, 'input[aria-label="From date"]');
-    await assertWebkitDateValueBounded(page, 'input[aria-label="To date"]');
+    await expect(page.locator('input[aria-label="From date"]')).toHaveClass(/field-date-input/);
+    await expect(page.locator('input[aria-label="To date"]')).toHaveClass(/field-date-input/);
     await assertDateContainersBounded(page, 'input[aria-label="From date"]');
     await assertDateContainersBounded(page, 'input[aria-label="To date"]');
     await assertNoHorizontalOverflow(page);
 
-    await page.getByRole("link", { name: "Budgets" }).first().click();
+    await page.goto("/app/budgets");
     await page.waitForURL(/\/app\/budgets/);
-    await expect(page.getByLabel("From month")).toHaveClass(/field-date-input/);
-    await expect(page.getByLabel("To month")).toHaveClass(/field-date-input/);
-    await assertWebkitDateValueBounded(page, 'input[aria-label="From month"]');
-    await assertWebkitDateValueBounded(page, 'input[aria-label="To month"]');
+    await expect(page.locator('input[aria-label="From month"]')).toHaveClass(/field-date-input/);
+    await expect(page.locator('input[aria-label="To month"]')).toHaveClass(/field-date-input/);
     await assertDateContainersBounded(page, 'input[aria-label="From month"]');
     await assertDateContainersBounded(page, 'input[aria-label="To month"]');
     await assertNoHorizontalOverflow(page);
 
     await page.getByRole("button", { name: "New budget" }).click();
     await page.getByRole("heading", { name: "Create budget" }).waitFor();
-    await expect(page.getByLabel("Month", { exact: true })).toHaveClass(/field-date-input/);
-    await assertWebkitDateValueBounded(page, 'input[type="month"][aria-invalid]');
-    await assertDateContainersBounded(page, 'input[type="month"][aria-invalid]');
+    await expect(page.locator('input[aria-label="Month"]')).toHaveClass(/field-date-input/);
+    await assertDateContainersBounded(page, 'input[aria-label="Month"]');
     await assertNoHorizontalOverflow(page);
     await page.getByRole("button", { name: "Cancel" }).click();
   });

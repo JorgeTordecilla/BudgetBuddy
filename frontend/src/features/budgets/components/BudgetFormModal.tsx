@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 
 import type { Category } from "@/api/types";
+import DatePickerField from "@/components/DatePickerField";
 import ModalForm from "@/components/ModalForm";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 
@@ -58,12 +59,12 @@ export default function BudgetFormModal({
       <div className="grid gap-3 overflow-x-hidden">
         <label className="min-w-0 w-full space-y-1 text-sm">
           <span>Month</span>
-          <input
-            type="month"
-            className={`field-date-input w-full ${fieldErrors.month ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+          <DatePickerField
+            mode="month"
+            ariaLabel="Month"
             value={state.month}
-            onChange={(event) => onFieldChange("month", event.target.value)}
-            aria-invalid={Boolean(fieldErrors.month)}
+            onChange={(value) => onFieldChange("month", value)}
+            invalid={Boolean(fieldErrors.month)}
           />
           {fieldErrors.month ? <p className="text-xs text-destructive">{fieldErrors.month}</p> : null}
         </label>

@@ -9,6 +9,7 @@ import { ApiProblemError } from "@/api/errors";
 import type { Budget, BudgetCreate, BudgetUpdate, Category, ProblemDetails } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import PageHeader from "@/components/PageHeader";
@@ -362,22 +363,20 @@ export default function BudgetsPage() {
         <div className="grid w-full grid-cols-1 gap-3 text-sm text-muted-foreground sm:flex sm:flex-wrap sm:items-end">
           <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="block">From</span>
-            <input
-              type="month"
-              className="field-date-input"
+            <DatePickerField
+              mode="month"
+              ariaLabel="From month"
               value={draftFrom}
-              onChange={(event) => setDraftFrom(event.target.value)}
-              aria-label="From month"
+              onChange={setDraftFrom}
             />
           </label>
           <label className="min-w-0 space-y-1 sm:min-w-[11rem]">
             <span className="block">To</span>
-            <input
-              type="month"
-              className="field-date-input"
+            <DatePickerField
+              mode="month"
+              ariaLabel="To month"
               value={draftTo}
-              onChange={(event) => setDraftTo(event.target.value)}
-              aria-label="To month"
+              onChange={setDraftTo}
             />
           </label>
           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={applyRange}>

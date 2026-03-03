@@ -333,7 +333,7 @@ describe("shared components", () => {
     expect(screen.getByRole("option", { name: "Food" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Salary" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Amount (cents)")).toHaveClass("field-input");
-    const dateInput = screen.getByLabelText("Date");
+    const dateInput = screen.getByLabelText("Date", { selector: "input" });
     expect(dateInput).toHaveClass("field-date-input");
     expect(dateInput).toHaveClass("w-full");
     expect(dateInput.closest("label")).toHaveClass("w-full");
