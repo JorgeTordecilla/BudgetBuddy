@@ -223,7 +223,7 @@ def _income_source_flow(client: TestClient, access: str) -> str:
     return income_source_id
 
 
-def _analytics_flow(client: TestClient, access: str) -> None:
+def _analytics_flow(client: TestClient, access: str, account_id: str, category_id: str) -> None:
     by_month = client.get(
         "/api/analytics/by-month?from=2026-01-01&to=2026-12-31",
         headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
@@ -241,6 +241,19 @@ def _analytics_flow(client: TestClient, access: str) -> None:
         headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
     )
     _assert_contract(income, "/analytics/income", "get")
+
+    preview = client.get(
+        "/api/rollover/preview?month=2026-01",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(preview, "/rollover/preview", "get")
+
+    apply = client.post(
+        "/api/rollover/apply",
+        json={"source_month": "2026-01", "account_id": account_id, "category_id": category_id},
+        headers={"accept": VENDOR, "content-type": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(apply, "/rollover/apply", "post")
 
 
 def _me_flow(client: TestClient, access: str) -> None:
@@ -541,7 +554,7 @@ def test_openapi_archived_policy_contract_wording_is_explicit():
         delete_204_description = SPEC["paths"][path]["delete"]["responses"]["204"]["description"]
         assert "Archived (soft-delete)" in delete_204_description
 
-    for path in ("/analytics/by-month", "/analytics/by-category", "/analytics/income"):
+    for path in ("/analytics/by-month", "/analytics/by-category", "/analytics/income", "/rollover/preview"):
         description = SPEC["paths"][path]["get"].get("description", "")
         assert "archived transactions are excluded" in description
 
@@ -558,7 +571,7 @@ def test_openapi_e2e_contract_flow():
         _me_flow(client, access)
         list_audit = client.get("/api/audit?limit=20", headers={"accept": VENDOR, "authorization": f"Bearer {access}"})
         _assert_contract(list_audit, "/audit", "get")
-        _analytics_flow(client, access)
+        _analytics_flow(client, access, account_id, category_id)
         _budget_invalid_month_flow(client, access)
         _teardown_flow(client, access, refresh_token, account_id, category_id, transaction_id, income_source_id)
 

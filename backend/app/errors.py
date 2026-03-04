@@ -52,6 +52,12 @@ CATEGORY_NOT_OWNED_STATUS = 409
 BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
 BUDGET_MONTH_INVALID_STATUS = 400
+ROLLOVER_ALREADY_APPLIED_TYPE = "https://api.budgetbuddy.dev/problems/rollover-already-applied"
+ROLLOVER_ALREADY_APPLIED_TITLE = "Rollover already applied"
+ROLLOVER_ALREADY_APPLIED_STATUS = 409
+ROLLOVER_NO_SURPLUS_TYPE = "https://api.budgetbuddy.dev/problems/rollover-no-surplus"
+ROLLOVER_NO_SURPLUS_TITLE = "Rollover has no surplus"
+ROLLOVER_NO_SURPLUS_STATUS = 422
 
 MONEY_AMOUNT_NOT_INTEGER_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-not-integer"
 MONEY_AMOUNT_NOT_INTEGER_TITLE = "Money amount must be an integer"
@@ -205,6 +211,24 @@ def budget_month_invalid_error(detail: str | None = None) -> APIError:
         title=BUDGET_MONTH_INVALID_TITLE,
         detail=detail,
         type_=BUDGET_MONTH_INVALID_TYPE,
+    )
+
+
+def rollover_already_applied_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=ROLLOVER_ALREADY_APPLIED_STATUS,
+        title=ROLLOVER_ALREADY_APPLIED_TITLE,
+        detail=detail,
+        type_=ROLLOVER_ALREADY_APPLIED_TYPE,
+    )
+
+
+def rollover_no_surplus_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=ROLLOVER_NO_SURPLUS_STATUS,
+        title=ROLLOVER_NO_SURPLUS_TITLE,
+        detail=detail,
+        type_=ROLLOVER_NO_SURPLUS_TYPE,
     )
 
 

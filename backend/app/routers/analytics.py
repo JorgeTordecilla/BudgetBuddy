@@ -21,6 +21,16 @@ def _month_expr(db: Session):
     return func.to_char(Transaction.date, "YYYY-MM")
 
 
+def _previous_month(month: str) -> str:
+    year = int(month[:4])
+    month_num = int(month[5:7])
+    month_num -= 1
+    if month_num == 0:
+        month_num = 12
+        year -= 1
+    return f"{year:04d}-{month_num:02d}"
+
+
 @router.get("/by-month")
 def analytics_by_month(
     from_: date = Query(alias="from"),
@@ -77,6 +87,23 @@ def analytics_by_month(
         .outerjoin(budget_subq, budget_subq.c.month == tx_subq.c.month)
         .order_by(tx_subq.c.month)
     )
+    prior_month_start = date(from_.year - 1, 12, 1) if from_.month == 1 else date(from_.year, from_.month - 1, 1)
+    net_stmt = (
+        select(
+            month_expr.label("month"),
+            income_expr.label("income_total_cents"),
+            expense_expr.label("expense_total_cents"),
+        )
+        .where(Transaction.user_id == current_user.id)
+        .where(Transaction.archived_at.is_(None))
+        .where(Transaction.date >= prior_month_start)
+        .where(Transaction.date <= to)
+        .group_by(month_expr)
+    )
+    net_by_month = {
+        row.month: max(0, int(row.income_total_cents) - int(row.expense_total_cents))
+        for row in db.execute(net_stmt)
+    }
     expected_income_total = int(
         db.scalar(
             select(func.coalesce(func.sum(IncomeSource.expected_amount_cents), 0))
@@ -94,6 +121,7 @@ def analytics_by_month(
             "expense_total_cents": int(row.expense_total_cents),
             "expected_income_cents": expected_income_total,
             "actual_income_cents": int(row.income_total_cents),
+            "rollover_in_cents": int(net_by_month.get(_previous_month(row.month), 0)),
             "budget_spent_cents": int(row.expense_total_cents),
             "budget_limit_cents": int(row.budget_limit_cents),
         }

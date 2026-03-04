@@ -20,7 +20,7 @@ from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
 from app.dependencies import utcnow
-from app.models import RefreshToken, User
+from app.models import MonthlyRollover, RefreshToken, Transaction, User
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
@@ -3135,6 +3135,271 @@ def test_analytics_include_budget_spent_vs_limit_integer_fields():
         assert income_item["category_type"] == "income"
         assert income_item["budget_limit_cents"] == 90000
         assert income_item["budget_spent_cents"] == 0
+
+
+def test_analytics_by_month_includes_rollover_in_from_prior_month():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rollover-analytics-account")
+        income_category_id = _create_category(client, headers, "rollover-analytics-income", "income")
+        expense_category_id = _create_category(client, headers, "rollover-analytics-expense", "expense")
+
+        for payload in (
+            {"type": "income", "category_id": income_category_id, "amount_cents": 10000, "date": "2026-01-05"},
+            {"type": "expense", "category_id": expense_category_id, "amount_cents": 4000, "date": "2026-01-07"},
+            {"type": "income", "category_id": income_category_id, "amount_cents": 5000, "date": "2026-02-05"},
+            {"type": "expense", "category_id": expense_category_id, "amount_cents": 8000, "date": "2026-02-08"},
+            {"type": "income", "category_id": income_category_id, "amount_cents": 2000, "date": "2026-03-05"},
+            {"type": "expense", "category_id": expense_category_id, "amount_cents": 1000, "date": "2026-03-07"},
+        ):
+            response = client.post(
+                "/api/transactions",
+                json={
+                    "type": payload["type"],
+                    "account_id": account_id,
+                    "category_id": payload["category_id"],
+                    "amount_cents": payload["amount_cents"],
+                    "date": payload["date"],
+                    "merchant": "Acme",
+                    "note": "rollover-analytics",
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+        by_month = client.get(
+            "/api/analytics/by-month?from=2026-02-01&to=2026-03-31",
+            headers=headers,
+        )
+        assert by_month.status_code == 200
+        rows = {item["month"]: item for item in by_month.json()["items"]}
+        assert rows["2026-02"]["rollover_in_cents"] == 6000
+        assert rows["2026-03"]["rollover_in_cents"] == 0
+
+        january_only = client.get(
+            "/api/analytics/by-month?from=2026-01-01&to=2026-01-31",
+            headers=headers,
+        )
+        assert january_only.status_code == 200
+        january_item = january_only.json()["items"][0]
+        assert january_item["rollover_in_cents"] == 0
+        assert isinstance(january_item["rollover_in_cents"], int)
+
+
+def test_rollover_preview_and_apply_flow_with_idempotency():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rollover-apply-account")
+        income_category_id = _create_category(client, headers, "rollover-apply-income", "income")
+        expense_category_id = _create_category(client, headers, "rollover-apply-expense", "expense")
+
+        income_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 12000,
+                "date": "2026-02-10",
+                "merchant": "Payroll",
+                "note": "salary",
+            },
+            headers=headers,
+        )
+        assert income_tx.status_code == 201
+        expense_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 3000,
+                "date": "2026-02-11",
+                "merchant": "Store",
+                "note": "expense",
+            },
+            headers=headers,
+        )
+        assert expense_tx.status_code == 201
+
+        preview = client.get(
+            "/api/rollover/preview?month=2026-02",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert preview.status_code == 200
+        assert preview.headers["content-type"].startswith(VENDOR)
+        assert preview.json()["surplus_cents"] == 9000
+        assert preview.json()["already_applied"] is False
+        assert preview.json()["applied_transaction_id"] is None
+
+        applied = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-02", "account_id": account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        assert applied.status_code == 201
+        assert applied.headers["content-type"].startswith(VENDOR)
+        body = applied.json()
+        assert body["source_month"] == "2026-02"
+        assert body["target_month"] == "2026-03"
+        assert body["amount_cents"] == 9000
+
+        listed_sources = client.get(
+            "/api/income-sources",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert listed_sources.status_code == 200
+        assert all(source["name"] != "Rollover" for source in listed_sources.json()["items"])
+
+        preview_after = client.get(
+            "/api/rollover/preview?month=2026-02",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert preview_after.status_code == 200
+        assert preview_after.json()["already_applied"] is True
+        assert preview_after.json()["applied_transaction_id"] == body["transaction_id"]
+
+        duplicate_apply = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-02", "account_id": account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        assert duplicate_apply.status_code == 409
+        assert duplicate_apply.headers["content-type"].startswith(PROBLEM)
+        assert duplicate_apply.json()["type"] == "https://api.budgetbuddy.dev/problems/rollover-already-applied"
+
+        no_surplus = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-01", "account_id": account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        assert no_surplus.status_code == 422
+        assert no_surplus.headers["content-type"].startswith(PROBLEM)
+        assert no_surplus.json()["type"] == "https://api.budgetbuddy.dev/problems/rollover-no-surplus"
+
+
+def test_rollover_apply_requires_auth_and_income_category():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rollover-auth-account")
+        income_category_id = _create_category(client, headers, "rollover-auth-income", "income")
+        expense_category_id = _create_category(client, headers, "rollover-auth-expense", "expense")
+
+        income_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 5000,
+                "date": "2026-04-10",
+                "merchant": "Payroll",
+                "note": "salary",
+            },
+            headers=headers,
+        )
+        assert income_tx.status_code == 201
+
+        unauthenticated = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": account_id, "category_id": income_category_id},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_unauthorized_problem(unauthenticated)
+
+        wrong_category = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": account_id, "category_id": expense_category_id},
+            headers=headers,
+        )
+        _assert_category_mismatch_problem(wrong_category)
+
+
+def test_rollover_apply_concurrency_is_single_write_per_source_month():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        user_id = _user_id_from_refresh_token(hash_refresh_token(user["refresh"]))
+        account_id = _create_account(client, headers, "rollover-race-account")
+        income_category_id = _create_category(client, headers, "rollover-race-income", "income")
+        expense_category_id = _create_category(client, headers, "rollover-race-expense", "expense")
+
+        income_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 25000,
+                "date": "2026-05-10",
+                "merchant": "Payroll",
+                "note": "salary",
+            },
+            headers=headers,
+        )
+        assert income_tx.status_code == 201
+        expense_tx = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 4000,
+                "date": "2026-05-11",
+                "merchant": "Store",
+                "note": "expense",
+            },
+            headers=headers,
+        )
+        assert expense_tx.status_code == 201
+
+        barrier = Barrier(2)
+        responses: list = [None, None]
+
+        def do_apply(index: int):
+            with TestClient(app) as local_client:
+                try:
+                    barrier.wait(timeout=2)
+                except BrokenBarrierError:
+                    pass
+                responses[index] = local_client.post(
+                    "/api/rollover/apply",
+                    json={"source_month": "2026-05", "account_id": account_id, "category_id": income_category_id},
+                    headers=headers,
+                )
+
+        t1 = Thread(target=do_apply, args=(0,))
+        t2 = Thread(target=do_apply, args=(1,))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        statuses = sorted([responses[0].status_code, responses[1].status_code])
+        assert statuses == [201, 409]
+
+        db = SessionLocal()
+        try:
+            applied_rows = (
+                db.query(MonthlyRollover)
+                .filter(MonthlyRollover.user_id == user_id)
+                .filter(MonthlyRollover.source_month == "2026-05")
+                .all()
+            )
+            assert len(applied_rows) == 1
+
+            created_transactions = (
+                db.query(Transaction)
+                .filter(Transaction.user_id == user_id)
+                .filter(Transaction.note == "Rollover from 2026-05")
+                .all()
+            )
+            assert len(created_transactions) == 1
+        finally:
+            db.close()
 
 
 def test_transactions_import_partial_mixed_rows_reports_deterministic_failures():

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,8 @@ from app.repositories import SQLAlchemyIncomeSourceRepository
 from app.schemas import IncomeSourceCreate, IncomeSourceListOut, IncomeSourceOut, IncomeSourceUpdate
 
 router = APIRouter(prefix="/income-sources", tags=["income-sources"])
+SYSTEM_ROLLOVER_SOURCE_NAME = "Rollover"
+SYSTEM_ROLLOVER_SOURCE_NOTE = "System rollover source"
 
 
 def _owned_income_source_or_403(db: Session, user_id: str, income_source_id: str) -> IncomeSource:
@@ -33,6 +35,13 @@ def list_income_sources(
     db: Session = Depends(get_db),
 ):
     stmt = select(IncomeSource).where(IncomeSource.user_id == current_user.id)
+    stmt = stmt.where(
+        ~and_(
+            IncomeSource.name == SYSTEM_ROLLOVER_SOURCE_NAME,
+            IncomeSource.note == SYSTEM_ROLLOVER_SOURCE_NOTE,
+            IncomeSource.is_active.is_(False),
+        )
+    )
     if not include_archived:
         stmt = stmt.where(IncomeSource.archived_at.is_(None))
     stmt = stmt.order_by(IncomeSource.created_at.desc(), IncomeSource.id.desc())

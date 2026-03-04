@@ -127,6 +127,7 @@ class AnalyticsByMonthItem(BaseModel):
     expense_total_cents: int
     expected_income_cents: int
     actual_income_cents: int
+    rollover_in_cents: int = 0
     budget_spent_cents: int | None = None
     budget_limit_cents: int | None = None
 
@@ -199,6 +200,26 @@ class IncomeAnalyticsItem(BaseModel):
 
 class IncomeAnalyticsOut(BaseModel):
     items: list[IncomeAnalyticsItem]
+
+
+class RolloverPreviewOut(BaseModel):
+    month: str
+    surplus_cents: int
+    already_applied: bool
+    applied_transaction_id: str | None
+
+
+class RolloverApplyRequest(BaseModel):
+    source_month: str = Field(pattern=r"^\d{4}-\d{2}$")
+    account_id: str
+    category_id: str
+
+
+class RolloverApplyOut(BaseModel):
+    source_month: str
+    target_month: str
+    transaction_id: str
+    amount_cents: int
 
 
 class BudgetBase(BaseModel):

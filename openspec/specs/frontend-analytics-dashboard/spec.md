@@ -152,3 +152,33 @@ Analytics range and overlay controls SHALL remain consistently accessible and un
 - **WHEN** analytics controls are shown on narrow screens
 - **THEN** primary range-apply affordance SHALL remain easily tappable
 - **AND** control ordering SHALL preserve comprehension from range selection to apply action.
+
+### Requirement: Analytics dashboard shows rollover-in KPI and trend context
+The frontend analytics page SHALL expose rollover preview values from by-month data as a first-class visual signal.
+
+#### Scenario: Rollover-in KPI is visible for latest month context
+- **WHEN** by-month analytics is loaded
+- **THEN** UI SHALL render a `Rollover in` KPI using the latest selected month `rollover_in_cents` formatted in user currency.
+
+#### Scenario: Trend visualization includes rollover-in series
+- **WHEN** month trend chart is rendered
+- **THEN** chart SHALL include an additional rollover-in series aligned by month.
+
+### Requirement: Analytics dashboard supports explicit rollover apply flow
+The frontend SHALL provide per-month rollover apply actions gated by preview state.
+
+#### Scenario: Apply affordance appears only when surplus is actionable
+- **WHEN** rollover preview for source month returns `surplus_cents > 0` and `already_applied = false`
+- **THEN** UI SHALL show `Apply rollover` action for that month.
+
+#### Scenario: Apply modal enforces required inputs and confirms computed amount
+- **WHEN** user opens apply action
+- **THEN** modal SHALL display read-only computed surplus and require valid `account_id` plus `income` category before submit.
+
+#### Scenario: Successful apply updates UX and cache coherently
+- **WHEN** apply request succeeds
+- **THEN** UI SHALL show applied confirmation state and invalidate analytics + transactions queries for fresh data.
+
+#### Scenario: Apply and preview errors follow ProblemDetails UX
+- **WHEN** rollover APIs return canonical errors (`401`, `409`, `422`)
+- **THEN** UI SHALL map responses through existing ProblemDetails handling and display deterministic feedback.

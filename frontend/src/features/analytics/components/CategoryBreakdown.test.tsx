@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { AnalyticsByCategoryItem } from "@/api/types";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 
-const items = [
+const items: AnalyticsByCategoryItem[] = [
   {
     category_id: "c1",
     category_name: "Food",

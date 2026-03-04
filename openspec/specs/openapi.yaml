@@ -2392,6 +2392,7 @@ paths:
                   expense_total_cents: 300000
                   expected_income_cents: 550000
                   actual_income_cents: 520000
+                  rollover_in_cents: 220000
                   budget_spent_cents: 300000
                   budget_limit_cents: 350000
         '400':
@@ -2487,6 +2488,120 @@ paths:
                 canonical:
                   $ref: '#/components/examples/Problem406'
       description: 'Retention policy: archived transactions are excluded. Archived or inactive income sources are excluded from expected totals; linked actuals not mapped to active sources are reported under `Unassigned`.'
+  /rollover/preview:
+    get:
+      summary: Preview monthly rollover surplus and apply state
+      parameters:
+      - name: month
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/RolloverPreviewOut'
+              example:
+                month: 2026-02
+                surplus_cents: 9000
+                already_applied: false
+                applied_transaction_id: null
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem400InvalidDateRange'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+      description: 'Retention policy: archived transactions are excluded from surplus computation.'
+  /rollover/apply:
+    post:
+      summary: Apply monthly rollover by creating next-month income transaction
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/RolloverApplyRequest'
+            example:
+              source_month: 2026-02
+              account_id: 515a1511-69e8-48ed-85bb-afd3035dc889
+              category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/RolloverApplyOut'
+              example:
+                source_month: 2026-02
+                target_month: 2026-03
+                transaction_id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+                amount_cents: 9000
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                rollover_already_applied:
+                  $ref: '#/components/examples/Problem409RolloverAlreadyApplied'
+                category_type_mismatch:
+                  $ref: '#/components/examples/Problem409CategoryTypeMismatch'
+        '422':
+          description: No positive surplus to apply
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                rollover_no_surplus:
+                  $ref: '#/components/examples/Problem422RolloverNoSurplus'
+      description: 'Retention policy: archived transactions are excluded from surplus computation.'
   /analytics/by-category:
     get:
       summary: Analytics totals by category (income and expense)
@@ -2514,10 +2629,18 @@ paths:
                 items:
                 - category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
                   category_name: Groceries
+                  category_type: expense
                   income_total_cents: 0
                   expense_total_cents: 120000
                   budget_spent_cents: 120000
                   budget_limit_cents: 250000
+                - category_id: 0f5627cf-e123-4fd9-b8e4-d8f08fb8e240
+                  category_name: Salary
+                  category_type: income
+                  income_total_cents: 400000
+                  expense_total_cents: 0
+                  budget_spent_cents: 0
+                  budget_limit_cents: 500000
         '400':
           description: Invalid request
           content:
@@ -2608,6 +2731,12 @@ components:
   - type: https://api.budgetbuddy.dev/problems/budget-month-invalid
     title: Budget month format is invalid
     status: 400
+  - type: https://api.budgetbuddy.dev/problems/rollover-already-applied
+    title: Rollover already applied
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/rollover-no-surplus
+    title: Rollover has no surplus
+    status: 422
   - type: https://api.budgetbuddy.dev/problems/money-amount-not-integer
     title: Money amount must be an integer
     status: 400
@@ -3310,6 +3439,9 @@ components:
           type: integer
         actual_income_cents:
           type: integer
+        rollover_in_cents:
+          type: integer
+          description: Net savings from previous calendar month, clamped at zero.
         budget_spent_cents:
           type: integer
         budget_limit_cents:
@@ -3330,8 +3462,76 @@ components:
           expense_total_cents: 300000
           expected_income_cents: 550000
           actual_income_cents: 520000
+          rollover_in_cents: 220000
           budget_spent_cents: 300000
           budget_limit_cents: 350000
+    RolloverPreviewOut:
+      type: object
+      required:
+      - month
+      - surplus_cents
+      - already_applied
+      - applied_transaction_id
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+        surplus_cents:
+          type: integer
+          minimum: 0
+        already_applied:
+          type: boolean
+        applied_transaction_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      example:
+        month: 2026-02
+        surplus_cents: 9000
+        already_applied: false
+        applied_transaction_id: null
+    RolloverApplyRequest:
+      type: object
+      required:
+      - source_month
+      - account_id
+      - category_id
+      properties:
+        source_month:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+        account_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+    RolloverApplyOut:
+      type: object
+      required:
+      - source_month
+      - target_month
+      - transaction_id
+      - amount_cents
+      properties:
+        source_month:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+        target_month:
+          type: string
+          pattern: ^\d{4}-\d{2}$
+        transaction_id:
+          type: string
+          format: uuid
+        amount_cents:
+          type: integer
+          minimum: 1
+      example:
+        source_month: 2026-02
+        target_month: 2026-03
+        transaction_id: 9d9ae8f4-090c-4f65-82d4-2f6e10985ef7
+        amount_cents: 9000
     IncomeFrequency:
       type: string
       enum:
@@ -3515,6 +3715,7 @@ components:
       required:
       - category_id
       - category_name
+      - category_type
       - income_total_cents
       - expense_total_cents
       properties:
@@ -3523,6 +3724,11 @@ components:
           format: uuid
         category_name:
           type: string
+        category_type:
+          type: string
+          enum:
+          - income
+          - expense
         income_total_cents:
           type: integer
         expense_total_cents:
@@ -3544,10 +3750,18 @@ components:
         items:
         - category_id: 0dab8db1-dcb8-44a2-bccd-d2efce11c7c9
           category_name: Groceries
+          category_type: expense
           income_total_cents: 0
           expense_total_cents: 120000
           budget_spent_cents: 120000
           budget_limit_cents: 250000
+        - category_id: 0f5627cf-e123-4fd9-b8e4-d8f08fb8e240
+          category_name: Salary
+          category_type: income
+          income_total_cents: 400000
+          expense_total_cents: 0
+          budget_spent_cents: 0
+          budget_limit_cents: 500000
   securitySchemes:
     BearerAuth:
       type: http
@@ -3659,6 +3873,20 @@ components:
         title: Budget already exists
         status: 409
         detail: A budget for the same month and category already exists.
+    Problem409RolloverAlreadyApplied:
+      summary: Canonical 409 rollover already applied
+      value:
+        type: https://api.budgetbuddy.dev/problems/rollover-already-applied
+        title: Rollover already applied
+        status: 409
+        detail: Rollover for source month was already applied.
+    Problem422RolloverNoSurplus:
+      summary: Canonical 422 rollover has no surplus
+      value:
+        type: https://api.budgetbuddy.dev/problems/rollover-no-surplus
+        title: Rollover has no surplus
+        status: 422
+        detail: No positive surplus is available for source month.
     Problem429:
       summary: Canonical 429 error
       value:
@@ -3673,5 +3901,3 @@ components:
         title: Service Unavailable
         status: 503
         detail: Service temporarily unavailable, please retry.
-
-

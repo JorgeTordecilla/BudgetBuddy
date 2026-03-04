@@ -101,3 +101,22 @@ Analytics totals MUST apply one explicit policy for archived transactions.
 #### Scenario: Analytics policy is stable under archive toggling
 - **WHEN** a transaction is archived or restored
 - **THEN** analytics totals SHALL deterministically reflect exclusion on archive and inclusion on restore
+
+### Requirement: Monthly analytics expose additive rollover-in context
+`GET /analytics/by-month` MUST include additive `rollover_in_cents` on each month item, representing prior-month positive net savings for the authenticated user.
+
+#### Scenario: Month item shows prior-month surplus as rollover in
+- **WHEN** previous calendar month has `income_total_cents > expense_total_cents`
+- **THEN** current month item SHALL include `rollover_in_cents = previous income - previous expense`.
+
+#### Scenario: Rollover in is clamped at zero for deficit months
+- **WHEN** previous calendar month has `income_total_cents <= expense_total_cents`
+- **THEN** current month item SHALL include `rollover_in_cents = 0`.
+
+#### Scenario: First returned month still computes using prior month outside requested range
+- **WHEN** the first item in response has no prior month inside the selected range
+- **THEN** system SHALL compute `rollover_in_cents` from the immediate previous calendar month regardless of range boundary.
+
+#### Scenario: Users without prior-month history return zero rollover in
+- **WHEN** no transactions exist for the previous calendar month
+- **THEN** current month item SHALL include `rollover_in_cents = 0`.
