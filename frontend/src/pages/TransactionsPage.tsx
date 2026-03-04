@@ -15,6 +15,7 @@ import {
   updateTransaction
 } from "@/api/transactions";
 import type {
+  TransactionMood,
   ProblemDetails,
   Transaction,
   TransactionCreate,
@@ -52,6 +53,8 @@ const EMPTY_FORM: TransactionFormState = {
   accountId: "",
   categoryId: "",
   incomeSourceId: "",
+  mood: "",
+  impulseTag: "",
   amount: "",
   date: "",
   merchant: "",
@@ -147,6 +150,14 @@ function dedupeById(items: Transaction[]): Transaction[] {
 function normalizeOptional(value: string): string | null {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function moodLabel(value: TransactionMood): string {
+  if (value === "happy") return "😊 Happy";
+  if (value === "neutral") return "🙂 Neutral";
+  if (value === "sad") return "😢 Sad";
+  if (value === "anxious") return "🥺 Anxious";
+  return "🥱 Bored";
 }
 
 export default function TransactionsPage() {
@@ -418,6 +429,8 @@ export default function TransactionsPage() {
       accountId: transaction.account_id,
       categoryId: transaction.category_id,
       incomeSourceId: transaction.income_source_id ?? "",
+      mood: transaction.mood ?? "",
+      impulseTag: transaction.is_impulse === true ? "impulsive" : transaction.is_impulse === false ? "intentional" : "",
       amount: centsToInputValue(currencyCode, transaction.amount_cents),
       date: transaction.date,
       merchant: transaction.merchant ?? "",
@@ -454,7 +467,9 @@ export default function TransactionsPage() {
       amount_cents: amount,
       date: formState.date,
       merchant: formState.merchant.trim() || undefined,
-      note: formState.note.trim() || undefined
+      note: formState.note.trim() || undefined,
+      ...(formState.mood ? { mood: formState.mood } : {}),
+      ...(formState.impulseTag ? { is_impulse: formState.impulseTag === "impulsive" } : {})
     };
   }
 
@@ -499,6 +514,14 @@ export default function TransactionsPage() {
     const note = normalizeOptional(formState.note);
     if (note !== (editing.note ?? null)) {
       payload.note = note;
+    }
+    const mood = formState.mood || null;
+    if (mood !== (editing.mood ?? null)) {
+      payload.mood = mood;
+    }
+    const isImpulse = formState.impulseTag === "" ? null : formState.impulseTag === "impulsive";
+    if (isImpulse !== (editing.is_impulse ?? null)) {
+      payload.is_impulse = isImpulse;
     }
     if (Object.keys(payload).length === 0) {
       setFormProblem(toLocalProblem({
@@ -559,6 +582,26 @@ export default function TransactionsPage() {
           <td className="px-3 py-2 text-right">{formatCents(currencyCode, transaction.amount_cents)}</td>
           <td className="px-3 py-2">{transaction.merchant ?? "-"}</td>
           <td className="px-3 py-2">{transaction.note ?? "-"}</td>
+          <td className="px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1">
+              {transaction.mood ? (
+                <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-0.5 text-[11px] font-medium">
+                  {moodLabel(transaction.mood)}
+                </span>
+              ) : null}
+              {transaction.is_impulse === true ? (
+                <span className="rounded-full border border-amber-600/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                  Impulsive
+                </span>
+              ) : null}
+              {transaction.is_impulse === false ? (
+                <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                  Intentional
+                </span>
+              ) : null}
+              {!transaction.mood && transaction.is_impulse == null ? "-" : null}
+            </div>
+          </td>
           <td className="px-3 py-2">{transaction.archived_at ? "Archived" : "Active"}</td>
           <td className="px-3 py-2 text-right">
             <TransactionRowActions
@@ -597,6 +640,23 @@ export default function TransactionsPage() {
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground">State</p>
                   <p className="font-semibold">{transaction.archived_at ? "Archived" : "Active"}</p>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                {transaction.mood ? (
+                  <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-0.5 text-[11px] font-medium">
+                    {moodLabel(transaction.mood)}
+                  </span>
+                ) : null}
+                {transaction.is_impulse === true ? (
+                  <span className="rounded-full border border-amber-600/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                    Impulsive
+                  </span>
+                ) : null}
+                {transaction.is_impulse === false ? (
+                  <span className="rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                    Intentional
+                  </span>
+                ) : null}
               </div>
               {transaction.note ? <p className="text-xs text-muted-foreground">{transaction.note}</p> : null}
               <div className="flex justify-end">
@@ -797,6 +857,7 @@ export default function TransactionsPage() {
                         <TableHead className="px-3 py-2 text-right">Amount</TableHead>
                         <TableHead className="px-3 py-2">Merchant</TableHead>
                         <TableHead className="px-3 py-2">Note</TableHead>
+                        <TableHead className="px-3 py-2">Behavior</TableHead>
                         <TableHead className="px-3 py-2">State</TableHead>
                         <TableHead className="px-3 py-2 text-right">Actions</TableHead>
                       </TableRow>

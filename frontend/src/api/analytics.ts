@@ -3,6 +3,7 @@ import { throwApiError } from "@/api/errors";
 import type {
   AnalyticsByCategoryResponse,
   AnalyticsByMonthResponse,
+  ImpulseSummary,
   IncomeAnalyticsResponse
 } from "@/api/types";
 
@@ -43,6 +44,15 @@ export async function getAnalyticsIncome(client: ApiClient, params: AnalyticsDat
     await throwApiError(response, "analytics_income_failed");
   }
   return (await response.json()) as IncomeAnalyticsResponse;
+}
+
+export async function getImpulseSummary(client: ApiClient, params: AnalyticsDateRange): Promise<ImpulseSummary> {
+  const query = buildRangeQuery(params);
+  const response = await client.request(`/analytics/impulse-summary?${query}`, { method: "GET" });
+  if (!response.ok) {
+    await throwApiError(response, "analytics_impulse_summary_failed");
+  }
+  return (await response.json()) as ImpulseSummary;
 }
 
 export type { AnalyticsDateRange };

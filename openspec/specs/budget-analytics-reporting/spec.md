@@ -120,3 +120,26 @@ Analytics totals MUST apply one explicit policy for archived transactions.
 #### Scenario: Users without prior-month history return zero rollover in
 - **WHEN** no transactions exist for the previous calendar month
 - **THEN** current month item SHALL include `rollover_in_cents = 0`.
+
+### Requirement: Analytics impulse summary endpoint reports behavior counters
+The backend MUST implement `GET /analytics/impulse-summary` with date-range filters and deterministic counting semantics.
+
+#### Scenario: Summary returns impulse, intentional, and untagged counts
+- **WHEN** the endpoint is called with a valid authenticated date range
+- **THEN** response SHALL include `impulse_count`, `intentional_count`, and `untagged_count` computed from `is_impulse=true|false|null`.
+
+#### Scenario: Summary excludes archived transactions
+- **WHEN** archived transactions exist in the requested range
+- **THEN** archived rows SHALL NOT contribute to summary counters.
+
+#### Scenario: Summary returns top impulse categories
+- **WHEN** impulse-tagged transactions exist across categories
+- **THEN** response SHALL include `top_impulse_categories` with at most five entries ordered by `count DESC`.
+
+#### Scenario: Summary returns deterministic empty range payload
+- **WHEN** no transactions exist for the requested range
+- **THEN** response SHALL return `200` with all counters as `0` and `top_impulse_categories=[]`.
+
+#### Scenario: Summary requires authentication
+- **WHEN** `GET /analytics/impulse-summary` is called without valid authentication
+- **THEN** the API SHALL return `401` as ProblemDetails.

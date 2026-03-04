@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 
-import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
+import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome, getImpulseSummary } from "@/api/analytics";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
 import { ApiProblemError } from "@/api/problem";
@@ -15,7 +15,8 @@ import AnalyticsPage from "@/features/analytics/AnalyticsPage";
 vi.mock("@/api/analytics", () => ({
   getAnalyticsByMonth: vi.fn(),
   getAnalyticsByCategory: vi.fn(),
-  getAnalyticsIncome: vi.fn()
+  getAnalyticsIncome: vi.fn(),
+  getImpulseSummary: vi.fn()
 }));
 vi.mock("@/api/rollover", () => ({
   getRolloverPreview: vi.fn(),
@@ -123,6 +124,12 @@ describe("AnalyticsPage", () => {
     });
     vi.mocked(listAccounts).mockResolvedValue({ items: [{ id: "a1", name: "Cash", type: "cash", initial_balance_cents: 0, archived_at: null }], next_cursor: null });
     vi.mocked(listCategories).mockResolvedValue({ items: [{ id: "c-income", name: "Salary", type: "income", archived_at: null }], next_cursor: null });
+    vi.mocked(getImpulseSummary).mockResolvedValue({
+      impulse_count: 2,
+      intentional_count: 4,
+      untagged_count: 1,
+      top_impulse_categories: [{ category_id: "c-expense", category_name: "Food", count: 2 }]
+    });
   });
 
   it("renders invalid-date-range feedback from backend problem details", async () => {
@@ -151,7 +158,7 @@ describe("AnalyticsPage", () => {
     await waitFor(() => {
       names = screen.getAllByTestId("category-name");
       expect(names[0]).toHaveTextContent("Salary");
-      expect(screen.queryByText("Food")).not.toBeInTheDocument();
+      expect(names.some((entry) => entry.textContent?.includes("Food"))).toBe(false);
     });
     expect(screen.getByText(/\$3,500\.00 \/ \$4,000\.00/)).toBeInTheDocument();
     expect(screen.getByText("88% achieved")).toBeInTheDocument();
@@ -404,5 +411,40 @@ describe("AnalyticsPage", () => {
       })
     );
     expect(await screen.findByText("Applied")).toBeInTheDocument();
+  });
+
+  it("renders impulse KPI cards and top categories", async () => {
+    renderPage();
+    expect(await screen.findByText("Impulse")).toBeInTheDocument();
+    expect(screen.getByText("Intentional")).toBeInTheDocument();
+    expect(screen.getByText("Top impulse categories")).toBeInTheDocument();
+    expect(screen.getAllByText("Food").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2").length).toBeGreaterThan(0);
+  });
+
+  it("renders impulse zero state when no transactions exist in range", async () => {
+    vi.mocked(getImpulseSummary).mockResolvedValueOnce({
+      impulse_count: 0,
+      intentional_count: 0,
+      untagged_count: 0,
+      top_impulse_categories: []
+    });
+
+    renderPage();
+    expect(await screen.findByText("No tagged transactions yet.")).toBeInTheDocument();
+  });
+
+  it("shows non-blocking impulse error while keeping analytics content visible", async () => {
+    vi.mocked(getImpulseSummary).mockRejectedValueOnce(
+      new ApiProblemError(400, {
+        type: "about:blank",
+        title: "Invalid request",
+        status: 400
+      })
+    );
+
+    renderPage();
+    expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
+    expect(screen.getByText("Monthly trend")).toBeInTheDocument();
   });
 });

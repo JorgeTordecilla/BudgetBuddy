@@ -58,6 +58,8 @@ CATEGORY_NOT_OWNED_TYPE = "https://api.budgetbuddy.dev/problems/category-not-own
 CATEGORY_NOT_OWNED_TITLE = "Category is not owned by authenticated user"
 BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid"
 BUDGET_MONTH_INVALID_TITLE = "Budget month format is invalid"
+TRANSACTION_MOOD_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid"
+TRANSACTION_MOOD_INVALID_TITLE = "Transaction mood value is invalid"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
@@ -3619,7 +3621,7 @@ def test_transactions_export_returns_csv_headers_and_row_count():
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/csv")
         lines = [line for line in response.text.strip().splitlines() if line]
-        assert lines[0] == "date,type,account,category,amount_cents,merchant,note"
+        assert lines[0] == "date,type,account,category,amount_cents,merchant,note,mood,is_impulse"
         assert len(lines) == 3
 
 
@@ -3840,3 +3842,164 @@ def test_audit_endpoint_error_matrix_is_canonical():
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
         )
         _assert_invalid_cursor_problem(invalid_cursor)
+
+
+def test_transaction_enrichment_create_patch_list_and_export_contract():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "enrichment-account")
+        expense_category_id = _create_category(client, headers, "enrichment-expense", "expense")
+
+        create_without = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 1000,
+                "date": "2026-02-01",
+                "merchant": "No tags",
+            },
+            headers=headers,
+        )
+        assert create_without.status_code == 201
+        assert create_without.json()["mood"] is None
+        assert create_without.json()["is_impulse"] is None
+
+        create_with = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 2500,
+                "date": "2026-02-02",
+                "merchant": "Tagged",
+                "mood": "happy",
+                "is_impulse": True,
+            },
+            headers=headers,
+        )
+        assert create_with.status_code == 201
+        tx_id = create_with.json()["id"]
+        assert create_with.json()["mood"] == "happy"
+        assert create_with.json()["is_impulse"] is True
+
+        invalid_mood = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 1000,
+                "date": "2026-02-03",
+                "mood": "excited",
+            },
+            headers=headers,
+        )
+        assert invalid_mood.status_code == 422
+        assert invalid_mood.headers["content-type"].startswith(PROBLEM)
+        invalid_body = invalid_mood.json()
+        assert invalid_body["type"] == TRANSACTION_MOOD_INVALID_TYPE
+        assert invalid_body["title"] == TRANSACTION_MOOD_INVALID_TITLE
+        assert invalid_body["status"] == 422
+
+        patched = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"mood": "sad", "is_impulse": False},
+            headers=headers,
+        )
+        assert patched.status_code == 200
+        assert patched.json()["mood"] == "sad"
+        assert patched.json()["is_impulse"] is False
+
+        cleared = client.patch(
+            f"/api/transactions/{tx_id}",
+            json={"mood": None, "is_impulse": None},
+            headers=headers,
+        )
+        assert cleared.status_code == 200
+        assert cleared.json()["mood"] is None
+        assert cleared.json()["is_impulse"] is None
+
+        listed = client.get("/api/transactions?from=2026-02-01&to=2026-02-28", headers=headers)
+        assert listed.status_code == 200
+        assert listed.headers["content-type"].startswith(VENDOR)
+        assert all("mood" in item for item in listed.json()["items"])
+        assert all("is_impulse" in item for item in listed.json()["items"])
+
+        exported = client.get(
+            "/api/transactions/export?from=2026-02-01&to=2026-02-28",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        assert exported.status_code == 200
+        text = exported.text
+        assert "mood,is_impulse" in text.splitlines()[0]
+        # At least one row has empty enrichment fields.
+        assert ",," in text
+
+
+def test_impulse_summary_counts_top_categories_zero_state_and_auth():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "impulse-account")
+        expense_a = _create_category(client, headers, "Food", "expense")
+        expense_b = _create_category(client, headers, "Transport", "expense")
+        income_category_id = _create_category(client, headers, "Salary", "income")
+
+        def create_tx(day: str, *, category_id: str, type_: str = "expense", is_impulse=None, archived: bool = False):
+            created = client.post(
+                "/api/transactions",
+                json={
+                    "type": type_,
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 1000,
+                    "date": f"2026-03-{day}",
+                    "is_impulse": is_impulse,
+                },
+                headers=headers,
+            )
+            assert created.status_code == 201
+            if archived:
+                archived_res = client.delete(f"/api/transactions/{created.json()['id']}", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+                assert archived_res.status_code == 204
+
+        create_tx("01", category_id=expense_a, is_impulse=True)
+        create_tx("02", category_id=expense_a, is_impulse=True)
+        create_tx("03", category_id=expense_b, is_impulse=True)
+        create_tx("04", category_id=expense_b, is_impulse=False)
+        create_tx("05", category_id=expense_b, is_impulse=False)
+        create_tx("06", category_id=expense_b, is_impulse=None)
+        create_tx("07", category_id=income_category_id, type_="income", is_impulse=True)
+        create_tx("08", category_id=expense_a, is_impulse=True, archived=True)
+
+        summary = client.get(
+            "/api/analytics/impulse-summary?from=2026-03-01&to=2026-03-31",
+            headers=headers,
+        )
+        assert summary.status_code == 200
+        assert summary.headers["content-type"].startswith(VENDOR)
+        body = summary.json()
+        assert body["impulse_count"] == 4
+        assert body["intentional_count"] == 2
+        assert body["untagged_count"] == 1
+        assert len(body["top_impulse_categories"]) <= 5
+        assert body["top_impulse_categories"][0]["category_name"] == "Food"
+        assert body["top_impulse_categories"][0]["count"] == 2
+
+        empty = client.get(
+            "/api/analytics/impulse-summary?from=2025-01-01&to=2025-01-31",
+            headers=headers,
+        )
+        assert empty.status_code == 200
+        empty_body = empty.json()
+        assert empty_body["impulse_count"] == 0
+        assert empty_body["intentional_count"] == 0
+        assert empty_body["untagged_count"] == 0
+        assert empty_body["top_impulse_categories"] == []
+
+        unauth = client.get("/api/analytics/impulse-summary?from=2026-03-01&to=2026-03-31", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(unauth)

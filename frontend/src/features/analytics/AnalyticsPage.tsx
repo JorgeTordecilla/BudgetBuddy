@@ -8,7 +8,7 @@ import { useAuth } from "@/auth/useAuth";
 import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import { useAnalyticsByCategory, useAnalyticsByMonth, useAnalyticsIncome, useApplyRollover, useRolloverPreview } from "@/features/analytics/analyticsQueries";
+import { useAnalyticsByCategory, useAnalyticsByMonth, useAnalyticsIncome, useApplyRollover, useImpulseSummary, useRolloverPreview } from "@/features/analytics/analyticsQueries";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
 import RolloverApplyModal from "@/features/analytics/components/RolloverApplyModal";
@@ -102,6 +102,7 @@ export default function AnalyticsPage() {
   const monthQuery = useAnalyticsByMonth(apiClient, appliedRange, rangeValid);
   const categoryQuery = useAnalyticsByCategory(apiClient, appliedRange, rangeValid);
   const incomeQuery = useAnalyticsIncome(apiClient, appliedRange, rangeValid);
+  const impulseSummaryQuery = useImpulseSummary(apiClient, appliedRange, rangeValid);
   const applyRolloverMutation = useApplyRollover(apiClient);
 
   const monthItems = monthQuery.data?.items ?? [];
@@ -290,6 +291,54 @@ export default function AnalyticsPage() {
               showBudgetOverlay={showBudgetOverlay}
             />
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Impulse behavior</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {impulseSummaryQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading impulse summary...</p>
+          ) : impulseSummaryQuery.error ? (
+            <ProblemDetailsInline error={impulseSummaryQuery.error} />
+          ) : (() => {
+            const summary = impulseSummaryQuery.data;
+            if (!summary) {
+              return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
+            }
+            if (summary.impulse_count === 0 && summary.intentional_count === 0 && summary.untagged_count === 0) {
+              return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
+            }
+            return (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Impulse</CardTitle></CardHeader>
+                    <CardContent>{summary.impulse_count}</CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Intentional</CardTitle></CardHeader>
+                    <CardContent>{summary.intentional_count}</CardContent>
+                  </Card>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium">Top impulse categories</p>
+                  {summary.top_impulse_categories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No impulse purchases tagged yet.</p>
+                  ) : (
+                    <ul className="space-y-1 text-sm">
+                      {summary.top_impulse_categories.map((item) => (
+                        <li key={item.category_id} className="flex items-center justify-between gap-2">
+                          <span>{item.category_name}</span>
+                          <span className="text-muted-foreground">{item.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

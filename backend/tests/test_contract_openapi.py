@@ -20,6 +20,8 @@ SERVICE_UNAVAILABLE_TYPE = "https://api.budgetbuddy.dev/problems/service-unavail
 SERVICE_UNAVAILABLE_TITLE = "Service Unavailable"
 ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
 ORIGIN_NOT_ALLOWED_TITLE = "Forbidden"
+TRANSACTION_MOOD_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid"
+TRANSACTION_MOOD_INVALID_TITLE = "Transaction mood value is invalid"
 CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
 
 
@@ -242,6 +244,12 @@ def _analytics_flow(client: TestClient, access: str, account_id: str, category_i
     )
     _assert_contract(income, "/analytics/income", "get")
 
+    impulse = client.get(
+        "/api/analytics/impulse-summary?from=2026-01-01&to=2026-12-31",
+        headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
+    )
+    _assert_contract(impulse, "/analytics/impulse-summary", "get")
+
     preview = client.get(
         "/api/rollover/preview?month=2026-01",
         headers={"accept": VENDOR, "authorization": f"Bearer {access}"},
@@ -457,6 +465,14 @@ def test_service_unavailable_problem_catalog_mapping_exists():
     assert service_unavailable[0]["status"] == 503
 
 
+def test_transaction_mood_invalid_problem_catalog_mapping_exists():
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+    mood_invalid = [item for item in catalog if item["type"] == TRANSACTION_MOOD_INVALID_TYPE]
+    assert len(mood_invalid) == 1
+    assert mood_invalid[0]["title"] == TRANSACTION_MOOD_INVALID_TITLE
+    assert mood_invalid[0]["status"] == 422
+
+
 def test_cors_cookie_cross_site_contract_notes_exist():
     description = SPEC["info"]["description"]
     assert "BUDGETBUDDY_CORS_ORIGINS" in description
@@ -554,7 +570,7 @@ def test_openapi_archived_policy_contract_wording_is_explicit():
         delete_204_description = SPEC["paths"][path]["delete"]["responses"]["204"]["description"]
         assert "Archived (soft-delete)" in delete_204_description
 
-    for path in ("/analytics/by-month", "/analytics/by-category", "/analytics/income", "/rollover/preview"):
+    for path in ("/analytics/by-month", "/analytics/by-category", "/analytics/income", "/analytics/impulse-summary", "/rollover/preview"):
         description = SPEC["paths"][path]["get"].get("description", "")
         assert "archived transactions are excluded" in description
 

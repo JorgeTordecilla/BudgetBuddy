@@ -307,3 +307,61 @@ def analytics_income(
         )
 
     return vendor_response({"items": items})
+
+
+@router.get("/impulse-summary")
+def analytics_impulse_summary(
+    from_: date = Query(alias="from"),
+    to: date = Query(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if from_ > to:
+        raise invalid_date_range_error("from must be less than or equal to to")
+    validate_user_currency_for_money(current_user.currency_code)
+
+    counts_stmt = select(
+        func.coalesce(func.sum(case((Transaction.is_impulse.is_(True), 1), else_=0)), 0).label("impulse_count"),
+        func.coalesce(func.sum(case((Transaction.is_impulse.is_(False), 1), else_=0)), 0).label("intentional_count"),
+        func.coalesce(func.sum(case((Transaction.is_impulse.is_(None), 1), else_=0)), 0).label("untagged_count"),
+    ).where(
+        Transaction.user_id == current_user.id,
+        Transaction.archived_at.is_(None),
+        Transaction.date >= from_,
+        Transaction.date <= to,
+    )
+    counts = db.execute(counts_stmt).one()
+
+    top_stmt = (
+        select(
+            Category.id.label("category_id"),
+            Category.name.label("category_name"),
+            func.count(Transaction.id).label("count"),
+        )
+        .join(Category, Category.id == Transaction.category_id)
+        .where(Transaction.user_id == current_user.id)
+        .where(Transaction.archived_at.is_(None))
+        .where(Transaction.date >= from_)
+        .where(Transaction.date <= to)
+        .where(Transaction.type == "expense")
+        .where(Transaction.is_impulse.is_(True))
+        .group_by(Category.id, Category.name)
+        .order_by(func.count(Transaction.id).desc(), Category.name.asc())
+        .limit(5)
+    )
+
+    return vendor_response(
+        {
+            "impulse_count": int(counts.impulse_count),
+            "intentional_count": int(counts.intentional_count),
+            "untagged_count": int(counts.untagged_count),
+            "top_impulse_categories": [
+                {
+                    "category_id": row.category_id,
+                    "category_name": row.category_name,
+                    "count": int(row.count),
+                }
+                for row in db.execute(top_stmt)
+            ],
+        }
+    )

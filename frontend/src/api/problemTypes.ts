@@ -10,3 +10,4 @@ export const PROBLEM_TYPE_CATEGORY_TYPE_MISMATCH = "https://api.budgetbuddy.dev/
 export const PROBLEM_TYPE_BUDGET_DUPLICATE = "https://api.budgetbuddy.dev/problems/budget-duplicate";
 export const PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED = "https://api.budgetbuddy.dev/problems/rollover-already-applied";
 export const PROBLEM_TYPE_ROLLOVER_NO_SURPLUS = "https://api.budgetbuddy.dev/problems/rollover-no-surplus";
+export const PROBLEM_TYPE_TRANSACTION_MOOD_INVALID = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid";

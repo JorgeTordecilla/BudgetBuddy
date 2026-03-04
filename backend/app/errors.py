@@ -58,6 +58,9 @@ ROLLOVER_ALREADY_APPLIED_STATUS = 409
 ROLLOVER_NO_SURPLUS_TYPE = "https://api.budgetbuddy.dev/problems/rollover-no-surplus"
 ROLLOVER_NO_SURPLUS_TITLE = "Rollover has no surplus"
 ROLLOVER_NO_SURPLUS_STATUS = 422
+TRANSACTION_MOOD_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid"
+TRANSACTION_MOOD_INVALID_TITLE = "Transaction mood value is invalid"
+TRANSACTION_MOOD_INVALID_STATUS = 422
 
 MONEY_AMOUNT_NOT_INTEGER_TYPE = "https://api.budgetbuddy.dev/problems/money-amount-not-integer"
 MONEY_AMOUNT_NOT_INTEGER_TITLE = "Money amount must be an integer"
@@ -229,6 +232,15 @@ def rollover_no_surplus_error(detail: str | None = None) -> APIError:
         title=ROLLOVER_NO_SURPLUS_TITLE,
         detail=detail,
         type_=ROLLOVER_NO_SURPLUS_TYPE,
+    )
+
+
+def transaction_mood_invalid_error(detail: str | None = None) -> APIError:
+    return APIError(
+        status=TRANSACTION_MOOD_INVALID_STATUS,
+        title=TRANSACTION_MOOD_INVALID_TITLE,
+        detail=detail,
+        type_=TRANSACTION_MOOD_INVALID_TYPE,
     )
 
 

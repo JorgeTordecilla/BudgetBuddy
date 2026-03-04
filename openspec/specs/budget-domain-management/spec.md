@@ -318,3 +318,36 @@ Runtime behaviors that consume archived resources MUST follow the same archive p
 #### Scenario: Import/write paths continue to enforce archived conflicts
 - **WHEN** import or write operations reference archived account/category resources where forbidden by domain rules
 - **THEN** runtime SHALL return canonical business-rule conflicts consistently
+
+### Requirement: Transactions resource supports optional mood and impulse enrichment
+The backend MUST accept and return optional `mood` and `is_impulse` fields for transaction create, update, get, and list operations.
+
+#### Scenario: Create transaction without enrichment
+- **WHEN** `POST /transactions` omits `mood` and `is_impulse`
+- **THEN** the API SHALL return `201` and the created resource SHALL expose `mood=null` and `is_impulse=null`.
+
+#### Scenario: Create transaction with valid mood and impulse
+- **WHEN** `POST /transactions` includes a valid mood and a boolean `is_impulse`
+- **THEN** the API SHALL return `201` and persist both enrichment values.
+
+#### Scenario: Patch transaction clears enrichment fields
+- **WHEN** `PATCH /transactions/{transaction_id}` sends explicit `mood=null` and/or `is_impulse=null`
+- **THEN** the API SHALL return `200` and clear only those enrichment fields without mutating unrelated transaction properties.
+
+### Requirement: Invalid mood values map to canonical ProblemDetails
+The backend MUST reject non-canonical `mood` values with deterministic ProblemDetails mapping.
+
+#### Scenario: Invalid mood returns canonical 422
+- **WHEN** transaction create or update receives `mood` outside the allowed taxonomy
+- **THEN** the API SHALL return `422` with canonical ProblemDetails `type=https://api.budgetbuddy.dev/problems/transaction-mood-invalid`.
+
+### Requirement: Transactions CSV export includes enrichment columns
+The backend MUST expose enrichment fields in transactions CSV export as additive trailing columns.
+
+#### Scenario: CSV header includes enrichment columns at the end
+- **WHEN** `GET /transactions/export` returns `200 text/csv`
+- **THEN** CSV header SHALL include `mood` and `is_impulse` after existing columns.
+
+#### Scenario: CSV renders null enrichment as empty strings
+- **WHEN** an exported transaction has `mood=null` or `is_impulse=null`
+- **THEN** the corresponding CSV cell SHALL be empty.

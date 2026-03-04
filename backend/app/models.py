@@ -87,6 +87,8 @@ class Transaction(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(160), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mood: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    is_impulse: Mapped[bool | None] = mapped_column(nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), onupdate=lambda: datetime.now(tz=UTC), nullable=False)

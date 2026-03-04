@@ -183,6 +183,48 @@ describe("TransactionsPage", () => {
     );
   });
 
+  it("sends explicit nulls when clearing mood and impulse on edit", async () => {
+    vi.mocked(listTransactions).mockResolvedValueOnce({
+      items: [
+        {
+          id: "t1",
+          type: "expense",
+          account_id: "a1",
+          category_id: "c1",
+          amount_cents: 4500,
+          date: "2026-02-18",
+          merchant: "Market",
+          note: "weekly",
+          mood: "happy",
+          is_impulse: true,
+          archived_at: null,
+          created_at: "2026-02-18T10:20:30Z",
+          updated_at: "2026-02-18T10:20:30Z"
+        }
+      ],
+      next_cursor: null
+    });
+
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Mood"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Impulse buy?"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(updateTransaction).toHaveBeenCalledWith(
+        apiClientStub,
+        "t1",
+        expect.objectContaining({
+          mood: null,
+          is_impulse: null
+        })
+      )
+    );
+  });
+
   it("archives transaction and refetches list", async () => {
     vi.mocked(listTransactions)
       .mockResolvedValueOnce({
@@ -288,6 +330,64 @@ describe("TransactionsPage", () => {
         })
       )
     );
+    expect(createTransaction).toHaveBeenCalledWith(
+      apiClientStub,
+      expect.not.objectContaining({
+        mood: expect.anything(),
+        is_impulse: expect.anything()
+      })
+    );
+  });
+
+  it("creates transaction with mood and impulse enrichment when selected", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "New transaction" }));
+    fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
+    fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.00" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
+    fireEvent.change(screen.getByLabelText("Mood"), { target: { value: "happy" } });
+    fireEvent.change(screen.getByLabelText("Impulse buy?"), { target: { value: "impulsive" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+
+    await waitFor(() =>
+      expect(createTransaction).toHaveBeenCalledWith(
+        apiClientStub,
+        expect.objectContaining({
+          mood: "happy",
+          is_impulse: true
+        })
+      )
+    );
+  });
+
+  it("shows mood and impulse badges in transaction rows", async () => {
+    vi.mocked(listTransactions).mockResolvedValueOnce({
+      items: [
+        {
+          id: "t1",
+          type: "expense",
+          account_id: "a1",
+          category_id: "c1",
+          amount_cents: 4500,
+          date: "2026-02-18",
+          merchant: "Market",
+          note: "weekly",
+          mood: "happy",
+          is_impulse: true,
+          archived_at: null,
+          created_at: "2026-02-18T10:20:30Z",
+          updated_at: "2026-02-18T10:20:30Z"
+        }
+      ],
+      next_cursor: null
+    });
+
+    renderPage();
+    expect(await screen.findByText("😊 Happy")).toBeInTheDocument();
+    expect(screen.getAllByText("Impulsive").length).toBeGreaterThan(0);
   });
 
   it("blocks create when amount is invalid", async () => {

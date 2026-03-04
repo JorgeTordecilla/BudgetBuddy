@@ -182,3 +182,29 @@ The frontend SHALL provide per-month rollover apply actions gated by preview sta
 #### Scenario: Apply and preview errors follow ProblemDetails UX
 - **WHEN** rollover APIs return canonical errors (`401`, `409`, `422`)
 - **THEN** UI SHALL map responses through existing ProblemDetails handling and display deterministic feedback.
+
+### Requirement: Analytics dashboard shows impulse KPI counters for active range
+The analytics page SHALL render impulse behavior KPI cards scoped to the active range.
+
+#### Scenario: Impulse and intentional KPI cards render with summary data
+- **WHEN** `GET /analytics/impulse-summary` returns data for active range
+- **THEN** UI SHALL render `Impulse` and `Intentional` KPI cards using returned counts.
+
+### Requirement: Analytics dashboard renders top impulse categories and zero state
+The analytics page SHALL provide readable impulse category insight and explicit empty-state behavior.
+
+#### Scenario: Top impulse categories render up to five rows
+- **WHEN** summary response contains `top_impulse_categories`
+- **THEN** UI SHALL render up to five category rows with impulse counts.
+
+#### Scenario: Zero state is explicit when no tagged transactions exist
+- **WHEN** summary response contains zero counters and empty top categories
+- **THEN** UI SHALL show `No tagged transactions yet` instead of empty KPI/category placeholders.
+
+### Requirement: Impulse summary failures are non-blocking in analytics
+Impulse summary loading errors SHALL not break the rest of analytics rendering.
+
+#### Scenario: Summary error keeps analytics page functional
+- **WHEN** impulse summary request fails
+- **THEN** impulse section SHALL show non-blocking error state
+- **AND** other analytics sections SHALL continue rendering and updating normally.

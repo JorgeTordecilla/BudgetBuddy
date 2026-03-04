@@ -94,6 +94,8 @@ class TransactionBase(BaseModel):
     date: DateType
     merchant: str | None = None
     note: str | None = None
+    mood: str | None = None
+    is_impulse: bool | None = None
 
 
 class TransactionCreate(TransactionBase):
@@ -109,6 +111,8 @@ class TransactionUpdate(BaseModel):
     date: DateType | None = None
     merchant: str | None = None
     note: str | None = None
+    mood: str | None = None
+    is_impulse: bool | None = None
     archived_at: datetime | None = None
 
 
@@ -148,6 +152,19 @@ class AnalyticsByCategoryItem(BaseModel):
 
 class AnalyticsByCategoryResponse(BaseModel):
     items: list[AnalyticsByCategoryItem]
+
+
+class ImpulseCategoryOut(BaseModel):
+    category_id: str
+    category_name: str
+    count: int
+
+
+class ImpulseSummaryOut(BaseModel):
+    impulse_count: int
+    intentional_count: int
+    untagged_count: int
+    top_impulse_categories: list[ImpulseCategoryOut]
 
 
 class IncomeSourceBase(BaseModel):
