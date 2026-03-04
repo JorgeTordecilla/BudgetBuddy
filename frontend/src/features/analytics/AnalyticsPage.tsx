@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ApiProblemError } from "@/api/errors";
-import type { AnalyticsByCategoryItem, AnalyticsByMonthItem, IncomeAnalyticsItem } from "@/api/types";
+import type { ApiClient } from "@/api/client";
+import type { AnalyticsByCategoryItem, AnalyticsByMonthItem, IncomeAnalyticsItem, RolloverPreview } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import DatePickerField from "@/components/DatePickerField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import PageHeader from "@/components/PageHeader";
-import { useAnalyticsByCategory, useAnalyticsByMonth, useAnalyticsIncome } from "@/features/analytics/analyticsQueries";
+import { useAnalyticsByCategory, useAnalyticsByMonth, useAnalyticsIncome, useApplyRollover, useRolloverPreview } from "@/features/analytics/analyticsQueries";
 import CategoryBreakdown from "@/features/analytics/components/CategoryBreakdown";
 import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
+import RolloverApplyModal from "@/features/analytics/components/RolloverApplyModal";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { defaultAnalyticsRange, isValidDateRange } from "@/utils/dates";
@@ -17,6 +19,7 @@ import { formatCents } from "@/utils/money";
 import { normalizeIsoDateParam } from "@/lib/queryState";
 
 type MetricType = "expense" | "income";
+type RolloverSelection = { sourceMonth: string; preview: RolloverPreview };
 
 function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsByCategoryItem[]) {
   const incomeTotal = monthItems.reduce((sum, row) => sum + row.income_total_cents, 0);
@@ -26,6 +29,46 @@ function summarize(monthItems: AnalyticsByMonthItem[], categoryItems: AnalyticsB
   const budgetSpent = categoryItems.reduce((sum, row) => sum + (row.budget_spent_cents ?? 0), 0);
   const budgetLimit = categoryItems.reduce((sum, row) => sum + (row.budget_limit_cents ?? 0), 0);
   return { incomeTotal, expenseTotal, expectedIncome, actualIncome, budgetSpent, budgetLimit };
+}
+
+type RolloverMonthStatusProps = {
+  apiClient: ApiClient;
+  month: string;
+  fallbackSurplusCents: number;
+  onApply: (selection: RolloverSelection) => void;
+};
+
+function RolloverMonthStatus({ apiClient, month, fallbackSurplusCents, onApply }: RolloverMonthStatusProps) {
+  const previewQuery = useRolloverPreview(apiClient, month, true);
+
+  if (previewQuery.isLoading) {
+    return <span className="text-xs text-muted-foreground">Checking...</span>;
+  }
+  if (previewQuery.error) {
+    return <span className="text-xs text-rose-600">Preview error</span>;
+  }
+
+  const preview = previewQuery.data;
+  if (!preview) {
+    return <span className="text-xs text-muted-foreground">No data</span>;
+  }
+  if (preview.already_applied) {
+    return <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700">Applied</span>;
+  }
+  if (preview.surplus_cents <= 0 && fallbackSurplusCents <= 0) {
+    return <span className="text-xs text-muted-foreground">No surplus</span>;
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={() => onApply({ sourceMonth: month, preview })}
+    >
+      Apply rollover →
+    </Button>
+  );
 }
 
 export default function AnalyticsPage() {
@@ -44,6 +87,7 @@ export default function AnalyticsPage() {
   const [draftRange, setDraftRange] = useState(initialRange);
   const [appliedRange, setAppliedRange] = useState(initialRange);
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const [rolloverSelection, setRolloverSelection] = useState<RolloverSelection | null>(null);
 
   useEffect(() => {
     setDraftRange((previous) =>
@@ -58,11 +102,13 @@ export default function AnalyticsPage() {
   const monthQuery = useAnalyticsByMonth(apiClient, appliedRange, rangeValid);
   const categoryQuery = useAnalyticsByCategory(apiClient, appliedRange, rangeValid);
   const incomeQuery = useAnalyticsIncome(apiClient, appliedRange, rangeValid);
+  const applyRolloverMutation = useApplyRollover(apiClient);
 
   const monthItems = monthQuery.data?.items ?? [];
   const categoryItems = categoryQuery.data?.items ?? [];
   const currencyCode = user?.currency_code ?? "USD";
   const summary = useMemo(() => summarize(monthItems, categoryItems), [monthItems, categoryItems]);
+  const rolloverInLatest = monthItems[monthItems.length - 1]?.rollover_in_cents ?? 0;
   const hasAnyBudget = useMemo(
     () =>
       monthItems.some((row) => (row.budget_limit_cents ?? 0) > 0) ||
@@ -167,6 +213,10 @@ export default function AnalyticsPage() {
           <CardContent>{formatCents(currencyCode, summary.incomeTotal - summary.expenseTotal)}</CardContent>
         </Card>
         <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Rollover in</CardTitle></CardHeader>
+          <CardContent>{formatCents(currencyCode, rolloverInLatest)}</CardContent>
+        </Card>
+        <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Budget usage</CardTitle></CardHeader>
           <CardContent>
             {showBudgetOverlay && summary.budgetLimit > 0
@@ -242,6 +292,61 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Rollover</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {monthItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No monthly rows available for rollover actions.</p>
+          ) : (
+            <div className="space-y-2">
+              {monthItems.map((item) => (
+                <div key={`rollover-${item.month}`} className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <p className="text-sm font-medium">{item.month}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Surplus preview: {formatCents(currencyCode, item.rollover_in_cents ?? 0)}
+                    </p>
+                  </div>
+                  <RolloverMonthStatus
+                    apiClient={apiClient}
+                    month={item.month}
+                    fallbackSurplusCents={item.rollover_in_cents ?? 0}
+                    onApply={setRolloverSelection}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {applyRolloverMutation.error ? (
+            <ProblemDetailsInline
+              error={applyRolloverMutation.error}
+              onRetry={() => undefined}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <RolloverApplyModal
+        apiClient={apiClient}
+        open={rolloverSelection !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRolloverSelection(null);
+          }
+        }}
+        sourceMonth={rolloverSelection?.sourceMonth ?? null}
+        preview={rolloverSelection?.preview ?? null}
+        currencyCode={currencyCode}
+        isSubmitting={applyRolloverMutation.isPending}
+        onSubmit={(payload) => {
+          applyRolloverMutation.mutate(payload, {
+            onSuccess: () => {
+              setRolloverSelection(null);
+            }
+          });
+        }}
+      />
     </section>
   );
 }

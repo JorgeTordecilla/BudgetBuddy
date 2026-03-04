@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 
 import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
+import { listAccounts } from "@/api/accounts";
+import { listCategories } from "@/api/categories";
 import { ApiProblemError } from "@/api/problem";
+import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
 import AnalyticsPage from "@/features/analytics/AnalyticsPage";
@@ -14,6 +17,12 @@ vi.mock("@/api/analytics", () => ({
   getAnalyticsByCategory: vi.fn(),
   getAnalyticsIncome: vi.fn()
 }));
+vi.mock("@/api/rollover", () => ({
+  getRolloverPreview: vi.fn(),
+  applyRollover: vi.fn(),
+}));
+vi.mock("@/api/accounts", () => ({ listAccounts: vi.fn() }));
+vi.mock("@/api/categories", () => ({ listCategories: vi.fn() }));
 
 const apiClientStub = {} as ApiClient;
 
@@ -55,6 +64,7 @@ describe("AnalyticsPage", () => {
           expense_total_cents: 300000,
           expected_income_cents: 550000,
           actual_income_cents: 500000,
+          rollover_in_cents: 9000,
           budget_spent_cents: 250000,
           budget_limit_cents: 350000
         }
@@ -99,6 +109,20 @@ describe("AnalyticsPage", () => {
         }
       ]
     });
+    vi.mocked(getRolloverPreview).mockResolvedValue({
+      month: "2026-02",
+      surplus_cents: 9000,
+      already_applied: false,
+      applied_transaction_id: null,
+    });
+    vi.mocked(applyRollover).mockResolvedValue({
+      source_month: "2026-02",
+      target_month: "2026-03",
+      transaction_id: "tx-rollover",
+      amount_cents: 9000,
+    });
+    vi.mocked(listAccounts).mockResolvedValue({ items: [{ id: "a1", name: "Cash", type: "cash", initial_balance_cents: 0, archived_at: null }], next_cursor: null });
+    vi.mocked(listCategories).mockResolvedValue({ items: [{ id: "c-income", name: "Salary", type: "income", archived_at: null }], next_cursor: null });
   });
 
   it("renders invalid-date-range feedback from backend problem details", async () => {
@@ -346,5 +370,39 @@ describe("AnalyticsPage", () => {
 
     renderPage(["/app/analytics"], "COP");
     expect((await screen.findAllByText(/4,000,000\.00/)).length).toBeGreaterThan(0);
+  });
+
+  it("shows rollover KPI and allows apply action from monthly rollover section", async () => {
+    vi.mocked(getRolloverPreview)
+      .mockResolvedValueOnce({
+        month: "2026-02",
+        surplus_cents: 9000,
+        already_applied: false,
+        applied_transaction_id: null,
+      })
+      .mockResolvedValue({
+        month: "2026-02",
+        surplus_cents: 9000,
+        already_applied: true,
+        applied_transaction_id: "tx-rollover",
+      });
+
+    renderPage();
+    expect(await screen.findByRole("button", { name: "Apply rollover →" })).toBeInTheDocument();
+    expect(screen.getAllByText("$90.00").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Apply rollover →" }));
+    expect(await screen.findByText("Apply rollover")).toBeInTheDocument();
+    await screen.findByRole("option", { name: "Cash" });
+    await screen.findByRole("option", { name: "Salary" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm apply" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm apply" }));
+    await waitFor(() =>
+      expect(applyRollover).toHaveBeenCalledWith(apiClientStub, {
+        source_month: "2026-02",
+        account_id: "a1",
+        category_id: "c-income",
+      })
+    );
+    expect(await screen.findByText("Applied")).toBeInTheDocument();
   });
 });

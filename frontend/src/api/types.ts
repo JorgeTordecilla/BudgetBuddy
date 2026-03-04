@@ -179,6 +179,7 @@ export type AnalyticsByMonthItem = {
   expense_total_cents: number;
   expected_income_cents?: number;
   actual_income_cents?: number;
+  rollover_in_cents?: number;
   budget_spent_cents?: number;
   budget_limit_cents?: number;
 };
@@ -252,4 +253,24 @@ export type IncomeAnalyticsItem = {
 
 export type IncomeAnalyticsResponse = {
   items: IncomeAnalyticsItem[];
+};
+
+export type RolloverPreview = {
+  month: string;
+  surplus_cents: number;
+  already_applied: boolean;
+  applied_transaction_id: string | null;
+};
+
+export type RolloverApplyRequest = {
+  source_month: string;
+  account_id: string;
+  category_id: string;
+};
+
+export type RolloverApplyResponse = {
+  source_month: string;
+  target_month: string;
+  transaction_id: string;
+  amount_cents: number;
 };

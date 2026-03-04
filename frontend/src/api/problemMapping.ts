@@ -9,6 +9,8 @@ import {
   PROBLEM_TYPE_INVALID_DATE_RANGE,
   PROBLEM_TYPE_NOT_ACCEPTABLE,
   PROBLEM_TYPE_RATE_LIMITED,
+  PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED,
+  PROBLEM_TYPE_ROLLOVER_NO_SURPLUS,
   PROBLEM_TYPE_UNAUTHORIZED
 } from "@/api/problemTypes";
 
@@ -79,6 +81,16 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
   [PROBLEM_TYPE_BUDGET_DUPLICATE]: {
     message: "A budget for this category and month already exists.",
     presentation: "inline"
+  },
+  [PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED]: {
+    message: "Rollover for this month was already applied.",
+    presentation: "inline",
+    showDetail: true
+  },
+  [PROBLEM_TYPE_ROLLOVER_NO_SURPLUS]: {
+    message: "No positive surplus available for rollover.",
+    presentation: "inline",
+    showDetail: true
   }
 };
 

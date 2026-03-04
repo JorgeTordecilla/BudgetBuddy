@@ -145,6 +145,21 @@ class IncomeSource(Base):
     )
 
 
+class MonthlyRollover(Base):
+    __tablename__ = "monthly_rollover"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_month", name="uq_monthly_rollover_user_source_month"),
+        Index("idx_monthly_rollover_user_created", "user_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    source_month: Mapped[str] = mapped_column(String(7), nullable=False)
+    transaction_id: Mapped[str] = mapped_column(String(36), ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz=UTC), nullable=False)
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
     __table_args__ = (

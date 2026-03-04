@@ -11,7 +11,13 @@ type Props = {
 };
 
 function maxValue(items: AnalyticsByMonthItem[]): number {
-  return items.reduce((max, item) => Math.max(max, item.income_total_cents, item.expense_total_cents), 0) || 1;
+  return (
+    items.reduce(
+      (max, item) =>
+        Math.max(max, item.income_total_cents, item.expense_total_cents, item.rollover_in_cents ?? 0),
+      0
+    ) || 1
+  );
 }
 
 export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay }: Props) {
@@ -24,12 +30,13 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
         {items.map((item) => {
           const incomeWidth = Math.round((item.income_total_cents / peak) * 100);
           const expenseWidth = Math.round((item.expense_total_cents / peak) * 100);
+          const rolloverWidth = Math.round(((item.rollover_in_cents ?? 0) / peak) * 100);
           return (
             <div key={item.month} className="space-y-1">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{item.month}</span>
                 <span>
-                  Income {formatCents(currencyCode, item.income_total_cents)} | Expense {formatCents(currencyCode, item.expense_total_cents)}
+                  Income {formatCents(currencyCode, item.income_total_cents)} | Expense {formatCents(currencyCode, item.expense_total_cents)} | Rollover {formatCents(currencyCode, item.rollover_in_cents ?? 0)}
                 </span>
               </div>
               <div className="space-y-1">
@@ -38,6 +45,9 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
                 </div>
                 <div className="h-2 rounded bg-rose-100">
                   <div className="h-2 rounded bg-rose-500" style={{ width: `${expenseWidth}%` }} />
+                </div>
+                <div className="h-2 rounded bg-sky-100">
+                  <div className="h-2 rounded bg-sky-500" style={{ width: `${rolloverWidth}%` }} />
                 </div>
               </div>
             </div>
@@ -65,6 +75,7 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
                     <p>Income: {formatCents(currencyCode, item.income_total_cents)}</p>
                     <p>Expense: {formatCents(currencyCode, item.expense_total_cents)}</p>
                     <p>Net: {formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</p>
+                    <p>Rollover in: {formatCents(currencyCode, item.rollover_in_cents ?? 0)}</p>
                     <p>
                       Budget: {showBudgetOverlay && limit > 0 ? formatCents(currencyCode, spent) : "No budget"}
                     </p>
@@ -84,6 +95,7 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
               <TableHead className="px-3 py-2">Month</TableHead>
               <TableHead className="px-3 py-2 text-right">Income</TableHead>
               <TableHead className="px-3 py-2 text-right">Expense</TableHead>
+              <TableHead className="px-3 py-2 text-right">Rollover in</TableHead>
               <TableHead className="px-3 py-2 text-right">Net</TableHead>
               <TableHead className="px-3 py-2 text-right">Budget spent</TableHead>
               <TableHead className="px-3 py-2 text-right">Budget limit</TableHead>
@@ -100,6 +112,7 @@ export default function MonthTrendChart({ items, currencyCode, showBudgetOverlay
                   <TableCell className="px-3 py-2">{item.month}</TableCell>
                   <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.expense_total_cents)}</TableCell>
+                  <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.rollover_in_cents ?? 0)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">{formatCents(currencyCode, item.income_total_cents - item.expense_total_cents)}</TableCell>
                   <TableCell className="px-3 py-2 text-right">{showBudgetOverlay ? formatCents(currencyCode, spent) : "-"}</TableCell>
                   <TableCell className="px-3 py-2 text-right">{showBudgetOverlay && limit > 0 ? formatCents(currencyCode, limit) : "No budget"}</TableCell>

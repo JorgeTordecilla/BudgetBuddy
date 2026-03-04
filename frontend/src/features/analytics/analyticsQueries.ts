@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
+import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
+import type { RolloverApplyRequest } from "@/api/types";
 
 type AnalyticsRange = {
   from: string;
@@ -35,5 +37,27 @@ export function useAnalyticsIncome(apiClient: ApiClient, range: AnalyticsRange, 
     meta: { skipGlobalErrorToast: true },
     queryFn: () => getAnalyticsIncome(apiClient, range),
     placeholderData: (previous) => previous
+  });
+}
+
+export function useRolloverPreview(apiClient: ApiClient, month: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["rollover", "preview", { month }] as const,
+    enabled,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => getRolloverPreview(apiClient, month),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useApplyRollover(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RolloverApplyRequest) => applyRollover(apiClient, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      await queryClient.invalidateQueries({ queryKey: ["rollover"] });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    }
   });
 }
