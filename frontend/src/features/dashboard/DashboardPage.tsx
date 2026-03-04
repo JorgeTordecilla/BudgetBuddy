@@ -42,7 +42,12 @@ type MoneyDisplayParts = {
 
 function toOverBudgetItems(items: AnalyticsByCategoryItem[]): OverBudgetItem[] {
   return items
-    .filter((item) => (item.budget_limit_cents ?? 0) > 0 && (item.budget_spent_cents ?? 0) > (item.budget_limit_cents ?? 0))
+    .filter(
+      (item) =>
+        item.category_type === "expense" &&
+        (item.budget_limit_cents ?? 0) > 0 &&
+        (item.budget_spent_cents ?? 0) > (item.budget_limit_cents ?? 0)
+    )
     .map((item) => {
       const spent = item.budget_spent_cents ?? 0;
       const limit = item.budget_limit_cents ?? 0;

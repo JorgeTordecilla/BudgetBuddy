@@ -142,7 +142,6 @@ def analytics_by_category(
         .join(Category, Category.id == Budget.category_id)
         .where(Budget.user_id == current_user.id)
         .where(Budget.archived_at.is_(None))
-        .where(Category.type == "expense")
         .where(Budget.month >= from_month)
         .where(Budget.month <= to_month)
         .group_by(Budget.category_id)
@@ -170,7 +169,7 @@ def analytics_by_category(
             "category_type": row.category_type,
             "income_total_cents": int(row.income_total_cents),
             "expense_total_cents": int(row.expense_total_cents),
-            "budget_spent_cents": int(row.expense_total_cents),
+            "budget_spent_cents": int(row.expense_total_cents) if row.category_type == "expense" else 0,
             "budget_limit_cents": int(row.budget_limit_cents),
         }
         for row in db.execute(stmt)

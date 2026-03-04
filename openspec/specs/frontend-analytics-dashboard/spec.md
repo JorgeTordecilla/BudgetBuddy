@@ -68,7 +68,7 @@ The frontend SHALL present monthly trend data with currency-aware formatting and
 - **AND** budgets configured on income categories SHALL NOT inflate the budget usage denominator.
 
 ### Requirement: Category analytics breakdown must support income and expense views
-The frontend SHALL provide category breakdown views for both income and expense totals with deterministic ordering.
+The frontend SHALL provide category breakdown views for both income and expense totals with deterministic ordering and domain-appropriate budget semantics.
 
 #### Scenario: Metric switching updates category ranking
 - **WHEN** user switches the metric view between `expense` and `income`
@@ -76,10 +76,19 @@ The frontend SHALL provide category breakdown views for both income and expense 
 - **AND** frontend SHALL sort remaining categories descending by the selected metric total
 - **AND** displayed values SHALL use integer-cents formatting rules.
 
-#### Scenario: Category budget overlay is rendered when present
-- **WHEN** category analytics row includes budget fields
-- **THEN** frontend SHALL render spent-vs-limit context and progress
-- **AND** rows without usable limit SHALL display `No budget`.
+#### Scenario: Category budget overlay is rendered with domain semantics
+- **WHEN** category analytics row has `category_type = expense` and `budget_limit_cents > 0`
+- **THEN** frontend SHALL render spent-vs-budget context using `budget_spent_cents` and `budget_limit_cents`
+- **AND** show progress as spent over limit.
+
+#### Scenario: Income category target overlay is rendered when present
+- **WHEN** category analytics row has `category_type = income` and `budget_limit_cents > 0`
+- **THEN** frontend SHALL render actual-vs-target context using `income_total_cents` and `budget_limit_cents`
+- **AND** show progress as achieved over target.
+
+#### Scenario: Rows without configured budget target show No budget
+- **WHEN** category analytics row has `budget_limit_cents = 0`
+- **THEN** frontend SHALL render `No budget` consistently for both category domains.
 
 ### Requirement: Analytics API calls must remain contract-first and auth-safe
 Analytics requests SHALL preserve existing frontend contract behavior for media types, authentication, and ProblemDetails parsing.
