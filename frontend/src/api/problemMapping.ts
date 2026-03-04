@@ -11,6 +11,7 @@ import {
   PROBLEM_TYPE_RATE_LIMITED,
   PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED,
   PROBLEM_TYPE_ROLLOVER_NO_SURPLUS,
+  PROBLEM_TYPE_TRANSACTION_MOOD_INVALID,
   PROBLEM_TYPE_UNAUTHORIZED
 } from "@/api/problemTypes";
 
@@ -89,6 +90,11 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
   },
   [PROBLEM_TYPE_ROLLOVER_NO_SURPLUS]: {
     message: "No positive surplus available for rollover.",
+    presentation: "inline",
+    showDetail: true
+  },
+  [PROBLEM_TYPE_TRANSACTION_MOOD_INVALID]: {
+    message: "Mood must be one of: happy, neutral, sad, anxious, bored.",
     presentation: "inline",
     showDetail: true
   }

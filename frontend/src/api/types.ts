@@ -83,6 +83,7 @@ export type CategoryUpdate = {
 };
 
 export type TransactionType = "income" | "expense";
+export type TransactionMood = "happy" | "neutral" | "sad" | "anxious" | "bored";
 
 export type Transaction = {
   id: string;
@@ -94,6 +95,8 @@ export type Transaction = {
   date: string;
   merchant?: string | null;
   note?: string | null;
+  mood?: TransactionMood | null;
+  is_impulse?: boolean | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
@@ -113,6 +116,8 @@ export type TransactionCreate = {
   date: string;
   merchant?: string;
   note?: string;
+  mood?: TransactionMood;
+  is_impulse?: boolean;
 };
 
 export type TransactionUpdate = {
@@ -124,6 +129,8 @@ export type TransactionUpdate = {
   date?: string;
   merchant?: string | null;
   note?: string | null;
+  mood?: TransactionMood | null;
+  is_impulse?: boolean | null;
   archived_at?: string | null;
 };
 
@@ -200,6 +207,19 @@ export type AnalyticsByCategoryItem = {
 
 export type AnalyticsByCategoryResponse = {
   items: AnalyticsByCategoryItem[];
+};
+
+export type ImpulseSummaryCategory = {
+  category_id: string;
+  category_name: string;
+  count: number;
+};
+
+export type ImpulseSummary = {
+  impulse_count: number;
+  intentional_count: number;
+  untagged_count: number;
+  top_impulse_categories: ImpulseSummaryCategory[];
 };
 
 export type IncomeFrequency = "monthly";

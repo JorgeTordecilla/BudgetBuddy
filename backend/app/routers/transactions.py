@@ -28,6 +28,7 @@ from app.errors import (
     invalid_cursor_error,
     invalid_date_range_error,
     rate_limited_error,
+    transaction_mood_invalid_error,
 )
 from app.models import Account, Category, Transaction, User
 from app.repositories import (
@@ -47,6 +48,7 @@ from app.schemas import (
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 _TRANSACTION_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
+_VALID_TRANSACTION_MOODS = {"happy", "neutral", "sad", "anxious", "bored"}
 
 
 def _owned_transaction_or_403(db: Session, user_id: str, transaction_id: str) -> Transaction:
@@ -101,6 +103,14 @@ def _validate_business_rules(db: Session, user_id: str, payload: dict):
         raise category_type_mismatch_error()
     _validate_income_source_rule(db, user_id, payload)
     return account, category
+
+
+def _validate_transaction_mood(payload: dict) -> None:
+    mood = payload.get("mood")
+    if mood is None:
+        return
+    if mood not in _VALID_TRANSACTION_MOODS:
+        raise transaction_mood_invalid_error("mood must be one of: happy, neutral, sad, anxious, bored")
 
 
 def _validate_money_rules(user: User, tx_type: Literal["income", "expense"], amount_cents: object) -> int:
@@ -176,6 +186,8 @@ def _csv_stream(rows) -> Iterator[str]:
         "amount_cents",
         "merchant",
         "note",
+        "mood",
+        "is_impulse",
     ]
     yield _csv_line(header)
     for tx, account_name, category_name in rows:
@@ -188,6 +200,8 @@ def _csv_stream(rows) -> Iterator[str]:
                 tx.amount_cents,
                 tx.merchant or "",
                 tx.note or "",
+                tx.mood or "",
+                "" if tx.is_impulse is None else str(tx.is_impulse).lower(),
             ]
         )
 
@@ -308,6 +322,7 @@ def create_transaction(
 ):
     repo = SQLAlchemyTransactionRepository(db)
     data = payload.model_dump()
+    _validate_transaction_mood(data)
     data["amount_cents"] = _validate_money_rules(current_user, data["type"], data["amount_cents"])
     _validate_business_rules(db, current_user.id, data)
     row = Transaction(user_id=current_user.id, **data)
@@ -346,6 +361,7 @@ def import_transactions(
     for index, item in enumerate(payload.items):
         try:
             data = item.model_dump()
+            _validate_transaction_mood(data)
             data["amount_cents"] = _validate_money_rules(current_user, data["type"], data["amount_cents"])
             _validate_business_rules(db, current_user.id, data)
             rows_to_insert.append(Transaction(user_id=current_user.id, **data))
@@ -440,6 +456,7 @@ def patch_transaction(
     row = _owned_transaction_or_403(db, current_user.id, str(transaction_id))
     previous_archived_at = row.archived_at
     data = payload.model_dump(exclude_unset=True)
+    _validate_transaction_mood(data)
     merged_type: Literal["income", "expense"] = data.get("type", row.type)
     merged_amount = data.get("amount_cents", row.amount_cents)
     _validate_money_rules(current_user, merged_type, merged_amount)

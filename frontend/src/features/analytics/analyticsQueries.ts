@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome } from "@/api/analytics";
+import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome, getImpulseSummary } from "@/api/analytics";
 import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
 import type { RolloverApplyRequest } from "@/api/types";
@@ -36,6 +36,16 @@ export function useAnalyticsIncome(apiClient: ApiClient, range: AnalyticsRange, 
     enabled,
     meta: { skipGlobalErrorToast: true },
     queryFn: () => getAnalyticsIncome(apiClient, range),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useImpulseSummary(apiClient: ApiClient, range: AnalyticsRange, enabled: boolean) {
+  return useQuery({
+    queryKey: ["analytics", "impulse-summary", { from: range.from, to: range.to }] as const,
+    enabled,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => getImpulseSummary(apiClient, range),
     placeholderData: (previous) => previous
   });
 }

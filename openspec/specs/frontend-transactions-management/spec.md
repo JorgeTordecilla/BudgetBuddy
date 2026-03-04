@@ -249,3 +249,37 @@ Transactions actions (create, edit, archive, restore, import, export) SHALL rema
 - **WHEN** a user is on Transactions in a small viewport
 - **THEN** create transaction access SHALL remain available through a persistent touch-friendly action control
 - **AND** duplicate top-level create controls MAY be reduced to avoid header crowding while preserving functionality.
+
+### Requirement: Transaction form supports mood and impulse enrichment inputs
+The transactions create/edit form SHALL expose optional controls for `mood` and `is_impulse` with clear tri-state semantics.
+
+#### Scenario: Mood selector includes canonical options and unset state
+- **WHEN** create or edit transaction modal is rendered
+- **THEN** UI SHALL provide an optional mood selector with `happy`, `neutral`, `sad`, `anxious`, `bored`, and unset.
+
+#### Scenario: Impulse control supports tri-state behavior
+- **WHEN** create or edit transaction modal is rendered
+- **THEN** UI SHALL provide impulse states for `intentional`, `impulsive`, and `unset`.
+
+### Requirement: Transaction enrichment payload behavior is deterministic
+Frontend request composition MUST preserve create/patch semantics for optional enrichment fields.
+
+#### Scenario: Create omits unset enrichment fields
+- **WHEN** user creates a transaction without selecting mood and impulse state
+- **THEN** `POST /transactions` payload SHALL omit `mood` and `is_impulse` keys.
+
+#### Scenario: Edit sends explicit null to clear enrichment
+- **WHEN** user clears previously selected mood or impulse state in edit flow
+- **THEN** `PATCH /transactions/{transaction_id}` payload SHALL include explicit `null` for cleared fields.
+
+### Requirement: Transactions list renders enrichment badges
+The transactions list SHALL render behavior context badges without affecting existing row actions.
+
+#### Scenario: Mood badge renders for non-null mood
+- **WHEN** a listed transaction has non-null `mood`
+- **THEN** UI SHALL display an inline mood badge for that row.
+
+#### Scenario: Impulse badge renders only for tagged rows
+- **WHEN** a listed transaction has `is_impulse=true` or `is_impulse=false`
+- **THEN** UI SHALL display `Impulsive` or `Intentional` badge respectively
+- **AND** rows with `is_impulse=null` SHALL render no impulse badge.

@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 
-import type { Account, Category, IncomeSource, TransactionType } from "@/api/types";
+import type { Account, Category, IncomeSource, TransactionMood, TransactionType } from "@/api/types";
 import DatePickerField from "@/components/DatePickerField";
 import SelectField from "@/components/SelectField";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
@@ -13,6 +13,8 @@ export type TransactionFormState = {
   accountId: string;
   categoryId: string;
   incomeSourceId: string;
+  mood: TransactionMood | "";
+  impulseTag: "" | "intentional" | "impulsive";
   amount: string;
   date: string;
   merchant: string;
@@ -134,6 +136,35 @@ export default function TransactionForm({
             ariaLabel="Date"
             value={state.date}
             onChange={(value) => onFieldChange("date", value)}
+          />
+        </label>
+        <label className="min-w-0 space-y-1 text-sm">
+          <span>Mood</span>
+          <SelectField
+            ariaLabel="Mood"
+            value={state.mood}
+            onChange={(value) => onFieldChange("mood", value)}
+            options={[
+              { value: "", label: "No mood" },
+              { value: "happy", label: "😊 Happy" },
+              { value: "neutral", label: "🙂 Neutral" },
+              { value: "sad", label: "😢 Sad" },
+              { value: "anxious", label: "🥺 Anxious" },
+              { value: "bored", label: "🥱 Bored" }
+            ]}
+          />
+        </label>
+        <label className="min-w-0 space-y-1 text-sm">
+          <span>Impulse buy?</span>
+          <SelectField
+            ariaLabel="Impulse buy?"
+            value={state.impulseTag}
+            onChange={(value) => onFieldChange("impulseTag", value)}
+            options={[
+              { value: "", label: "Untagged" },
+              { value: "intentional", label: "Intentional" },
+              { value: "impulsive", label: "Impulsive" }
+            ]}
           />
         </label>
         <label className="min-w-0 space-y-1 text-sm">

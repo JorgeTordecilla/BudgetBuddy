@@ -199,3 +199,16 @@ The API contract MUST provide canonical `service-unavailable` ProblemDetails ide
 - **WHEN** transient operational errors are documented
 - **THEN** the catalog SHALL include canonical `503` entry (`service-unavailable`) with stable `type`, `title`, and `status`
 
+### Requirement: Canonical ProblemDetails entry exists for invalid transaction mood
+The ProblemDetails catalog MUST include a canonical entry for invalid transaction mood values.
+
+#### Scenario: Catalog includes transaction-mood-invalid identity
+- **WHEN** canonical problem catalog is defined
+- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/transaction-mood-invalid`, `title=Transaction mood value is invalid`, and `status=422`.
+
+### Requirement: Runtime mood validation errors align with canonical catalog entry
+Runtime responses for invalid transaction mood MUST match catalog identity and media-type policy.
+
+#### Scenario: Invalid mood emits canonical problem payload
+- **WHEN** transaction create/update receives an invalid mood value
+- **THEN** API SHALL emit `application/problem+json` with canonical `transaction-mood-invalid` type/title/status.

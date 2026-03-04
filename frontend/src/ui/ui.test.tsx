@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { Calendar } from "@/ui/calendar";
 
 describe("ui primitives", () => {
   it("renders Button with variants", () => {
@@ -34,5 +35,14 @@ describe("ui primitives", () => {
     expect(screen.getByText("Title")).toBeInTheDocument();
     expect(screen.getByText("Desc")).toBeInTheDocument();
     expect(screen.getByText("Body")).toBeInTheDocument();
+  });
+
+  it("renders Calendar with default shell classes", () => {
+    const { container } = render(
+      <Calendar mode="single" month={new Date(2026, 1, 1)} selected={new Date(2026, 1, 10)} onSelect={() => undefined} />
+    );
+
+    expect(container.querySelector('[role="grid"]')).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("p-1");
   });
 });

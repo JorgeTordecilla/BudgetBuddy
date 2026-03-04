@@ -55,6 +55,8 @@ const EMPTY_FORM: TransactionFormState = {
   accountId: "",
   categoryId: "",
   incomeSourceId: "",
+  mood: "",
+  impulseTag: "",
   amount: "",
   date: "",
   merchant: "",
@@ -177,7 +179,9 @@ export default function AppShell() {
       amount_cents: amount,
       date: formState.date,
       merchant: formState.merchant.trim() || undefined,
-      note: formState.note.trim() || undefined
+      note: formState.note.trim() || undefined,
+      ...(formState.mood ? { mood: formState.mood } : {}),
+      ...(formState.impulseTag ? { is_impulse: formState.impulseTag === "impulsive" } : {})
     };
   }
 
