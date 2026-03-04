@@ -38,6 +38,11 @@ Cockpit SHALL provide deterministic, explainable alert sections from existing AP
 - **THEN** cockpit SHALL list category as over-budget
 - **AND** each alert SHALL include spent, limit, and overrun amount.
 
+#### Scenario: Over-budget categories remain expense-only even when income targets exist
+- **WHEN** cockpit derives over-budget alerts from by-category analytics
+- **THEN** only rows with `category_type = expense` and `budget_limit_cents > 0` and `budget_spent_cents > budget_limit_cents` SHALL appear
+- **AND** categories with `category_type = income` SHALL NOT be listed as over-budget alerts.
+
 #### Scenario: Spending spikes are computed from expense sample
 - **WHEN** cockpit receives month expense sample from `GET /transactions` and sample size is at least 8
 - **THEN** frontend SHALL compute median `amount_cents`

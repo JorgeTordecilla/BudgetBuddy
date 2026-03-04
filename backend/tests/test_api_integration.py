@@ -3133,7 +3133,7 @@ def test_analytics_include_budget_spent_vs_limit_integer_fields():
         assert isinstance(expense_item["budget_spent_cents"], int)
         assert isinstance(expense_item["budget_limit_cents"], int)
         assert income_item["category_type"] == "income"
-        assert income_item["budget_limit_cents"] == 0
+        assert income_item["budget_limit_cents"] == 90000
         assert income_item["budget_spent_cents"] == 0
 
 

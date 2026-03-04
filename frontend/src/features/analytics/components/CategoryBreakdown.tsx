@@ -45,9 +45,9 @@ export default function CategoryBreakdown({ items, currencyCode, metric, onMetri
       <div className="space-y-2">
         {sorted.map((item) => {
           const total = metric === "expense" ? item.expense_total_cents : item.income_total_cents;
-          const spent = item.budget_spent_cents ?? 0;
           const limit = item.budget_limit_cents ?? 0;
-          const usage = budgetUsagePercent(spent, limit);
+          const actual = metric === "expense" ? (item.budget_spent_cents ?? 0) : item.income_total_cents;
+          const usage = budgetUsagePercent(actual, limit);
           return (
             <Card key={item.category_id}>
               <CardContent className="p-3">
@@ -62,8 +62,8 @@ export default function CategoryBreakdown({ items, currencyCode, metric, onMetri
                     <div className="text-right text-sm">
                       {limit > 0 ? (
                         <>
-                          <p>{formatCents(currencyCode, spent)} / {formatCents(currencyCode, limit)}</p>
-                          <p className="text-muted-foreground">{usage ?? 0}% used</p>
+                          <p>{formatCents(currencyCode, actual)} / {formatCents(currencyCode, limit)}</p>
+                          <p className="text-muted-foreground">{usage ?? 0}% {metric === "expense" ? "used" : "achieved"}</p>
                         </>
                       ) : (
                         <p className="text-muted-foreground">No budget</p>

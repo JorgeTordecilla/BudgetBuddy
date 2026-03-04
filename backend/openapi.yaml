@@ -2519,6 +2519,13 @@ paths:
                   expense_total_cents: 120000
                   budget_spent_cents: 120000
                   budget_limit_cents: 250000
+                - category_id: 0f5627cf-e123-4fd9-b8e4-d8f08fb8e240
+                  category_name: Salary
+                  category_type: income
+                  income_total_cents: 400000
+                  expense_total_cents: 0
+                  budget_spent_cents: 0
+                  budget_limit_cents: 500000
         '400':
           description: Invalid request
           content:
@@ -3556,6 +3563,13 @@ components:
           expense_total_cents: 120000
           budget_spent_cents: 120000
           budget_limit_cents: 250000
+        - category_id: 0f5627cf-e123-4fd9-b8e4-d8f08fb8e240
+          category_name: Salary
+          category_type: income
+          income_total_cents: 400000
+          expense_total_cents: 0
+          budget_spent_cents: 0
+          budget_limit_cents: 500000
   securitySchemes:
     BearerAuth:
       type: http
@@ -3681,4 +3695,3 @@ components:
         title: Service Unavailable
         status: 503
         detail: Service temporarily unavailable, please retry.
-

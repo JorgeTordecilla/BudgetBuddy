@@ -64,10 +64,16 @@ The backend MUST implement `GET /analytics/by-category` with required `from` and
 - **WHEN** matching budgets exist for category-month periods included in the requested date range
 - **THEN** the API SHALL expose deterministic integer-cents spent-versus-limit context without introducing non-integer rounding behavior
 
-#### Scenario: Category budget limit is provided only for expense categories
+#### Scenario: Category budget limit includes configured targets for both category domains
 - **WHEN** `budget_limit_cents` is computed for `GET /analytics/by-category`
-- **THEN** budget limit SHALL be non-zero only for categories of type `expense` with matching budgets in range
-- **AND** categories of type `income` SHALL report `budget_limit_cents = 0`.
+- **THEN** categories of type `expense` with matching budgets in range SHALL expose non-zero `budget_limit_cents`
+- **AND** categories of type `income` with matching budgets in range SHALL expose non-zero `budget_limit_cents` as income target
+- **AND** categories without matching budgets in range SHALL expose `budget_limit_cents = 0`.
+
+#### Scenario: Category budget spent remains expense-domain semantics
+- **WHEN** a by-category item has `category_type = income`
+- **THEN** `budget_spent_cents` SHALL remain `0`
+- **AND** income target comparison SHALL use `income_total_cents` against `budget_limit_cents`.
 
 #### Scenario: Category analytics includes explicit category domain
 - **WHEN** a by-category analytics item is returned

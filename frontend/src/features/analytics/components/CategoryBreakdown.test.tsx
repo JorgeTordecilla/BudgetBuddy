@@ -20,6 +20,15 @@ const items = [
     income_total_cents: 7000,
     expense_total_cents: 0,
     budget_spent_cents: 0,
+    budget_limit_cents: 10000
+  },
+  {
+    category_id: "c3",
+    category_name: "Bonus",
+    category_type: "income",
+    income_total_cents: 1500,
+    expense_total_cents: 0,
+    budget_spent_cents: 0,
     budget_limit_cents: 0
   }
 ];
@@ -74,6 +83,8 @@ describe("CategoryBreakdown", () => {
     expect(screen.getAllByText(/Income total/).length).toBeGreaterThan(0);
     expect(screen.getByText("Salary")).toBeInTheDocument();
     expect(screen.queryByText("Food")).not.toBeInTheDocument();
+    expect(screen.getByText(/\$70\.00 \/ \$100\.00/)).toBeInTheDocument();
+    expect(screen.getByText("70% achieved")).toBeInTheDocument();
     expect(screen.getByText("No budget")).toBeInTheDocument();
   });
 });

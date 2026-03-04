@@ -78,7 +78,7 @@ describe("AnalyticsPage", () => {
           income_total_cents: 350000,
           expense_total_cents: 0,
           budget_spent_cents: 0,
-          budget_limit_cents: 0
+          budget_limit_cents: 400000
         }
       ]
     });
@@ -129,6 +129,8 @@ describe("AnalyticsPage", () => {
       expect(names[0]).toHaveTextContent("Salary");
       expect(screen.queryByText("Food")).not.toBeInTheDocument();
     });
+    expect(screen.getByText(/\$3,500\.00 \/ \$4,000\.00/)).toBeInTheDocument();
+    expect(screen.getByText("88% achieved")).toBeInTheDocument();
   });
 
   it("shows inline validation for invalid local date range on apply", async () => {
