@@ -94,12 +94,22 @@ def _saved_by_goal_ids(db: Session, user_id: str, goal_ids: list[str]) -> dict[s
 def _goal_out(goal: SavingsGoal, saved_cents: int) -> SavingsGoalOut:
     remaining_cents = goal.target_cents - saved_cents
     progress_pct = round((saved_cents / goal.target_cents) * 100, 1) if goal.target_cents > 0 else 0.0
-    payload = SavingsGoalOut.model_validate(goal).model_dump(mode="json")
-    payload.update({
+    payload = {
+        "id": goal.id,
+        "name": goal.name,
+        "target_cents": goal.target_cents,
+        "account_id": goal.account_id,
+        "category_id": goal.category_id,
+        "deadline": goal.deadline,
+        "note": goal.note,
+        "status": goal.status,
+        "archived_at": goal.archived_at,
+        "created_at": goal.created_at,
+        "updated_at": goal.updated_at,
         "saved_cents": saved_cents,
         "remaining_cents": remaining_cents,
         "progress_pct": progress_pct,
-    })
+    }
     return SavingsGoalOut.model_validate(payload)
 
 
