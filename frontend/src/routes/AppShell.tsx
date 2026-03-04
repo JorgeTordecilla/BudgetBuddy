@@ -14,6 +14,7 @@ import TransactionForm, { type TransactionFormState } from "@/components/transac
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { todayIsoDate } from "@/utils/dates";
+import { parseMoneyInputToCents } from "@/utils/money";
 import { cn } from "@/lib/utils";
 
 const appLinks = [
@@ -54,7 +55,7 @@ const EMPTY_FORM: TransactionFormState = {
   accountId: "",
   categoryId: "",
   incomeSourceId: "",
-  amountCents: "",
+  amount: "",
   date: "",
   merchant: "",
   note: ""
@@ -63,7 +64,7 @@ const EMPTY_FORM: TransactionFormState = {
 export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { apiClient, logout } = useAuth();
+  const { apiClient, logout, user } = useAuth();
   const queryClient = useQueryClient();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -82,6 +83,7 @@ export default function AppShell() {
     () => mobileSectionTitles.find((entry) => entry.match(location.pathname))?.title ?? "Workspace",
     [location.pathname]
   );
+  const currencyCode = user?.currency_code ?? "USD";
 
   useEffect(() => {
     if (!formOpen) {
@@ -148,13 +150,13 @@ export default function AppShell() {
   }
 
   function buildCreatePayload(): TransactionCreate | null {
-    const amount = Number(formState.amountCents);
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = parseMoneyInputToCents(currencyCode, formState.amount);
+    if (!amount) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "amount_cents must be an integer greater than zero."
+        detail: "Amount must be a positive money value with up to two decimals."
       }));
       return null;
     }
@@ -370,6 +372,7 @@ export default function AppShell() {
         accounts={accounts}
         categories={categories}
         incomeSources={incomeSources}
+        currencyCode={currencyCode}
         problem={formProblem}
         onFieldChange={setField}
         onClose={closeQuickTransaction}

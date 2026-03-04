@@ -272,7 +272,7 @@ describe("TransactionsPage", () => {
     expect(screen.getByLabelText("Date", { selector: "input" })).toHaveClass("field-date-input");
     fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
     fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
-    fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1200" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.00" } });
     fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
@@ -298,11 +298,19 @@ describe("TransactionsPage", () => {
     fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
     fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
     fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
-    fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1.5" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "1.999" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
-    expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
+    expect(await screen.findByText("Amount must be a positive money value with up to two decimals.")).toBeInTheDocument();
     expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  it("renders list amounts formatted in user currency instead of raw cents", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    expect(screen.getAllByText(/45\.00/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("4500")).not.toBeInTheDocument();
   });
 
   it("blocks edit when there are no changes", async () => {

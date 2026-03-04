@@ -17,7 +17,7 @@ vi.mock("@/api/analytics", () => ({
 
 const apiClientStub = {} as ApiClient;
 
-function renderPage(initialEntries = ["/app/analytics"]) {
+function renderPage(initialEntries = ["/app/analytics"], currencyCode = "USD") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
   });
@@ -27,7 +27,7 @@ function renderPage(initialEntries = ["/app/analytics"]) {
         <AuthContext.Provider
           value={{
             apiClient: apiClientStub,
-            user: { id: "u1", username: "demo", currency_code: "USD" },
+            user: { id: "u1", username: "demo", currency_code: currencyCode },
             accessToken: "token",
             isAuthenticated: true,
             isBootstrapping: false,
@@ -275,5 +275,41 @@ describe("AnalyticsPage", () => {
     renderPage();
     expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
     expect(screen.queryByText("Invalid date range")).not.toBeInTheDocument();
+  });
+
+  it("keeps expected vs actual income scale-correct for large COP values", async () => {
+    vi.mocked(getAnalyticsByMonth).mockResolvedValueOnce({
+      items: [
+        {
+          month: "2026-02",
+          income_total_cents: 400000000,
+          expense_total_cents: 120000000,
+          expected_income_cents: 400000000,
+          actual_income_cents: 400000000,
+          budget_spent_cents: 0,
+          budget_limit_cents: 0
+        }
+      ]
+    });
+    vi.mocked(getAnalyticsIncome).mockResolvedValueOnce({
+      items: [
+        {
+          month: "2026-02",
+          expected_income_cents: 400000000,
+          actual_income_cents: 400000000,
+          rows: [
+            {
+              income_source_id: "s1",
+              income_source_name: "Paycheck 1",
+              expected_income_cents: 400000000,
+              actual_income_cents: 400000000
+            }
+          ]
+        }
+      ]
+    });
+
+    renderPage(["/app/analytics"], "COP");
+    expect((await screen.findAllByText(/4,000,000\.00/)).length).toBeGreaterThan(0);
   });
 });
