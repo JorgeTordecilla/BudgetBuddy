@@ -4,7 +4,26 @@ import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome, getImp
 import { archiveBill, createBill, getBillMonthlyStatus, markBillPaid, unmarkBillPaid, updateBill } from "@/api/bills";
 import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
-import type { BillCreate, BillPaymentCreate, BillUpdate, RolloverApplyRequest } from "@/api/types";
+import {
+  archiveSavingsGoal,
+  cancelSavingsGoal,
+  completeSavingsGoal,
+  createSavingsContribution,
+  createSavingsGoal,
+  deleteSavingsContribution,
+  getSavingsSummary,
+  updateSavingsGoal
+} from "@/api/savings";
+import type {
+  BillCreate,
+  BillPaymentCreate,
+  BillUpdate,
+  RolloverApplyRequest,
+  SavingsContributionCreate,
+  SavingsGoalCreate,
+  SavingsGoalStatus,
+  SavingsGoalUpdate
+} from "@/api/types";
 
 type AnalyticsRange = {
   from: string;
@@ -67,6 +86,12 @@ export const billsKeys = {
   monthlyStatus: (month: string) => ["bills", "monthly-status", { month }] as const
 };
 
+export const savingsKeys = {
+  all: ["savings-goals"] as const,
+  list: (status: SavingsGoalStatus | "all") => ["savings-goals", "list", { status }] as const,
+  summary: ["savings-goals", "summary"] as const
+};
+
 export function useBillMonthlyStatus(apiClient: ApiClient, month: string, enabled: boolean) {
   return useQuery({
     queryKey: billsKeys.monthlyStatus(month),
@@ -125,6 +150,94 @@ export function useUnmarkBillPaid(apiClient: ApiClient) {
     mutationFn: ({ billId, month }: { billId: string; month: string }) => unmarkBillPaid(apiClient, billId, month),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+
+export function useSavingsSummary(apiClient: ApiClient, enabled: boolean) {
+  return useQuery({
+    queryKey: savingsKeys.summary,
+    enabled,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => getSavingsSummary(apiClient),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useCreateSavingsGoal(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SavingsGoalCreate) => createSavingsGoal(apiClient, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+
+export function useUpdateSavingsGoal(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ goalId, payload }: { goalId: string; payload: SavingsGoalUpdate }) => updateSavingsGoal(apiClient, goalId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+
+export function useArchiveSavingsGoal(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => archiveSavingsGoal(apiClient, goalId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+    }
+  });
+}
+
+export function useCompleteSavingsGoal(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => completeSavingsGoal(apiClient, goalId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+    }
+  });
+}
+
+export function useCancelSavingsGoal(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => cancelSavingsGoal(apiClient, goalId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+    }
+  });
+}
+
+export function useCreateSavingsContribution(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ goalId, payload }: { goalId: string; payload: SavingsContributionCreate }) => createSavingsContribution(apiClient, goalId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+
+export function useDeleteSavingsContribution(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ goalId, contributionId }: { goalId: string; contributionId: string }) => deleteSavingsContribution(apiClient, goalId, contributionId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: savingsKeys.all });
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       await queryClient.invalidateQueries({ queryKey: ["analytics"] });
     }

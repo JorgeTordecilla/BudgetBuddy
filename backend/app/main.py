@@ -25,6 +25,7 @@ from app.routers.bills import router as bills_router
 from app.routers.categories import router as categories_router
 from app.routers.income_sources import router as income_sources_router
 from app.routers.rollover import router as rollover_router
+from app.routers.savings import router as savings_router
 from app.routers.transactions import router as transactions_router
 
 logger = logging.getLogger("app.startup")
@@ -136,6 +137,7 @@ api_router.include_router(rollover_router)
 api_router.include_router(transactions_router)
 api_router.include_router(budgets_router)
 api_router.include_router(bills_router)
+api_router.include_router(savings_router)
 api_router.include_router(audit_router)
 api_router.include_router(analytics_router)
 app.include_router(api_router, prefix=API_PREFIX)

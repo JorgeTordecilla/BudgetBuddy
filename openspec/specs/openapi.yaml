@@ -2363,6 +2363,514 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem406'
+  /savings-goals:
+    get:
+      summary: List savings goals
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(active|completed|cancelled|all)$
+          default: active
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalListOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    post:
+      summary: Create savings goal
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/SavingsGoalCreate'
+            example:
+              name: Emergency Fund
+              target_cents: 500000
+              account_id: 5df7bbdb-9a8e-4f96-bca8-9dd47cebb6cb
+              category_id: 3d7d2287-65ef-4cab-91f7-f603fd35f659
+              deadline: '2026-12-31'
+              note: Build six-month buffer
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Savings goal conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-category-type-mismatch:
+                  $ref: '#/components/examples/Problem409SavingsGoalCategoryTypeMismatch'
+        '422':
+          description: Savings goal validation failure
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-invalid-target:
+                  $ref: '#/components/examples/Problem422SavingsGoalInvalidTarget'
+                savings-goal-deadline-past:
+                  $ref: '#/components/examples/Problem422SavingsGoalDeadlinePast'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/summary:
+    get:
+      summary: Savings goals summary
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsSummaryOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/{goal_id}:
+    parameters:
+    - name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: Get savings goal detail
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalDetailOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    patch:
+      summary: Update savings goal
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/SavingsGoalUpdate'
+            example:
+              target_cents: 450000
+              note: Reduced target after reprioritizing plan
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Savings goal conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-category-type-mismatch:
+                  $ref: '#/components/examples/Problem409SavingsGoalCategoryTypeMismatch'
+        '422':
+          description: Savings goal validation failure
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-invalid-target:
+                  $ref: '#/components/examples/Problem422SavingsGoalInvalidTarget'
+                savings-goal-deadline-past:
+                  $ref: '#/components/examples/Problem422SavingsGoalDeadlinePast'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    delete:
+      summary: Archive savings goal
+      responses:
+        '204':
+          description: Archived (soft-delete). No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/{goal_id}/complete:
+    parameters:
+    - name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Mark savings goal as completed
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Savings goal not active
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-not-active:
+                  $ref: '#/components/examples/Problem409SavingsGoalNotActive'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/{goal_id}/cancel:
+    parameters:
+    - name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Cancel savings goal
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Savings goal conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-already-completed:
+                  $ref: '#/components/examples/Problem409SavingsGoalAlreadyCompleted'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/{goal_id}/contributions:
+    parameters:
+    - name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Add savings contribution
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/SavingsContributionCreate'
+            example:
+              amount_cents: 50000
+              note: biweekly transfer
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/SavingsContributionOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Savings goal not active
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-goal-not-active:
+                  $ref: '#/components/examples/Problem409SavingsGoalNotActive'
+        '422':
+          description: Invalid contribution amount
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                savings-contribution-invalid-amount:
+                  $ref: '#/components/examples/Problem422SavingsContributionInvalidAmount'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /savings-goals/{goal_id}/contributions/{contribution_id}:
+    parameters:
+    - name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: contribution_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    delete:
+      summary: Delete savings contribution
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '404':
+          description: Contribution not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                detail: Contribution not found for the selected goal.
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
   /budgets:
     get:
       summary: List budgets by month range
@@ -3213,6 +3721,24 @@ components:
     status: 409
   - type: https://api.budgetbuddy.dev/problems/bill-inactive-for-month
     title: Bill is inactive for this month
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/savings-goal-invalid-target
+    title: Savings goal target must be greater than zero
+    status: 422
+  - type: https://api.budgetbuddy.dev/problems/savings-goal-category-type-mismatch
+    title: Savings goal category must be of type expense
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/savings-goal-deadline-past
+    title: Savings goal deadline cannot be in the past
+    status: 422
+  - type: https://api.budgetbuddy.dev/problems/savings-goal-not-active
+    title: Savings goal is not active and cannot receive contributions
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/savings-contribution-invalid-amount
+    title: Contribution amount must be greater than zero
+    status: 422
+  - type: https://api.budgetbuddy.dev/problems/savings-goal-already-completed
+    title: Savings goal is already completed
     status: 409
   - type: https://api.budgetbuddy.dev/problems/money-amount-not-integer
     title: Money amount must be an integer
@@ -4073,6 +4599,288 @@ components:
           actual_cents: null
           transaction_id: null
           diff_cents: null
+    SavingsGoalCreate:
+      type: object
+      required:
+      - name
+      - target_cents
+      - account_id
+      - category_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        target_cents:
+          type: integer
+          minimum: 1
+        account_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        deadline:
+          type:
+          - string
+          - 'null'
+          format: date
+        note:
+          type:
+          - string
+          - 'null'
+      example:
+        name: Emergency Fund
+        target_cents: 500000
+        account_id: 5df7bbdb-9a8e-4f96-bca8-9dd47cebb6cb
+        category_id: 3d7d2287-65ef-4cab-91f7-f603fd35f659
+        deadline: '2026-12-31'
+        note: Build six-month buffer
+    SavingsGoalUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        target_cents:
+          type: integer
+          minimum: 1
+        account_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        deadline:
+          type:
+          - string
+          - 'null'
+          format: date
+        note:
+          type:
+          - string
+          - 'null'
+      example:
+        target_cents: 450000
+        note: Reduced target after reprioritizing plan
+    SavingsContributionCreate:
+      type: object
+      required:
+      - amount_cents
+      properties:
+        amount_cents:
+          type: integer
+          minimum: 1
+        note:
+          type:
+          - string
+          - 'null'
+      example:
+        amount_cents: 50000
+        note: biweekly transfer
+    SavingsContributionOut:
+      type: object
+      required:
+      - id
+      - goal_id
+      - amount_cents
+      - transaction_id
+      - contributed_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        amount_cents:
+          type: integer
+          minimum: 1
+        transaction_id:
+          type: string
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+        contributed_at:
+          type: string
+          format: date-time
+      example:
+        id: bb35ec15-5607-4f95-b2ce-9dcf7eb0cfd0
+        goal_id: 8a2088fd-5355-4e09-bf4f-7285370e49f8
+        amount_cents: 50000
+        transaction_id: a4a11111-b2b2-c3c3-d4d4-e5e5f6f6a7a7
+        note: biweekly transfer
+        contributed_at: '2026-03-12T15:00:00Z'
+    SavingsGoalOut:
+      type: object
+      required:
+      - id
+      - name
+      - target_cents
+      - account_id
+      - category_id
+      - deadline
+      - note
+      - status
+      - archived_at
+      - created_at
+      - updated_at
+      - saved_cents
+      - remaining_cents
+      - progress_pct
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        target_cents:
+          type: integer
+          minimum: 1
+        account_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        deadline:
+          type:
+          - string
+          - 'null'
+          format: date
+        note:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum:
+          - active
+          - completed
+          - cancelled
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        saved_cents:
+          type: integer
+          minimum: 0
+        remaining_cents:
+          type: integer
+        progress_pct:
+          type: number
+      example:
+        id: 8a2088fd-5355-4e09-bf4f-7285370e49f8
+        name: Emergency Fund
+        target_cents: 500000
+        account_id: 5df7bbdb-9a8e-4f96-bca8-9dd47cebb6cb
+        category_id: 3d7d2287-65ef-4cab-91f7-f603fd35f659
+        deadline: '2026-12-31'
+        note: Build six-month buffer
+        status: active
+        archived_at: null
+        created_at: '2026-03-01T12:00:00Z'
+        updated_at: '2026-03-01T12:00:00Z'
+        saved_cents: 150000
+        remaining_cents: 350000
+        progress_pct: 30.0
+    SavingsGoalListOut:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavingsGoalOut'
+      example:
+        items:
+        - id: 8a2088fd-5355-4e09-bf4f-7285370e49f8
+          name: Emergency Fund
+          target_cents: 500000
+          account_id: 5df7bbdb-9a8e-4f96-bca8-9dd47cebb6cb
+          category_id: 3d7d2287-65ef-4cab-91f7-f603fd35f659
+          deadline: '2026-12-31'
+          note: Build six-month buffer
+          status: active
+          archived_at: null
+          created_at: '2026-03-01T12:00:00Z'
+          updated_at: '2026-03-01T12:00:00Z'
+          saved_cents: 150000
+          remaining_cents: 350000
+          progress_pct: 30.0
+    SavingsGoalDetailOut:
+      allOf:
+      - $ref: '#/components/schemas/SavingsGoalOut'
+      - type: object
+        required:
+        - contributions
+        properties:
+          contributions:
+            type: array
+            items:
+              $ref: '#/components/schemas/SavingsContributionOut'
+      example:
+        id: 8a2088fd-5355-4e09-bf4f-7285370e49f8
+        name: Emergency Fund
+        target_cents: 500000
+        account_id: 5df7bbdb-9a8e-4f96-bca8-9dd47cebb6cb
+        category_id: 3d7d2287-65ef-4cab-91f7-f603fd35f659
+        deadline: '2026-12-31'
+        note: Build six-month buffer
+        status: active
+        archived_at: null
+        created_at: '2026-03-01T12:00:00Z'
+        updated_at: '2026-03-15T10:00:00Z'
+        saved_cents: 150000
+        remaining_cents: 350000
+        progress_pct: 30.0
+        contributions:
+        - id: bb35ec15-5607-4f95-b2ce-9dcf7eb0cfd0
+          goal_id: 8a2088fd-5355-4e09-bf4f-7285370e49f8
+          amount_cents: 50000
+          transaction_id: a4a11111-b2b2-c3c3-d4d4-e5e5f6f6a7a7
+          note: biweekly transfer
+          contributed_at: '2026-03-12T15:00:00Z'
+    SavingsSummaryOut:
+      type: object
+      required:
+      - active_count
+      - completed_count
+      - total_target_cents
+      - total_saved_cents
+      - total_remaining_cents
+      - overall_progress_pct
+      properties:
+        active_count:
+          type: integer
+        completed_count:
+          type: integer
+        total_target_cents:
+          type: integer
+        total_saved_cents:
+          type: integer
+        total_remaining_cents:
+          type: integer
+        overall_progress_pct:
+          type: number
+      example:
+        active_count: 3
+        completed_count: 2
+        total_target_cents: 5000000
+        total_saved_cents: 1800000
+        total_remaining_cents: 3200000
+        overall_progress_pct: 36.0
     Budget:
       type: object
       required:
@@ -4755,6 +5563,27 @@ components:
         title: Bill is inactive for this month
         status: 409
         detail: Activate the bill before creating a payment.
+    Problem409SavingsGoalCategoryTypeMismatch:
+      summary: Canonical 409 savings goal category type mismatch
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-goal-category-type-mismatch
+        title: Savings goal category must be of type expense
+        status: 409
+        detail: Savings goal category must be expense.
+    Problem409SavingsGoalNotActive:
+      summary: Canonical 409 savings goal not active
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-goal-not-active
+        title: Savings goal is not active and cannot receive contributions
+        status: 409
+        detail: Goal status must be active to receive contributions.
+    Problem409SavingsGoalAlreadyCompleted:
+      summary: Canonical 409 savings goal already completed
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-goal-already-completed
+        title: Savings goal is already completed
+        status: 409
+        detail: Completed goals cannot be cancelled.
     Problem422RolloverNoSurplus:
       summary: Canonical 422 rollover has no surplus
       value:
@@ -4762,6 +5591,27 @@ components:
         title: Rollover has no surplus
         status: 422
         detail: No positive surplus is available for source month.
+    Problem422SavingsGoalInvalidTarget:
+      summary: Canonical 422 savings goal invalid target
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-goal-invalid-target
+        title: Savings goal target must be greater than zero
+        status: 422
+        detail: target_cents must be greater than 0.
+    Problem422SavingsGoalDeadlinePast:
+      summary: Canonical 422 savings goal deadline in past
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-goal-deadline-past
+        title: Savings goal deadline cannot be in the past
+        status: 422
+        detail: deadline cannot be earlier than today.
+    Problem422SavingsContributionInvalidAmount:
+      summary: Canonical 422 savings contribution invalid amount
+      value:
+        type: https://api.budgetbuddy.dev/problems/savings-contribution-invalid-amount
+        title: Contribution amount must be greater than zero
+        status: 422
+        detail: amount_cents must be greater than 0.
     Problem422BillDueDayInvalid:
       summary: Canonical 422 bill due day invalid
       value:

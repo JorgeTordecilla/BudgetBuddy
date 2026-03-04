@@ -260,6 +260,74 @@ export type BillMonthlyStatusOut = {
   items: BillMonthlyStatusItem[];
 };
 
+export type SavingsGoalStatus = "active" | "completed" | "cancelled";
+
+export type SavingsGoal = {
+  id: string;
+  name: string;
+  target_cents: number;
+  account_id: string;
+  category_id: string;
+  deadline: string | null;
+  note: string | null;
+  status: SavingsGoalStatus;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+  saved_cents: number;
+  remaining_cents: number;
+  progress_pct: number;
+};
+
+export type SavingsGoalCreate = {
+  name: string;
+  target_cents: number;
+  account_id: string;
+  category_id: string;
+  deadline?: string | null;
+  note?: string | null;
+};
+
+export type SavingsGoalUpdate = {
+  name?: string;
+  target_cents?: number;
+  account_id?: string;
+  category_id?: string;
+  deadline?: string | null;
+  note?: string | null;
+};
+
+export type SavingsGoalListResponse = {
+  items: SavingsGoal[];
+};
+
+export type SavingsContributionCreate = {
+  amount_cents: number;
+  note?: string | null;
+};
+
+export type SavingsContribution = {
+  id: string;
+  goal_id: string;
+  amount_cents: number;
+  transaction_id: string;
+  note: string | null;
+  contributed_at: string;
+};
+
+export type SavingsGoalDetail = SavingsGoal & {
+  contributions: SavingsContribution[];
+};
+
+export type SavingsSummary = {
+  active_count: number;
+  completed_count: number;
+  total_target_cents: number;
+  total_saved_cents: number;
+  total_remaining_cents: number;
+  overall_progress_pct: number;
+};
+
 export type AnalyticsByMonthItem = {
   month: string;
   income_total_cents: number;

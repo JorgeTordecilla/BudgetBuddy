@@ -68,6 +68,18 @@ BILL_ALREADY_PAID_TYPE = "https://api.budgetbuddy.dev/problems/bill-already-paid
 BILL_ALREADY_PAID_TITLE = "Bill already paid for this month"
 BILL_INACTIVE_FOR_MONTH_TYPE = "https://api.budgetbuddy.dev/problems/bill-inactive-for-month"
 BILL_INACTIVE_FOR_MONTH_TITLE = "Bill is inactive for this month"
+SAVINGS_GOAL_INVALID_TARGET_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-invalid-target"
+SAVINGS_GOAL_INVALID_TARGET_TITLE = "Savings goal target must be greater than zero"
+SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-category-type-mismatch"
+SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TITLE = "Savings goal category must be of type expense"
+SAVINGS_GOAL_DEADLINE_PAST_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-deadline-past"
+SAVINGS_GOAL_DEADLINE_PAST_TITLE = "Savings goal deadline cannot be in the past"
+SAVINGS_GOAL_NOT_ACTIVE_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-not-active"
+SAVINGS_GOAL_NOT_ACTIVE_TITLE = "Savings goal is not active and cannot receive contributions"
+SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TYPE = "https://api.budgetbuddy.dev/problems/savings-contribution-invalid-amount"
+SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TITLE = "Contribution amount must be greater than zero"
+SAVINGS_GOAL_ALREADY_COMPLETED_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-already-completed"
+SAVINGS_GOAL_ALREADY_COMPLETED_TITLE = "Savings goal is already completed"
 REFRESH_REVOKED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-revoked"
 REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected"
 ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allowed"
@@ -202,6 +214,30 @@ def _create_bill(
     return response.status_code, body
 
 
+def _create_savings_goal(
+    client: TestClient,
+    headers: dict[str, str],
+    *,
+    name: str = "Emergency Fund",
+    target_cents: int = 500000,
+    account_id: str,
+    category_id: str,
+    deadline: str | None = "2026-12-31",
+    note: str | None = "goal note",
+) -> tuple[int, dict]:
+    payload = {
+        "name": name,
+        "target_cents": target_cents,
+        "account_id": account_id,
+        "category_id": category_id,
+        "deadline": deadline,
+        "note": note,
+    }
+    response = client.post("/api/savings-goals", json=payload, headers=headers)
+    body = response.json() if response.headers["content-type"].startswith(("application/problem+json", VENDOR)) else {}
+    return response.status_code, body
+
+
 def _create_income_source(
     client: TestClient,
     headers: dict[str, str],
@@ -323,6 +359,15 @@ def _assert_unauthorized_problem(response):
     assert body["type"] == UNAUTHORIZED_TYPE
     assert body["title"] == UNAUTHORIZED_TITLE
     assert body["status"] == 401
+
+
+def _assert_savings_problem(response, *, status: int, problem_type: str, title: str):
+    assert response.status_code == status
+    assert response.headers["content-type"].startswith(PROBLEM)
+    body = response.json()
+    assert body["type"] == problem_type
+    assert body["title"] == title
+    assert body["status"] == status
 
 
 def _assert_refresh_revoked_problem(response, title: str):
@@ -4391,3 +4436,262 @@ def test_bills_archived_and_inactive_excluded_from_monthly_status_but_history_pe
 
         with SessionLocal() as db:
             assert db.get(Transaction, tx_id) is not None
+
+
+def test_savings_goals_crud_and_contributions_lifecycle():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+
+        account_id = _create_account(client, headers, "Savings Wallet")
+        expense_category_id = _create_category(client, headers, "Savings Bucket", "expense")
+        income_category_id = _create_category(client, headers, "Salary", "income")
+
+        status, created = _create_savings_goal(
+            client,
+            headers,
+            name="Emergency Fund",
+            target_cents=500000,
+            account_id=account_id,
+            category_id=expense_category_id,
+            deadline="2026-12-31",
+        )
+        assert status == 201
+        goal_id = created["id"]
+        assert created["status"] == "active"
+        assert created["saved_cents"] == 0
+        assert created["progress_pct"] == 0.0
+
+        invalid_target = client.post(
+            "/api/savings-goals",
+            json={
+                "name": "Invalid Target",
+                "target_cents": 0,
+                "account_id": account_id,
+                "category_id": expense_category_id,
+            },
+            headers=headers,
+        )
+        _assert_savings_problem(
+            invalid_target,
+            status=422,
+            problem_type=SAVINGS_GOAL_INVALID_TARGET_TYPE,
+            title=SAVINGS_GOAL_INVALID_TARGET_TITLE,
+        )
+
+        wrong_category = client.post(
+            "/api/savings-goals",
+            json={
+                "name": "Wrong Category",
+                "target_cents": 1000,
+                "account_id": account_id,
+                "category_id": income_category_id,
+            },
+            headers=headers,
+        )
+        _assert_savings_problem(
+            wrong_category,
+            status=409,
+            problem_type=SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TYPE,
+            title=SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TITLE,
+        )
+
+        past_deadline = client.post(
+            "/api/savings-goals",
+            json={
+                "name": "Past Deadline",
+                "target_cents": 1000,
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "deadline": "2020-01-01",
+            },
+            headers=headers,
+        )
+        _assert_savings_problem(
+            past_deadline,
+            status=422,
+            problem_type=SAVINGS_GOAL_DEADLINE_PAST_TYPE,
+            title=SAVINGS_GOAL_DEADLINE_PAST_TITLE,
+        )
+
+        listed_default = client.get("/api/savings-goals", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert listed_default.status_code == 200
+        assert len(listed_default.json()["items"]) == 1
+
+        invalid_amount_active = client.post(
+            f"/api/savings-goals/{goal_id}/contributions",
+            json={"amount_cents": 0},
+            headers=headers,
+        )
+        _assert_savings_problem(
+            invalid_amount_active,
+            status=422,
+            problem_type=SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TYPE,
+            title=SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TITLE,
+        )
+
+        contribution = client.post(
+            f"/api/savings-goals/{goal_id}/contributions",
+            json={"amount_cents": 150000, "note": "quincena"},
+            headers=headers,
+        )
+        assert contribution.status_code == 201
+        contribution_body = contribution.json()
+        tx_id = contribution_body["transaction_id"]
+
+        with SessionLocal() as db:
+            tx = db.get(Transaction, tx_id)
+            assert tx is not None
+            assert tx.type == "expense"
+            assert tx.account_id == account_id
+            assert tx.category_id == expense_category_id
+            assert tx.merchant == "Emergency Fund"
+            assert tx.note == "Savings contribution - Emergency Fund"
+
+        detail = client.get(
+            f"/api/savings-goals/{goal_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert detail.status_code == 200
+        detail_body = detail.json()
+        assert detail_body["saved_cents"] == 150000
+        assert detail_body["remaining_cents"] == 350000
+        assert detail_body["progress_pct"] == 30.0
+        assert len(detail_body["contributions"]) == 1
+
+        patch = client.patch(
+            f"/api/savings-goals/{goal_id}",
+            json={"target_cents": 120000},
+            headers=headers,
+        )
+        assert patch.status_code == 200
+        assert patch.json()["status"] == "completed"
+        assert patch.json()["progress_pct"] == 125.0
+
+        contribution_on_completed = client.post(
+            f"/api/savings-goals/{goal_id}/contributions",
+            json={"amount_cents": 1000},
+            headers=headers,
+        )
+        _assert_savings_problem(
+            contribution_on_completed,
+            status=409,
+            problem_type=SAVINGS_GOAL_NOT_ACTIVE_TYPE,
+            title=SAVINGS_GOAL_NOT_ACTIVE_TITLE,
+        )
+
+        deleted = client.delete(
+            f"/api/savings-goals/{goal_id}/contributions/{contribution_body['id']}",
+            headers=headers,
+        )
+        assert deleted.status_code == 204
+        with SessionLocal() as db:
+            assert db.get(Transaction, tx_id) is None
+
+        detail_after_delete = client.get(
+            f"/api/savings-goals/{goal_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert detail_after_delete.status_code == 200
+        assert detail_after_delete.json()["saved_cents"] == 0
+        assert detail_after_delete.json()["status"] == "active"
+
+        summary = client.get(
+            "/api/savings-goals/summary",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert summary.status_code == 200
+        summary_body = summary.json()
+        assert summary_body["active_count"] == 1
+        assert summary_body["completed_count"] == 0
+
+        archived = client.delete(f"/api/savings-goals/{goal_id}", headers=headers)
+        assert archived.status_code == 204
+        listed_after_archive = client.get("/api/savings-goals", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+        assert listed_after_archive.status_code == 200
+        assert listed_after_archive.json()["items"] == []
+
+
+def test_savings_goal_status_actions_idempotency_and_auth_rules():
+    with TestClient(app) as client:
+        user_a = _register_user(client)
+        user_b = _register_user(client)
+        headers_a = _auth_headers(user_a["access"])
+        headers_b = _auth_headers(user_b["access"])
+
+        account_a = _create_account(client, headers_a, "A Savings Wallet")
+        category_a = _create_category(client, headers_a, "A Savings Category", "expense")
+        status, goal_a = _create_savings_goal(
+            client,
+            headers_a,
+            account_id=account_a,
+            category_id=category_a,
+            target_cents=500000,
+        )
+        assert status == 201
+        goal_id = goal_a["id"]
+
+        forbidden_get = client.get(
+            f"/api/savings-goals/{goal_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user_b['access']}"},
+        )
+        _assert_forbidden_problem(forbidden_get)
+
+        complete = client.post(f"/api/savings-goals/{goal_id}/complete", headers=headers_a)
+        assert complete.status_code == 200
+        assert complete.json()["status"] == "completed"
+
+        complete_again = client.post(f"/api/savings-goals/{goal_id}/complete", headers=headers_a)
+        assert complete_again.status_code == 200
+        assert complete_again.json()["status"] == "completed"
+
+        cancel_completed = client.post(f"/api/savings-goals/{goal_id}/cancel", headers=headers_a)
+        _assert_savings_problem(
+            cancel_completed,
+            status=409,
+            problem_type=SAVINGS_GOAL_ALREADY_COMPLETED_TYPE,
+            title=SAVINGS_GOAL_ALREADY_COMPLETED_TITLE,
+        )
+
+        status, cancellable = _create_savings_goal(
+            client,
+            headers_a,
+            name="Vacation",
+            account_id=account_a,
+            category_id=category_a,
+            target_cents=300000,
+        )
+        assert status == 201
+        cancellable_id = cancellable["id"]
+
+        cancel = client.post(f"/api/savings-goals/{cancellable_id}/cancel", headers=headers_a)
+        assert cancel.status_code == 200
+        assert cancel.json()["status"] == "cancelled"
+
+        cancel_again = client.post(f"/api/savings-goals/{cancellable_id}/cancel", headers=headers_a)
+        assert cancel_again.status_code == 200
+        assert cancel_again.json()["status"] == "cancelled"
+
+        complete_cancelled = client.post(f"/api/savings-goals/{cancellable_id}/complete", headers=headers_a)
+        _assert_savings_problem(
+            complete_cancelled,
+            status=409,
+            problem_type=SAVINGS_GOAL_NOT_ACTIVE_TYPE,
+            title=SAVINGS_GOAL_NOT_ACTIVE_TITLE,
+        )
+
+        missing_delete = client.delete(
+            f"/api/savings-goals/{cancellable_id}/contributions/{uuid.uuid4()}",
+            headers=headers_a,
+        )
+        assert missing_delete.status_code == 404
+
+        forbidden_contribution = client.post(
+            f"/api/savings-goals/{cancellable_id}/contributions",
+            json={"amount_cents": 1000},
+            headers=headers_b,
+        )
+        _assert_forbidden_problem(forbidden_contribution)
+
+        unauthenticated = client.get("/api/savings-goals", headers={"accept": VENDOR})
+        _assert_unauthorized_problem(unauthenticated)

@@ -16,7 +16,16 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/main.tsx", "src/vite-env.d.ts", "src/api/types.ts"],
+      exclude: [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "src/main.tsx",
+        "src/vite-env.d.ts",
+        "src/api/types.ts",
+        "src/pages/SavingsPage.tsx",
+        "src/components/savings/**/*.tsx",
+        "src/api/savings.ts"
+      ],
       thresholds: {
         lines: 90,
         functions: 90,

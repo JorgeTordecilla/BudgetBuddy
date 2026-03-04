@@ -24,6 +24,7 @@ const appLinks = [
   { to: "/app/categories", label: "Categories" },
   { to: "/app/income-sources", label: "Income Sources" },
   { to: "/app/bills", label: "Bills" },
+  { to: "/app/savings", label: "Savings" },
   { to: "/app/budgets", label: "Budgets" },
   { to: "/app/transactions", label: "Transactions" }
 ];
@@ -39,7 +40,8 @@ const mobileSecondaryLinks = [
   { to: "/app/accounts", label: "Accounts" },
   { to: "/app/categories", label: "Categories" },
   { to: "/app/income-sources", label: "Income Sources" },
-  { to: "/app/bills", label: "Bills" }
+  { to: "/app/bills", label: "Bills" },
+  { to: "/app/savings", label: "Savings" }
 ];
 const mobileSectionTitles: Array<{ match: (path: string) => boolean; title: string }> = [
   { match: (path) => path.startsWith("/app/dashboard"), title: "Dashboard" },
@@ -50,7 +52,8 @@ const mobileSectionTitles: Array<{ match: (path: string) => boolean; title: stri
   { match: (path) => path.startsWith("/app/accounts"), title: "Accounts" },
   { match: (path) => path.startsWith("/app/categories"), title: "Categories" },
   { match: (path) => path.startsWith("/app/income-sources"), title: "Income Sources" },
-  { match: (path) => path.startsWith("/app/bills"), title: "Bills" }
+  { match: (path) => path.startsWith("/app/bills"), title: "Bills" },
+  { match: (path) => path.startsWith("/app/savings"), title: "Savings" }
 ];
 
 const EMPTY_FORM: TransactionFormState = {

@@ -15,6 +15,12 @@ import {
   PROBLEM_TYPE_RATE_LIMITED,
   PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED,
   PROBLEM_TYPE_ROLLOVER_NO_SURPLUS,
+  PROBLEM_TYPE_SAVINGS_CONTRIBUTION_INVALID_AMOUNT,
+  PROBLEM_TYPE_SAVINGS_GOAL_ALREADY_COMPLETED,
+  PROBLEM_TYPE_SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH,
+  PROBLEM_TYPE_SAVINGS_GOAL_DEADLINE_PAST,
+  PROBLEM_TYPE_SAVINGS_GOAL_INVALID_TARGET,
+  PROBLEM_TYPE_SAVINGS_GOAL_NOT_ACTIVE,
   PROBLEM_TYPE_TRANSACTION_MOOD_INVALID,
   PROBLEM_TYPE_UNAUTHORIZED
 } from "@/api/problemTypes";
@@ -116,6 +122,30 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
   },
   [PROBLEM_TYPE_BILL_INACTIVE_FOR_MONTH]: {
     message: "This bill is inactive for the selected month. Reactivate it first.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_GOAL_INVALID_TARGET]: {
+    message: "Target amount must be greater than zero.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH]: {
+    message: "Savings goal category must be an expense category.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_GOAL_DEADLINE_PAST]: {
+    message: "Deadline cannot be in the past.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_GOAL_NOT_ACTIVE]: {
+    message: "This goal is not active and cannot receive contributions.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_CONTRIBUTION_INVALID_AMOUNT]: {
+    message: "Contribution amount must be greater than zero.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_SAVINGS_GOAL_ALREADY_COMPLETED]: {
+    message: "This goal is already completed.",
     presentation: "inline"
   }
 };

@@ -30,6 +30,18 @@ BILL_ALREADY_PAID_TYPE = "https://api.budgetbuddy.dev/problems/bill-already-paid
 BILL_ALREADY_PAID_TITLE = "Bill already paid for this month"
 BILL_INACTIVE_FOR_MONTH_TYPE = "https://api.budgetbuddy.dev/problems/bill-inactive-for-month"
 BILL_INACTIVE_FOR_MONTH_TITLE = "Bill is inactive for this month"
+SAVINGS_GOAL_INVALID_TARGET_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-invalid-target"
+SAVINGS_GOAL_INVALID_TARGET_TITLE = "Savings goal target must be greater than zero"
+SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-category-type-mismatch"
+SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TITLE = "Savings goal category must be of type expense"
+SAVINGS_GOAL_DEADLINE_PAST_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-deadline-past"
+SAVINGS_GOAL_DEADLINE_PAST_TITLE = "Savings goal deadline cannot be in the past"
+SAVINGS_GOAL_NOT_ACTIVE_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-not-active"
+SAVINGS_GOAL_NOT_ACTIVE_TITLE = "Savings goal is not active and cannot receive contributions"
+SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TYPE = "https://api.budgetbuddy.dev/problems/savings-contribution-invalid-amount"
+SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TITLE = "Contribution amount must be greater than zero"
+SAVINGS_GOAL_ALREADY_COMPLETED_TYPE = "https://api.budgetbuddy.dev/problems/savings-goal-already-completed"
+SAVINGS_GOAL_ALREADY_COMPLETED_TITLE = "Savings goal is already completed"
 CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
 
 
@@ -666,3 +678,63 @@ def test_bills_error_responses_reference_problem_examples():
     payments_post_409_examples = SPEC["paths"]["/bills/{bill_id}/payments"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
     assert "bill-already-paid" in payments_post_409_examples
     assert "bill-inactive-for-month" in payments_post_409_examples
+
+
+def test_savings_openapi_paths_and_schemas_exist():
+    paths = SPEC["paths"]
+    assert "/savings-goals" in paths
+    assert "/savings-goals/summary" in paths
+    assert "/savings-goals/{goal_id}" in paths
+    assert "/savings-goals/{goal_id}/complete" in paths
+    assert "/savings-goals/{goal_id}/cancel" in paths
+    assert "/savings-goals/{goal_id}/contributions" in paths
+    assert "/savings-goals/{goal_id}/contributions/{contribution_id}" in paths
+
+    schemas = SPEC["components"]["schemas"]
+    for schema_name in [
+        "SavingsGoalCreate",
+        "SavingsGoalUpdate",
+        "SavingsGoalOut",
+        "SavingsGoalListOut",
+        "SavingsGoalDetailOut",
+        "SavingsContributionCreate",
+        "SavingsContributionOut",
+        "SavingsSummaryOut",
+    ]:
+        assert schema_name in schemas
+
+
+def test_savings_problem_catalog_entries_exist():
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+
+    expected = {
+        SAVINGS_GOAL_INVALID_TARGET_TYPE: (SAVINGS_GOAL_INVALID_TARGET_TITLE, 422),
+        SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TYPE: (SAVINGS_GOAL_CATEGORY_TYPE_MISMATCH_TITLE, 409),
+        SAVINGS_GOAL_DEADLINE_PAST_TYPE: (SAVINGS_GOAL_DEADLINE_PAST_TITLE, 422),
+        SAVINGS_GOAL_NOT_ACTIVE_TYPE: (SAVINGS_GOAL_NOT_ACTIVE_TITLE, 409),
+        SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TYPE: (SAVINGS_CONTRIBUTION_INVALID_AMOUNT_TITLE, 422),
+        SAVINGS_GOAL_ALREADY_COMPLETED_TYPE: (SAVINGS_GOAL_ALREADY_COMPLETED_TITLE, 409),
+    }
+    for problem_type, (title, status) in expected.items():
+        matches = [item for item in catalog if item["type"] == problem_type]
+        assert len(matches) == 1
+        assert matches[0]["title"] == title
+        assert matches[0]["status"] == status
+
+
+def test_savings_error_responses_reference_problem_examples():
+    goals_post_409_examples = SPEC["paths"]["/savings-goals"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
+    assert "savings-goal-category-type-mismatch" in goals_post_409_examples
+
+    goals_post_422_examples = SPEC["paths"]["/savings-goals"]["post"]["responses"]["422"]["content"][PROBLEM]["examples"]
+    assert "savings-goal-invalid-target" in goals_post_422_examples
+    assert "savings-goal-deadline-past" in goals_post_422_examples
+
+    complete_409_examples = SPEC["paths"]["/savings-goals/{goal_id}/complete"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
+    assert "savings-goal-not-active" in complete_409_examples
+
+    cancel_409_examples = SPEC["paths"]["/savings-goals/{goal_id}/cancel"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
+    assert "savings-goal-already-completed" in cancel_409_examples
+
+    contribution_post_422_examples = SPEC["paths"]["/savings-goals/{goal_id}/contributions"]["post"]["responses"]["422"]["content"][PROBLEM]["examples"]
+    assert "savings-contribution-invalid-amount" in contribution_post_422_examples
