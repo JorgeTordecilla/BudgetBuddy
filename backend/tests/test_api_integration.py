@@ -6,7 +6,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 from http.cookies import SimpleCookie
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
