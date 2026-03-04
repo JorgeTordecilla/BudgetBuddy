@@ -59,6 +59,16 @@ The frontend SHALL support creating and updating transactions with deterministic
 - **THEN** frontend SHALL call `PATCH /transactions/{transaction_id}` with only changed fields
 - **AND** on success the list SHALL reflect updated values.
 
+#### Scenario: Transaction form accepts major-unit amount input
+- **WHEN** user enters amount using major currency units in create or edit flow
+- **THEN** frontend SHALL parse and validate the value using user `currency_code`
+- **AND** SHALL send `amount_cents` as integer cents in request payload.
+
+#### Scenario: Transaction invalid amount feedback is field-level and deterministic
+- **WHEN** amount input cannot be parsed into a valid positive cents integer
+- **THEN** frontend SHALL block submission
+- **AND** SHALL show inline deterministic validation guidance for the amount field.
+
 ### Requirement: Transaction soft-delete lifecycle must be supported
 The frontend SHALL support archive and restore actions through contract-defined endpoints.
 
