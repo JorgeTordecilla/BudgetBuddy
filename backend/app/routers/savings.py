@@ -347,10 +347,9 @@ def delete_savings_contribution(
         .where(Transaction.user_id == current_user.id)
     )
 
+    db.delete(contribution)
     if transaction:
         db.delete(transaction)
-    else:
-        db.delete(contribution)
     db.flush()
 
     saved_after = _saved_by_goal_ids(db, current_user.id, [goal.id]).get(goal.id, 0)
