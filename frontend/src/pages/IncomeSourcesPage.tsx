@@ -22,23 +22,24 @@ import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { Textarea } from "@/ui/textarea";
+import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
 
 type IncomeSourceFormState = {
   name: string;
-  expectedAmountCents: string;
+  expectedAmount: string;
   isActive: boolean;
   note: string;
 };
 
 const EMPTY_FORM: IncomeSourceFormState = {
   name: "",
-  expectedAmountCents: "",
+  expectedAmount: "",
   isActive: true,
   note: ""
 };
 
 export default function IncomeSourcesPage() {
-  const { apiClient } = useAuth();
+  const { apiClient, user } = useAuth();
   const queryClient = useQueryClient();
   const isDesktop = useIsDesktop();
 
@@ -50,6 +51,7 @@ export default function IncomeSourcesPage() {
   const [formState, setFormState] = useState<IncomeSourceFormState>(EMPTY_FORM);
   const [pageProblem, setPageProblem] = useState<unknown | null>(null);
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
+  const currencyCode = user?.currency_code ?? "USD";
 
   const query = useQuery({
     queryKey: ["income-sources", includeArchived] as const,
@@ -121,7 +123,7 @@ export default function IncomeSourcesPage() {
     setFormProblem(null);
     setFormState({
       name: item.name,
-      expectedAmountCents: String(item.expected_amount_cents),
+      expectedAmount: centsToInputValue(currencyCode, item.expected_amount_cents),
       isActive: item.is_active,
       note: item.note ?? ""
     });
@@ -129,13 +131,13 @@ export default function IncomeSourcesPage() {
   }
 
   function parseFormPayload(): IncomeSourceCreate | null {
-    const amount = Number(formState.expectedAmountCents);
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = parseMoneyInputToCents(currencyCode, formState.expectedAmount);
+    if (!amount) {
       setFormProblem({
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "expected_amount_cents must be an integer greater than zero."
+        detail: "Expected amount must be a positive money value with up to two decimals."
       });
       return null;
     }
@@ -193,7 +195,7 @@ export default function IncomeSourcesPage() {
       items.map((item) => (
         <tr key={item.id} className="border-t">
           <td className="px-3 py-2 font-medium">{item.name}</td>
-          <td className="px-3 py-2 text-right">{item.expected_amount_cents}</td>
+          <td className="px-3 py-2 text-right">{formatCents(currencyCode, item.expected_amount_cents)}</td>
           <td className="px-3 py-2">{item.frequency}</td>
           <td className="px-3 py-2">{item.is_active ? "Active" : "Inactive"}</td>
           <td className="px-3 py-2">{item.archived_at ? "Archived" : "Available"}</td>
@@ -221,7 +223,7 @@ export default function IncomeSourcesPage() {
           </td>
         </tr>
       )),
-    [items, restoringId]
+    [currencyCode, items, restoringId]
   );
 
   const mobileCards = useMemo(
@@ -239,7 +241,7 @@ export default function IncomeSourcesPage() {
                   {item.archived_at ? "Archived" : item.is_active ? "Active" : "Inactive"}
                 </span>
               </div>
-              <p className="text-sm tabular-nums">Expected cents: {item.expected_amount_cents}</p>
+              <p className="text-sm tabular-nums">Expected amount: {formatCents(currencyCode, item.expected_amount_cents)}</p>
               {item.note ? <p className="text-xs text-muted-foreground">{item.note}</p> : null}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(item)}>
@@ -265,7 +267,7 @@ export default function IncomeSourcesPage() {
           </Card>
         </li>
       )),
-    [items, restoringId]
+    [currencyCode, items, restoringId]
   );
 
   return (
@@ -303,7 +305,7 @@ export default function IncomeSourcesPage() {
                     <TableHeader className="bg-muted/50 text-left">
                       <TableRow>
                         <TableHead className="px-3 py-2">Name</TableHead>
-                        <TableHead className="px-3 py-2 text-right">Expected cents</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Expected amount</TableHead>
                         <TableHead className="px-3 py-2">Frequency</TableHead>
                         <TableHead className="px-3 py-2">Status</TableHead>
                         <TableHead className="px-3 py-2">State</TableHead>
@@ -322,7 +324,7 @@ export default function IncomeSourcesPage() {
       <ModalForm
         open={formOpen}
         title={editing ? "Edit income source" : "Create income source"}
-        description="Expected income is stored as integer cents."
+        description={`Enter expected amount in ${currencyCode} major units (for example 4000000.00).`}
         submitLabel={editing ? "Save changes" : "Create income source"}
         submitting={saveMutation.isPending}
         onClose={() => setFormOpen(false)}
@@ -334,10 +336,11 @@ export default function IncomeSourcesPage() {
             <Input value={formState.name} onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))} required />
           </label>
           <label className="min-w-0 space-y-1 text-sm">
-            <span>Expected amount (cents)</span>
+            <span>Expected amount</span>
             <Input
-              value={formState.expectedAmountCents}
-              onChange={(event) => setFormState((prev) => ({ ...prev, expectedAmountCents: event.target.value }))}
+              value={formState.expectedAmount}
+              onChange={(event) => setFormState((prev) => ({ ...prev, expectedAmount: event.target.value }))}
+              placeholder="0.00"
               required
             />
           </label>

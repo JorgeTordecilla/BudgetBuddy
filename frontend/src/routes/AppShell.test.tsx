@@ -301,7 +301,7 @@ describe("AppShell", () => {
 
     fireEvent.change(screen.getByLabelText("Account"), { target: { value: "a1" } });
     fireEvent.change(screen.getByLabelText("Category"), { target: { value: "c1" } });
-    fireEvent.change(screen.getByLabelText("Amount (cents)"), { target: { value: "1200" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.00" } });
     fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-28" } });
 
     const dialog = screen.getByRole("dialog");
@@ -311,6 +311,85 @@ describe("AppShell", () => {
       expect(createTransaction).toHaveBeenCalledTimes(1);
     });
     expect(publishSuccessToast).toHaveBeenCalledWith("Your transaction was saved successfully.");
+  });
+
+  it("blocks quick transaction submit when amount input is invalid", async () => {
+    setupModalDataMocks();
+    renderShellAt(375);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    await screen.findByRole("heading", { name: "Create transaction" });
+
+    fireEvent.change(screen.getByLabelText("Account"), { target: { value: "a1" } });
+    fireEvent.change(screen.getByLabelText("Category"), { target: { value: "c1" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "1.999" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-28" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+
+    await waitFor(() => expect(createTransaction).not.toHaveBeenCalled());
+  });
+
+  it("submits quick income transaction with selected income source", async () => {
+    vi.mocked(listAccounts).mockResolvedValue({
+      items: [{ id: "a1", name: "Main", type: "cash", initial_balance_cents: 0, archived_at: null }],
+      next_cursor: null
+    });
+    vi.mocked(listCategories).mockResolvedValue({
+      items: [{ id: "c2", name: "Salary", type: "income", archived_at: null }],
+      next_cursor: null
+    });
+    vi.mocked(listIncomeSources).mockResolvedValue({
+      items: [
+        {
+          id: "s1",
+          name: "Paycheck 1",
+          expected_amount_cents: 250000,
+          frequency: "monthly",
+          is_active: true,
+          note: null,
+          archived_at: null,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z"
+        }
+      ]
+    });
+    vi.mocked(createTransaction).mockResolvedValue({
+      id: "tx-2",
+      type: "income",
+      account_id: "a1",
+      category_id: "c2",
+      amount_cents: 200000,
+      income_source_id: "s1",
+      date: "2026-02-28",
+      merchant: null,
+      note: null,
+      archived_at: null,
+      created_at: "2026-02-28T10:00:00Z",
+      updated_at: "2026-02-28T10:00:00Z"
+    });
+
+    renderShellAt(375);
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    await screen.findByRole("heading", { name: "Create transaction" });
+
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "income" } });
+    fireEvent.change(screen.getByLabelText("Account"), { target: { value: "a1" } });
+    fireEvent.change(screen.getByLabelText("Category"), { target: { value: "c2" } });
+    fireEvent.change(screen.getByLabelText("Income source"), { target: { value: "s1" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "2000.00" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-28" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+
+    await waitFor(() =>
+      expect(createTransaction).toHaveBeenCalledWith(
+        apiClientStub,
+        expect.objectContaining({
+          type: "income",
+          income_source_id: "s1",
+          amount_cents: 200000
+        })
+      )
+    );
   });
 
   it("renders transactions route under RequireAuth and AppShell", async () => {

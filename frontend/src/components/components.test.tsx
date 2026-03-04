@@ -305,7 +305,7 @@ describe("shared components", () => {
       accountId: "a1",
       categoryId: "",
       incomeSourceId: "",
-      amountCents: "100",
+      amount: "1.00",
       date: "2026-02-20",
       merchant: "",
       note: ""
@@ -333,7 +333,7 @@ describe("shared components", () => {
 
     expect(screen.getByRole("option", { name: "Food" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Salary" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Amount (cents)")).toHaveClass("field-input");
+    expect(screen.getByLabelText("Amount")).toHaveClass("field-input");
     const dateInput = screen.getByLabelText("Date", { selector: "input" });
     expect(dateInput).toHaveClass("field-date-input");
     expect(dateInput).toHaveClass("w-full");
@@ -384,5 +384,59 @@ describe("shared components", () => {
       />
     );
     expect(screen.getByRole("button", { name: "Restoring..." })).toBeDisabled();
+  });
+
+  it("supports income transaction fields and emits field-change callbacks", () => {
+    const onFieldChange = vi.fn();
+    const state: TransactionFormState = {
+      type: "income",
+      accountId: "a1",
+      categoryId: "c2",
+      incomeSourceId: "",
+      amount: "100.00",
+      date: "2026-02-20",
+      merchant: "",
+      note: ""
+    };
+
+    render(
+      <TransactionForm
+        open
+        title="Create transaction"
+        submitLabel="Create transaction"
+        state={state}
+        accounts={[{ id: "a1", name: "Main", type: "cash", initial_balance_cents: 0, archived_at: null }]}
+        categories={[{ id: "c2", name: "Salary", type: "income", archived_at: null }]}
+        incomeSources={[
+          {
+            id: "s1",
+            name: "Paycheck",
+            expected_amount_cents: 250000,
+            frequency: "monthly",
+            is_active: true,
+            note: null,
+            archived_at: null,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z"
+          }
+        ]}
+        problem={null}
+        onFieldChange={onFieldChange}
+        onClose={() => undefined}
+        onSubmit={() => undefined}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("Income source"), { target: { value: "s1" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "120.50" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-21" } });
+    fireEvent.change(screen.getByLabelText("Merchant"), { target: { value: "Payroll" } });
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Monthly salary" } });
+
+    expect(onFieldChange).toHaveBeenCalledWith("incomeSourceId", "s1");
+    expect(onFieldChange).toHaveBeenCalledWith("amount", "120.50");
+    expect(onFieldChange).toHaveBeenCalledWith("date", "2026-02-21");
+    expect(onFieldChange).toHaveBeenCalledWith("merchant", "Payroll");
+    expect(onFieldChange).toHaveBeenCalledWith("note", "Monthly salary");
   });
 });

@@ -13,7 +13,7 @@ export type TransactionFormState = {
   accountId: string;
   categoryId: string;
   incomeSourceId: string;
-  amountCents: string;
+  amount: string;
   date: string;
   merchant: string;
   note: string;
@@ -28,6 +28,7 @@ type TransactionFormProps = {
   accounts: Account[];
   categories: Category[];
   incomeSources?: IncomeSource[];
+  currencyCode?: string;
   problem: unknown | null;
   onFieldChange: (field: keyof TransactionFormState, value: string) => void;
   onClose: () => void;
@@ -44,6 +45,7 @@ export default function TransactionForm({
   accounts,
   categories,
   incomeSources = [],
+  currencyCode = "USD",
   problem,
   onFieldChange,
   onClose,
@@ -56,7 +58,7 @@ export default function TransactionForm({
     <ModalForm
       open={open}
       title={title}
-      description="Use integer cents and date format YYYY-MM-DD."
+      description={`Enter amount in ${currencyCode} major units (for example 4000000.00) and date format YYYY-MM-DD.`}
       submitLabel={submitLabel}
       submitting={submitting}
       onClose={onClose}
@@ -116,11 +118,12 @@ export default function TransactionForm({
           </label>
         ) : null}
         <label className="min-w-0 space-y-1 text-sm">
-          <span>Amount (cents)</span>
+          <span>Amount</span>
           <Input
             className="field-input"
-            value={state.amountCents}
-            onChange={(event) => onFieldChange("amountCents", event.target.value)}
+            value={state.amount}
+            onChange={(event) => onFieldChange("amount", event.target.value)}
+            placeholder="0.00"
             required={!isEdit}
           />
         </label>

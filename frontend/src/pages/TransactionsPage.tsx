@@ -45,13 +45,14 @@ import { Card, CardContent } from "@/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { defaultAnalyticsRange } from "@/utils/dates";
 import { downloadBlob, resolveCsvFilename } from "@/utils/download";
+import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
 
 const EMPTY_FORM: TransactionFormState = {
   type: "expense",
   accountId: "",
   categoryId: "",
   incomeSourceId: "",
-  amountCents: "",
+  amount: "",
   date: "",
   merchant: "",
   note: ""
@@ -149,7 +150,7 @@ function normalizeOptional(value: string): string | null {
 }
 
 export default function TransactionsPage() {
-  const { apiClient, isAuthenticated } = useAuth();
+  const { apiClient, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -167,6 +168,7 @@ export default function TransactionsPage() {
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const moreActionsRef = useRef<HTMLDivElement | null>(null);
   const isDesktop = useIsDesktop();
+  const currencyCode = user?.currency_code ?? "USD";
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -416,7 +418,7 @@ export default function TransactionsPage() {
       accountId: transaction.account_id,
       categoryId: transaction.category_id,
       incomeSourceId: transaction.income_source_id ?? "",
-      amountCents: String(transaction.amount_cents),
+      amount: centsToInputValue(currencyCode, transaction.amount_cents),
       date: transaction.date,
       merchant: transaction.merchant ?? "",
       note: transaction.note ?? ""
@@ -425,13 +427,13 @@ export default function TransactionsPage() {
   }
 
   function buildCreatePayload(): TransactionCreate | null {
-    const amount = Number(formState.amountCents);
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = parseMoneyInputToCents(currencyCode, formState.amount);
+    if (!amount) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "amount_cents must be an integer greater than zero."
+        detail: "Amount must be a positive money value with up to two decimals."
       }));
       return null;
     }
@@ -474,17 +476,17 @@ export default function TransactionsPage() {
     if (incomeSourceId !== (editing.income_source_id ?? null)) {
       payload.income_source_id = incomeSourceId;
     }
-    if (formState.amountCents !== String(editing.amount_cents)) {
-      const amount = Number(formState.amountCents);
-      if (!Number.isInteger(amount) || amount <= 0) {
-        setFormProblem(toLocalProblem({
-          type: "about:blank",
-          title: "Invalid amount",
-          status: 400,
-          detail: "amount_cents must be an integer greater than zero."
-        }));
-        return null;
-      }
+    const amount = parseMoneyInputToCents(currencyCode, formState.amount);
+    if (!amount) {
+      setFormProblem(toLocalProblem({
+        type: "about:blank",
+        title: "Invalid amount",
+        status: 400,
+        detail: "Amount must be a positive money value with up to two decimals."
+      }));
+      return null;
+    }
+    if (amount !== editing.amount_cents) {
       payload.amount_cents = amount;
     }
     if (formState.date !== editing.date) {
@@ -554,7 +556,7 @@ export default function TransactionsPage() {
         <tr key={transaction.id} className="border-t">
           <td className="px-3 py-2">{transaction.date}</td>
           <td className="px-3 py-2">{transaction.type}</td>
-          <td className="px-3 py-2 text-right">{transaction.amount_cents}</td>
+          <td className="px-3 py-2 text-right">{formatCents(currencyCode, transaction.amount_cents)}</td>
           <td className="px-3 py-2">{transaction.merchant ?? "-"}</td>
           <td className="px-3 py-2">{transaction.note ?? "-"}</td>
           <td className="px-3 py-2">{transaction.archived_at ? "Archived" : "Active"}</td>
@@ -569,7 +571,7 @@ export default function TransactionsPage() {
           </td>
         </tr>
       )),
-    [items, restoringId]
+    [currencyCode, items, restoringId]
   );
   const mobileCards = useMemo(
     () =>
@@ -588,8 +590,8 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Amount (cents)</p>
-                  <p className="font-semibold tabular-nums">{transaction.amount_cents}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Amount</p>
+                  <p className="font-semibold tabular-nums">{formatCents(currencyCode, transaction.amount_cents)}</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground">State</p>
@@ -610,7 +612,7 @@ export default function TransactionsPage() {
           </Card>
         </li>
       )),
-    [items, restoringId]
+    [currencyCode, items, restoringId]
   );
 
   const accountOptions = accountsQuery.data?.items ?? [];
@@ -792,7 +794,7 @@ export default function TransactionsPage() {
                       <TableRow>
                         <TableHead className="px-3 py-2">Date</TableHead>
                         <TableHead className="px-3 py-2">Type</TableHead>
-                        <TableHead className="px-3 py-2 text-right">Amount cents</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Amount</TableHead>
                         <TableHead className="px-3 py-2">Merchant</TableHead>
                         <TableHead className="px-3 py-2">Note</TableHead>
                         <TableHead className="px-3 py-2">State</TableHead>
@@ -834,6 +836,7 @@ export default function TransactionsPage() {
         accounts={accountOptions}
         categories={categoryOptions}
         incomeSources={incomeSourceOptions}
+        currencyCode={currencyCode}
         problem={formProblem}
         onFieldChange={setField}
         onClose={() => setFormOpen(false)}

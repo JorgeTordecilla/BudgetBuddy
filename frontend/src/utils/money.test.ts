@@ -1,10 +1,35 @@
 import { describe, expect, it } from "vitest";
 
-import { budgetUsagePercent, centsToDecimalString, formatCents } from "@/utils/money";
+import {
+  budgetUsagePercent,
+  centsToDecimalString,
+  centsToInputValue,
+  formatCents,
+  parseMoneyInputToCents
+} from "@/utils/money";
 
 describe("money helpers", () => {
   it("formats cents into currency string", () => {
     expect(formatCents("USD", 12345)).toContain("123.45");
+  });
+
+  it("parses major-unit money input into cents for base currencies", () => {
+    expect(parseMoneyInputToCents("USD", "12.34")).toBe(1234);
+    expect(parseMoneyInputToCents("COP", "4,000,000")).toBe(400000000);
+    expect(parseMoneyInputToCents("EUR", "1.234,56")).toBe(123456);
+    expect(parseMoneyInputToCents("MXN", "12,3")).toBe(1230);
+  });
+
+  it("rejects invalid, zero, or over-precision money input", () => {
+    expect(parseMoneyInputToCents("USD", "0")).toBeNull();
+    expect(parseMoneyInputToCents("USD", "-1.00")).toBeNull();
+    expect(parseMoneyInputToCents("USD", "1.999")).toBeNull();
+    expect(parseMoneyInputToCents("USD", "abc")).toBeNull();
+  });
+
+  it("converts cents to normalized form input value", () => {
+    expect(centsToInputValue("USD", 1234)).toBe("12.34");
+    expect(centsToInputValue("COP", 400000000)).toBe("4000000.00");
   });
 
   it("converts cents to decimal string", () => {
