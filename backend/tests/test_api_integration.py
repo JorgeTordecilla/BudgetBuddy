@@ -3224,6 +3224,35 @@ def test_rollover_preview_and_apply_flow_with_idempotency():
         )
         assert expense_tx.status_code == 201
 
+        january_income = client.post(
+            "/api/transactions",
+            json={
+                "type": "income",
+                "account_id": account_id,
+                "category_id": income_category_id,
+                "amount_cents": 1000,
+                "date": "2026-01-10",
+                "merchant": "Side Gig",
+                "note": "income",
+            },
+            headers=headers,
+        )
+        assert january_income.status_code == 201
+        january_expense = client.post(
+            "/api/transactions",
+            json={
+                "type": "expense",
+                "account_id": account_id,
+                "category_id": expense_category_id,
+                "amount_cents": 3000,
+                "date": "2026-01-11",
+                "merchant": "Bills",
+                "note": "expense",
+            },
+            headers=headers,
+        )
+        assert january_expense.status_code == 201
+
         preview = client.get(
             "/api/rollover/preview?month=2026-02",
             headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
@@ -3269,6 +3298,16 @@ def test_rollover_preview_and_apply_flow_with_idempotency():
         assert duplicate_apply.status_code == 409
         assert duplicate_apply.headers["content-type"].startswith(PROBLEM)
         assert duplicate_apply.json()["type"] == "https://api.budgetbuddy.dev/problems/rollover-already-applied"
+
+        deficit_preview = client.get(
+            "/api/rollover/preview?month=2026-01",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert deficit_preview.status_code == 200
+        assert deficit_preview.headers["content-type"].startswith(VENDOR)
+        assert deficit_preview.json()["surplus_cents"] == 0
+        assert deficit_preview.json()["already_applied"] is False
+        assert deficit_preview.json()["applied_transaction_id"] is None
 
         no_surplus = client.post(
             "/api/rollover/apply",
