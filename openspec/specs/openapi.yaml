@@ -1990,6 +1990,379 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem406'
+  /bills:
+    get:
+      summary: List bills
+      parameters:
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillListOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    post:
+      summary: Create bill
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/BillCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Bill category type mismatch
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bill-category-type-mismatch:
+                  $ref: '#/components/examples/Problem409BillCategoryTypeMismatch'
+        '422':
+          description: Bill due day invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bill-due-day-invalid:
+                  $ref: '#/components/examples/Problem422BillDueDayInvalid'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /bills/monthly-status:
+    get:
+      summary: Monthly bills operational status
+      parameters:
+      - name: month
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillMonthlyStatusOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /bills/{bill_id}:
+    parameters:
+    - name: bill_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      summary: Get bill
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    patch:
+      summary: Update bill
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/BillUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Bill category type mismatch
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bill-category-type-mismatch:
+                  $ref: '#/components/examples/Problem409BillCategoryTypeMismatch'
+        '422':
+          description: Bill due day invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bill-due-day-invalid:
+                  $ref: '#/components/examples/Problem422BillDueDayInvalid'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+    delete:
+      summary: Archive bill
+      responses:
+        '204':
+          description: Archived (soft-delete). No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /bills/{bill_id}/payments:
+    parameters:
+    - name: bill_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      summary: Mark bill as paid
+      requestBody:
+        required: true
+        content:
+          application/vnd.budgetbuddy.v1+json:
+            schema:
+              $ref: '#/components/schemas/BillPaymentCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/vnd.budgetbuddy.v1+json:
+              schema:
+                $ref: '#/components/schemas/BillPaymentOut'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '409':
+          description: Duplicate payment or inactive bill
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                bill-already-paid:
+                  $ref: '#/components/examples/Problem409BillAlreadyPaid'
+                bill-inactive-for-month:
+                  $ref: '#/components/examples/Problem409BillInactiveForMonth'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
+  /bills/{bill_id}/payments/{month}:
+    parameters:
+    - name: bill_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: month
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^\d{4}-(0[1-9]|1[0-2])$
+    delete:
+      summary: Unmark bill payment
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem401'
+        '403':
+          description: Forbidden (resource is not owned by authenticated user)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem403'
+        '406':
+          description: Not Acceptable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem406'
   /budgets:
     get:
       summary: List budgets by month range
@@ -2829,6 +3202,18 @@ components:
   - type: https://api.budgetbuddy.dev/problems/transaction-mood-invalid
     title: Transaction mood value is invalid
     status: 422
+  - type: https://api.budgetbuddy.dev/problems/bill-category-type-mismatch
+    title: Bill category must be of type expense
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/bill-due-day-invalid
+    title: Bill due day must be between 1 and 28
+    status: 422
+  - type: https://api.budgetbuddy.dev/problems/bill-already-paid
+    title: Bill already paid for this month
+    status: 409
+  - type: https://api.budgetbuddy.dev/problems/bill-inactive-for-month
+    title: Bill is inactive for this month
+    status: 409
   - type: https://api.budgetbuddy.dev/problems/money-amount-not-integer
     title: Money amount must be an integer
     status: 400
@@ -3392,6 +3777,243 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/TransactionCreate'
+    BillCreate:
+      type: object
+      required:
+      - name
+      - due_day
+      - budget_cents
+      - category_id
+      - account_id
+      - is_active
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        due_day:
+          type: integer
+          minimum: 1
+          maximum: 28
+        budget_cents:
+          type: integer
+          minimum: 0
+        category_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+        is_active:
+          type: boolean
+          default: true
+    BillUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        due_day:
+          type: integer
+          minimum: 1
+          maximum: 28
+        budget_cents:
+          type: integer
+          minimum: 0
+        category_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+        is_active:
+          type: boolean
+    BillOut:
+      type: object
+      required:
+      - id
+      - name
+      - due_day
+      - budget_cents
+      - category_id
+      - account_id
+      - is_active
+      - archived_at
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        due_day:
+          type: integer
+          minimum: 1
+          maximum: 28
+        budget_cents:
+          type: integer
+          minimum: 0
+        category_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+        is_active:
+          type: boolean
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BillListOut:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillOut'
+    BillPaymentCreate:
+      type: object
+      required:
+      - month
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+        actual_cents:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+    BillPaymentOut:
+      type: object
+      required:
+      - id
+      - bill_id
+      - month
+      - actual_cents
+      - transaction_id
+      - paid_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        bill_id:
+          type: string
+          format: uuid
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+        actual_cents:
+          type: integer
+          minimum: 0
+        transaction_id:
+          type: string
+          format: uuid
+        paid_at:
+          type: string
+          format: date-time
+    BillMonthlyStatusItem:
+      type: object
+      required:
+      - bill_id
+      - name
+      - due_day
+      - due_date
+      - budget_cents
+      - status
+      - actual_cents
+      - transaction_id
+      - diff_cents
+      properties:
+        bill_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        due_day:
+          type: integer
+        due_date:
+          type: string
+          format: date
+        budget_cents:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+          - paid
+          - pending
+          - overdue
+        actual_cents:
+          type:
+          - integer
+          - 'null'
+        transaction_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        diff_cents:
+          type:
+          - integer
+          - 'null'
+    BillMonthlyStatusOut:
+      type: object
+      required:
+      - month
+      - summary
+      - items
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+        summary:
+          type: object
+          required:
+          - total_budget_cents
+          - total_paid_cents
+          - total_pending_cents
+          - paid_count
+          - pending_count
+          properties:
+            total_budget_cents:
+              type: integer
+            total_paid_cents:
+              type: integer
+            total_pending_cents:
+              type: integer
+            paid_count:
+              type: integer
+            pending_count:
+              type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillMonthlyStatusItem'
     Budget:
       type: object
       required:
@@ -4053,6 +4675,27 @@ components:
         title: Rollover already applied
         status: 409
         detail: Rollover for source month was already applied.
+    Problem409BillCategoryTypeMismatch:
+      summary: Canonical 409 bill category type mismatch
+      value:
+        type: https://api.budgetbuddy.dev/problems/bill-category-type-mismatch
+        title: Bill category must be of type expense
+        status: 409
+        detail: Bill category must be expense.
+    Problem409BillAlreadyPaid:
+      summary: Canonical 409 bill already paid
+      value:
+        type: https://api.budgetbuddy.dev/problems/bill-already-paid
+        title: Bill already paid for this month
+        status: 409
+        detail: A payment for this bill and month already exists.
+    Problem409BillInactiveForMonth:
+      summary: Canonical 409 bill inactive for month
+      value:
+        type: https://api.budgetbuddy.dev/problems/bill-inactive-for-month
+        title: Bill is inactive for this month
+        status: 409
+        detail: Activate the bill before creating a payment.
     Problem422RolloverNoSurplus:
       summary: Canonical 422 rollover has no surplus
       value:
@@ -4060,6 +4703,13 @@ components:
         title: Rollover has no surplus
         status: 422
         detail: No positive surplus is available for source month.
+    Problem422BillDueDayInvalid:
+      summary: Canonical 422 bill due day invalid
+      value:
+        type: https://api.budgetbuddy.dev/problems/bill-due-day-invalid
+        title: Bill due day must be between 1 and 28
+        status: 422
+        detail: due_day must be between 1 and 28.
     Problem422TransactionMoodInvalid:
       summary: Canonical 422 transaction mood invalid
       value:

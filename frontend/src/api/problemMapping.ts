@@ -2,6 +2,10 @@ import { ApiProblemError, ApiUnknownError } from "@/api/errors";
 import {
   PROBLEM_TYPE_ACCOUNT_ARCHIVED,
   PROBLEM_TYPE_BUDGET_DUPLICATE,
+  PROBLEM_TYPE_BILL_ALREADY_PAID,
+  PROBLEM_TYPE_BILL_CATEGORY_TYPE_MISMATCH,
+  PROBLEM_TYPE_BILL_DUE_DAY_INVALID,
+  PROBLEM_TYPE_BILL_INACTIVE_FOR_MONTH,
   PROBLEM_TYPE_CATEGORY_ARCHIVED,
   PROBLEM_TYPE_CATEGORY_TYPE_MISMATCH,
   PROBLEM_TYPE_FORBIDDEN,
@@ -97,6 +101,22 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
     message: "Mood must be one of: happy, neutral, sad, anxious, bored.",
     presentation: "inline",
     showDetail: true
+  },
+  [PROBLEM_TYPE_BILL_CATEGORY_TYPE_MISMATCH]: {
+    message: "Bill category must be an expense category.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_BILL_DUE_DAY_INVALID]: {
+    message: "Due day must be between 1 and 28.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_BILL_ALREADY_PAID]: {
+    message: "This bill is already marked as paid for the selected month.",
+    presentation: "inline"
+  },
+  [PROBLEM_TYPE_BILL_INACTIVE_FOR_MONTH]: {
+    message: "This bill is inactive for the selected month. Reactivate it first.",
+    presentation: "inline"
   }
 };
 

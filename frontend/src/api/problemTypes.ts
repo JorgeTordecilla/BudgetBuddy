@@ -11,3 +11,7 @@ export const PROBLEM_TYPE_BUDGET_DUPLICATE = "https://api.budgetbuddy.dev/proble
 export const PROBLEM_TYPE_ROLLOVER_ALREADY_APPLIED = "https://api.budgetbuddy.dev/problems/rollover-already-applied";
 export const PROBLEM_TYPE_ROLLOVER_NO_SURPLUS = "https://api.budgetbuddy.dev/problems/rollover-no-surplus";
 export const PROBLEM_TYPE_TRANSACTION_MOOD_INVALID = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid";
+export const PROBLEM_TYPE_BILL_CATEGORY_TYPE_MISMATCH = "https://api.budgetbuddy.dev/problems/bill-category-type-mismatch";
+export const PROBLEM_TYPE_BILL_DUE_DAY_INVALID = "https://api.budgetbuddy.dev/problems/bill-due-day-invalid";
+export const PROBLEM_TYPE_BILL_ALREADY_PAID = "https://api.budgetbuddy.dev/problems/bill-already-paid";
+export const PROBLEM_TYPE_BILL_INACTIVE_FOR_MONTH = "https://api.budgetbuddy.dev/problems/bill-inactive-for-month";

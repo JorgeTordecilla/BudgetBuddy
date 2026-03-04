@@ -22,6 +22,14 @@ ORIGIN_NOT_ALLOWED_TYPE = "https://api.budgetbuddy.dev/problems/origin-not-allow
 ORIGIN_NOT_ALLOWED_TITLE = "Forbidden"
 TRANSACTION_MOOD_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/transaction-mood-invalid"
 TRANSACTION_MOOD_INVALID_TITLE = "Transaction mood value is invalid"
+BILL_CATEGORY_TYPE_MISMATCH_TYPE = "https://api.budgetbuddy.dev/problems/bill-category-type-mismatch"
+BILL_CATEGORY_TYPE_MISMATCH_TITLE = "Bill category must be of type expense"
+BILL_DUE_DAY_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/bill-due-day-invalid"
+BILL_DUE_DAY_INVALID_TITLE = "Bill due day must be between 1 and 28"
+BILL_ALREADY_PAID_TYPE = "https://api.budgetbuddy.dev/problems/bill-already-paid"
+BILL_ALREADY_PAID_TITLE = "Bill already paid for this month"
+BILL_INACTIVE_FOR_MONTH_TYPE = "https://api.budgetbuddy.dev/problems/bill-inactive-for-month"
+BILL_INACTIVE_FOR_MONTH_TITLE = "Bill is inactive for this month"
 CANONICAL_EXAMPLE_STATUSES = {400, 401, 403, 406, 409, 429}
 
 
@@ -609,3 +617,52 @@ def test_me_contract_mappings_exist():
     assert "X-Request-Id" in responses["200"].get("headers", {})
     assert "X-Request-Id" in responses["401"].get("headers", {})
     assert "X-Request-Id" in responses["406"].get("headers", {})
+
+
+def test_bills_openapi_paths_and_schemas_exist():
+    paths = SPEC["paths"]
+    assert "/bills" in paths
+    assert "/bills/monthly-status" in paths
+    assert "/bills/{bill_id}" in paths
+    assert "/bills/{bill_id}/payments" in paths
+    assert "/bills/{bill_id}/payments/{month}" in paths
+
+    schemas = SPEC["components"]["schemas"]
+    for schema_name in [
+        "BillCreate",
+        "BillUpdate",
+        "BillOut",
+        "BillPaymentCreate",
+        "BillPaymentOut",
+        "BillMonthlyStatusItem",
+        "BillMonthlyStatusOut",
+    ]:
+        assert schema_name in schemas
+
+
+def test_bills_problem_catalog_entries_exist():
+    catalog = SPEC["components"]["x-problem-details-catalog"]
+
+    expected = {
+        BILL_CATEGORY_TYPE_MISMATCH_TYPE: (BILL_CATEGORY_TYPE_MISMATCH_TITLE, 409),
+        BILL_DUE_DAY_INVALID_TYPE: (BILL_DUE_DAY_INVALID_TITLE, 422),
+        BILL_ALREADY_PAID_TYPE: (BILL_ALREADY_PAID_TITLE, 409),
+        BILL_INACTIVE_FOR_MONTH_TYPE: (BILL_INACTIVE_FOR_MONTH_TITLE, 409),
+    }
+    for problem_type, (title, status) in expected.items():
+        matches = [item for item in catalog if item["type"] == problem_type]
+        assert len(matches) == 1
+        assert matches[0]["title"] == title
+        assert matches[0]["status"] == status
+
+
+def test_bills_error_responses_reference_problem_examples():
+    bills_post_409_examples = SPEC["paths"]["/bills"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
+    assert "bill-category-type-mismatch" in bills_post_409_examples
+
+    bills_post_422_examples = SPEC["paths"]["/bills"]["post"]["responses"]["422"]["content"][PROBLEM]["examples"]
+    assert "bill-due-day-invalid" in bills_post_422_examples
+
+    payments_post_409_examples = SPEC["paths"]["/bills/{bill_id}/payments"]["post"]["responses"]["409"]["content"][PROBLEM]["examples"]
+    assert "bill-already-paid" in payments_post_409_examples
+    assert "bill-inactive-for-month" in payments_post_409_examples

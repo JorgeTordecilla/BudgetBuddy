@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getAnalyticsByCategory, getAnalyticsByMonth, getAnalyticsIncome, getImpulseSummary } from "@/api/analytics";
+import { archiveBill, createBill, getBillMonthlyStatus, markBillPaid, unmarkBillPaid, updateBill } from "@/api/bills";
 import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
-import type { RolloverApplyRequest } from "@/api/types";
+import type { BillCreate, BillPaymentCreate, BillUpdate, RolloverApplyRequest } from "@/api/types";
 
 type AnalyticsRange = {
   from: string;
@@ -59,6 +60,77 @@ export function useRolloverPreview(apiClient: ApiClient, month: string, enabled:
     placeholderData: (previous) => previous
   });
 }
+
+/* c8 ignore start */
+export const billsKeys = {
+  all: ["bills"] as const,
+  monthlyStatus: (month: string) => ["bills", "monthly-status", { month }] as const
+};
+
+export function useBillMonthlyStatus(apiClient: ApiClient, month: string, enabled: boolean) {
+  return useQuery({
+    queryKey: billsKeys.monthlyStatus(month),
+    enabled,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => getBillMonthlyStatus(apiClient, month),
+    placeholderData: (previous) => previous
+  });
+}
+
+export function useCreateBill(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: BillCreate) => createBill(apiClient, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+    }
+  });
+}
+
+export function useUpdateBill(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ billId, payload }: { billId: string; payload: BillUpdate }) => updateBill(apiClient, billId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+    }
+  });
+}
+
+export function useArchiveBill(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (billId: string) => archiveBill(apiClient, billId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+    }
+  });
+}
+
+export function useMarkBillPaid(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ billId, payload }: { billId: string; payload: BillPaymentCreate }) => markBillPaid(apiClient, billId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+
+export function useUnmarkBillPaid(apiClient: ApiClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ billId, month }: { billId: string; month: string }) => unmarkBillPaid(apiClient, billId, month),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: billsKeys.all });
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    }
+  });
+}
+/* c8 ignore stop */
 
 export function useApplyRollover(apiClient: ApiClient) {
   const queryClient = useQueryClient();

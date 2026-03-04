@@ -14,6 +14,7 @@ import TransactionsImportPage from "@/features/transactions/import/TransactionsI
 import AccountsPage from "@/pages/AccountsPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import IncomeSourcesPage from "@/pages/IncomeSourcesPage";
+import BillsPage from "@/pages/BillsPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import AppShell from "@/routes/AppShell";
 import Dashboard from "@/routes/Dashboard";
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { path: "accounts", element: <AccountsPage /> },
       { path: "categories", element: <CategoriesPage /> },
       { path: "income-sources", element: <IncomeSourcesPage /> },
+      { path: "bills", element: <BillsPage /> },
       { path: "budgets", element: <BudgetsPage /> },
       { path: "transactions", element: <TransactionsPage /> },
       { path: "transactions/import", element: <TransactionsImportPage /> }

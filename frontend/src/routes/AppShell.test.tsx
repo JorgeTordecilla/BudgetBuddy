@@ -177,6 +177,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("href", "/app/analytics");
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/app/categories");
     expect(screen.getByRole("link", { name: "Income Sources" })).toHaveAttribute("href", "/app/income-sources");
+    expect(screen.getByRole("link", { name: "Bills" })).toHaveAttribute("href", "/app/bills");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/app/budgets");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute("href", "/app/transactions");
   });

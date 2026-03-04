@@ -180,6 +180,86 @@ export type BudgetUpdate = {
   archived_at?: string | null;
 };
 
+export type Bill = {
+  id: string;
+  name: string;
+  due_day: number;
+  budget_cents: number;
+  category_id: string;
+  account_id: string;
+  note?: string | null;
+  is_active: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillCreate = {
+  name: string;
+  due_day: number;
+  budget_cents: number;
+  category_id: string;
+  account_id: string;
+  note?: string | null;
+  is_active?: boolean;
+};
+
+export type BillUpdate = {
+  name?: string;
+  due_day?: number;
+  budget_cents?: number;
+  category_id?: string;
+  account_id?: string;
+  note?: string | null;
+  is_active?: boolean;
+};
+
+export type BillListResponse = {
+  items: Bill[];
+};
+
+export type BillPaymentCreate = {
+  month: string;
+  actual_cents?: number;
+};
+
+export type BillPaymentOut = {
+  id: string;
+  bill_id: string;
+  month: string;
+  actual_cents: number;
+  transaction_id: string;
+  paid_at: string;
+};
+
+export type BillMonthlyStatus = "paid" | "pending" | "overdue";
+
+export type BillMonthlyStatusItem = {
+  bill_id: string;
+  name: string;
+  due_day: number;
+  due_date: string;
+  budget_cents: number;
+  status: BillMonthlyStatus;
+  actual_cents: number | null;
+  transaction_id: string | null;
+  diff_cents: number | null;
+};
+
+export type BillMonthlyStatusSummary = {
+  total_budget_cents: number;
+  total_paid_cents: number;
+  total_pending_cents: number;
+  paid_count: number;
+  pending_count: number;
+};
+
+export type BillMonthlyStatusOut = {
+  month: string;
+  summary: BillMonthlyStatusSummary;
+  items: BillMonthlyStatusItem[];
+};
+
 export type AnalyticsByMonthItem = {
   month: string;
   income_total_cents: number;
