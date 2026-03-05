@@ -1,4 +1,5 @@
 import os
+import ipaddress
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -57,6 +58,7 @@ class Settings:
     log_level: str
     auth_refresh_allowed_origins: list[str]
     auth_refresh_missing_origin_mode: str
+    rate_limit_trusted_proxies: list[str]
     bootstrap_allow_prod: bool
     bootstrap_create_demo_user: bool
     bootstrap_seed_minimal_data: bool
@@ -124,6 +126,12 @@ class Settings:
             self.migrations_strict = _env_bool("MIGRATIONS_STRICT", self.runtime_env == "production")
         self.cors_origins = _env_csv_list("BUDGETBUDDY_CORS_ORIGINS", ["http://localhost:5173"])
         self.auth_refresh_allowed_origins = _env_csv_list("AUTH_REFRESH_ALLOWED_ORIGINS", self.cors_origins)
+        self.rate_limit_trusted_proxies = _env_csv_list("RATE_LIMIT_TRUSTED_PROXIES", [])
+        for value in self.rate_limit_trusted_proxies:
+            try:
+                ipaddress.ip_network(value, strict=False)
+            except ValueError as exc:
+                raise ValueError("RATE_LIMIT_TRUSTED_PROXIES must contain valid IP/CIDR entries") from exc
         missing_origin_raw = os.getenv("AUTH_REFRESH_MISSING_ORIGIN_MODE")
         if missing_origin_raw is None:
             self.auth_refresh_missing_origin_mode = "deny" if self.runtime_env == "production" else "allow_trusted"
@@ -178,6 +186,7 @@ class Settings:
             "log_level": self.log_level,
             "auth_refresh_allowed_origins_count": len(self.auth_refresh_allowed_origins),
             "auth_refresh_missing_origin_mode": self.auth_refresh_missing_origin_mode,
+            "rate_limit_trusted_proxies_count": len(self.rate_limit_trusted_proxies),
             "bootstrap_allow_prod": self.bootstrap_allow_prod,
             "bootstrap_create_demo_user": self.bootstrap_create_demo_user,
             "bootstrap_seed_minimal_data": self.bootstrap_seed_minimal_data,

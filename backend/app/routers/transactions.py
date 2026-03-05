@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.audit import emit_audit_event
 from app.core.constants import CSV_TEXT
 from app.core.errors import APIError, sanitize_problem_detail
+from app.core.network import resolve_rate_limit_client_ip
 from app.core.money import validate_amount_cents, validate_user_currency_for_money
 from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limited
 from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
@@ -133,17 +134,6 @@ def _validate_batch_size_or_400(item_count: int) -> None:
         raise import_batch_limit_exceeded_error(
             f"items exceeds maximum batch size ({settings.transaction_import_max_items})"
         )
-
-
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "").strip()
-    if forwarded:
-        first = forwarded.split(",", 1)[0].strip()
-        if first:
-            return first
-    if request.client and request.client.host:
-        return request.client.host
-    return "unknown"
 
 
 def _transactions_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
@@ -440,6 +430,12 @@ def _csv_line(cells: list[object]) -> str:
     return out.getvalue()
 
 
+def _sanitize_csv_text_cell(value: str) -> str:
+    if value.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
 def _csv_stream(rows) -> Iterator[str]:
     header = [
         "date",
@@ -454,15 +450,19 @@ def _csv_stream(rows) -> Iterator[str]:
     ]
     yield _csv_line(header)
     for tx, account_name, category_name in rows:
+        account = _sanitize_csv_text_cell(account_name or "")
+        category = _sanitize_csv_text_cell(category_name or "")
+        merchant = _sanitize_csv_text_cell(tx.merchant or "")
+        note = _sanitize_csv_text_cell(tx.note or "")
         yield _csv_line(
             [
                 tx.date.isoformat(),
                 tx.type,
-                account_name,
-                category_name,
+                account,
+                category,
                 tx.amount_cents,
-                tx.merchant or "",
-                tx.note or "",
+                merchant,
+                note,
                 tx.mood or "",
                 "" if tx.is_impulse is None else str(tx.is_impulse).lower(),
             ]
@@ -614,7 +614,7 @@ def import_transactions(
     _transactions_rate_limit_or_429(
         request,
         endpoint="transactions_import",
-        identity=f"{current_user.id}:{_client_ip(request)}",
+        identity=f"{current_user.id}:{resolve_rate_limit_client_ip(request)}",
     )
     _validate_batch_size_or_400(len(payload.items))
     result = _execute_import_payload(
@@ -636,7 +636,7 @@ def submit_import_job(
     _transactions_rate_limit_or_429(
         request,
         endpoint="transactions_import",
-        identity=f"{current_user.id}:{_client_ip(request)}",
+        identity=f"{current_user.id}:{resolve_rate_limit_client_ip(request)}",
     )
     _validate_batch_size_or_400(len(payload.items))
 
@@ -680,7 +680,7 @@ def export_transactions(
     _transactions_rate_limit_or_429(
         request,
         endpoint="transactions_export",
-        identity=f"{current_user.id}:{_client_ip(request)}",
+        identity=f"{current_user.id}:{resolve_rate_limit_client_ip(request)}",
     )
     if from_ and to and from_ > to:
         raise invalid_date_range_error("from must be less than or equal to to")

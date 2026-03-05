@@ -13,6 +13,7 @@ from starlette.requests import Request
 
 from app.core.config import Settings
 from app.core.errors import APIError, register_exception_handlers
+from app.core.network import resolve_rate_limit_client_ip
 from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.security import (
     create_access_token,
@@ -58,6 +59,25 @@ def _request(path: str, method: str = "GET", headers: dict[str, str] | None = No
         "scheme": "http",
         "server": ("testserver", 80),
         "client": ("testclient", 50000),
+    }
+    return Request(scope)
+
+
+def _request_with_client(path: str, client_host: str, method: str = "GET", headers: dict[str, str] | None = None) -> Request:
+    raw_headers = []
+    for key, value in (headers or {}).items():
+        raw_headers.append((key.lower().encode("ascii"), value.encode("ascii")))
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": method,
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": b"",
+        "headers": raw_headers,
+        "scheme": "http",
+        "server": ("testserver", 80),
+        "client": (client_host, 50000),
     }
     return Request(scope)
 
@@ -303,6 +323,32 @@ def test_settings_rejects_non_numeric_transactions_export_rate_limit(monkeypatch
     monkeypatch.setenv("TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE", "fast")
     with pytest.raises(ValueError, match="TRANSACTIONS_EXPORT_RATE_LIMIT_PER_MINUTE"):
         Settings()
+
+
+def test_settings_rejects_invalid_rate_limit_trusted_proxies(monkeypatch):
+    _set_minimum_config_env(monkeypatch)
+    monkeypatch.setenv("RATE_LIMIT_TRUSTED_PROXIES", "not-a-cidr")
+    with pytest.raises(ValueError, match="RATE_LIMIT_TRUSTED_PROXIES"):
+        Settings()
+
+
+def test_resolve_rate_limit_client_ip_ignores_untrusted_forwarded_header(monkeypatch):
+    request = _request(
+        "/api/auth/login",
+        headers={"x-forwarded-for": "203.0.113.10, 198.51.100.2"},
+    )
+    monkeypatch.setattr("app.core.network.settings.rate_limit_trusted_proxies", ["10.0.0.0/24"])
+    assert resolve_rate_limit_client_ip(request) == "testclient"
+
+
+def test_resolve_rate_limit_client_ip_uses_forwarded_header_for_trusted_proxy(monkeypatch):
+    request = _request_with_client(
+        "/api/auth/login",
+        "10.0.0.8",
+        headers={"x-forwarded-for": "203.0.113.10, 10.0.0.8"},
+    )
+    monkeypatch.setattr("app.core.network.settings.rate_limit_trusted_proxies", ["10.0.0.0/24"])
+    assert resolve_rate_limit_client_ip(request) == "203.0.113.10"
 
 
 def test_settings_rejects_invalid_db_pool_recycle_seconds(monkeypatch):

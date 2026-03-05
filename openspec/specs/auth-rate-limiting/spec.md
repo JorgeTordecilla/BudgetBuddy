@@ -15,6 +15,11 @@ The backend MUST enforce deterministic rate limits for `POST /auth/login` and `P
 - **WHEN** a client exceeds the configured refresh threshold within the active rate-limit window
 - **THEN** the API SHALL reject further refresh attempts with canonical `429` ProblemDetails until the window allows retry
 
+#### Scenario: Untrusted forwarded headers cannot change auth limiter identity
+- **WHEN** a client sends `X-Forwarded-For` but the immediate source is not a configured trusted proxy
+- **THEN** auth rate-limit identity SHALL be derived from trusted connection metadata
+- **AND** the untrusted forwarded header SHALL NOT alter throttling identity.
+
 ### Requirement: Auth rate limits are configurable per endpoint
 The backend MUST allow independent rate-limit configuration for auth login and auth refresh endpoints.
 
@@ -40,4 +45,15 @@ The rate-limiting capability MUST support temporary lock behavior keyed by usern
 #### Scenario: Lock interval expiration restores normal flow
 - **WHEN** lock interval expires and requests are again under limit
 - **THEN** login or refresh processing SHALL resume normal behavior
+
+### Requirement: Trusted proxy policy for limiter identity
+The backend MUST apply an explicit trusted-proxy policy before using forwarded client IP headers for rate-limiting identity on auth endpoints.
+
+#### Scenario: Trusted proxy allows forwarded client identity
+- **WHEN** a request is received from a configured trusted proxy and includes a valid forwarded client chain
+- **THEN** auth limiter identity SHALL use the effective forwarded client IP according to the trusted-proxy policy.
+
+#### Scenario: Missing trusted proxy configuration uses safe default
+- **WHEN** no trusted proxy is configured
+- **THEN** auth limiter identity SHALL default to direct peer connection identity.
 

@@ -1,4 +1,5 @@
 import base64
+import csv
 import hashlib
 import hmac
 import json
@@ -270,6 +271,7 @@ def _create_transaction(
     account_id: str,
     category_id: str,
     note: str,
+    merchant: str = "Acme",
     date: str = "2026-02-01",
     income_source_id: str | None = None,
 ) -> tuple[int, dict]:
@@ -282,7 +284,7 @@ def _create_transaction(
             "income_source_id": income_source_id,
             "amount_cents": 7000,
             "date": date,
-            "merchant": "Acme",
+            "merchant": merchant,
             "note": note,
         },
         headers=headers,
@@ -1200,6 +1202,7 @@ def _configure_auth_rate_limit_for_test(
     window_seconds: int,
     lock_enabled: bool = False,
     lock_seconds: int = 0,
+    trusted_proxies: list[str] | None = None,
     now_fn=None,
 ):
     monkeypatch.setattr(auth_router.settings, "auth_login_rate_limit_per_minute", login_limit)
@@ -1207,6 +1210,7 @@ def _configure_auth_rate_limit_for_test(
     monkeypatch.setattr(auth_router.settings, "auth_rate_limit_window_seconds", window_seconds)
     monkeypatch.setattr(auth_router.settings, "auth_rate_limit_lock_enabled", lock_enabled)
     monkeypatch.setattr(auth_router.settings, "auth_rate_limit_lock_seconds", lock_seconds)
+    monkeypatch.setattr(auth_router.settings, "rate_limit_trusted_proxies", trusted_proxies or [])
     monkeypatch.setattr(auth_router, "_AUTH_RATE_LIMITER", InMemoryRateLimiter(now_fn=now_fn))
 
 
@@ -1216,6 +1220,7 @@ def _configure_transaction_rate_limit_for_test(
     import_limit: int,
     export_limit: int,
     window_seconds: int,
+    trusted_proxies: list[str] | None = None,
     now_fn=None,
 ):
     import app.routers.transactions as transactions_router
@@ -1223,6 +1228,7 @@ def _configure_transaction_rate_limit_for_test(
     monkeypatch.setattr(transactions_router.settings, "transactions_import_rate_limit_per_minute", import_limit)
     monkeypatch.setattr(transactions_router.settings, "transactions_export_rate_limit_per_minute", export_limit)
     monkeypatch.setattr(transactions_router.settings, "auth_rate_limit_window_seconds", window_seconds)
+    monkeypatch.setattr(transactions_router.settings, "rate_limit_trusted_proxies", trusted_proxies or [])
     monkeypatch.setattr(transactions_router, "_TRANSACTION_RATE_LIMITER", InMemoryRateLimiter(now_fn=now_fn))
 
 
@@ -1275,6 +1281,26 @@ def test_auth_refresh_rate_limit_exceeded_returns_canonical_429(monkeypatch):
         second = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token"))
         _assert_rate_limited_problem(second)
         assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_login_rate_limit_untrusted_forwarded_headers_cannot_bypass(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=1, refresh_limit=30, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        first = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR, "x-forwarded-for": "203.0.113.10"},
+        )
+        assert first.status_code == 401
+
+        second = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "wrongpassword123"},
+            headers={"accept": VENDOR, "content-type": VENDOR, "x-forwarded-for": "198.51.100.44"},
+        )
+        _assert_rate_limited_problem(second)
 
 
 def test_auth_login_refresh_behavior_unchanged_under_limit(monkeypatch):
@@ -1401,6 +1427,46 @@ def test_transactions_export_rate_limit_exceeded_returns_canonical_429(monkeypat
         )
         _assert_rate_limited_problem(second)
         assert int(second.headers["retry-after"]) >= 1
+
+
+def test_transactions_export_rate_limit_untrusted_forwarded_headers_cannot_bypass(monkeypatch):
+    _configure_transaction_rate_limit_for_test(monkeypatch, import_limit=30, export_limit=1, window_seconds=60)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rl-export-untrusted-account")
+        category_id = _create_category(client, headers, "rl-export-untrusted-category", "income")
+        status, _ = _create_transaction(
+            client,
+            headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            note="rl-export-untrusted",
+            date="2026-12-02",
+        )
+        assert status == 201
+
+        first = client.get(
+            "/api/transactions/export?from=2026-12-01&to=2026-12-31&type=income",
+            headers={
+                "accept": "text/csv",
+                "authorization": f"Bearer {user['access']}",
+                "x-forwarded-for": "203.0.113.10",
+            },
+        )
+        assert first.status_code == 200
+
+        second = client.get(
+            "/api/transactions/export?from=2026-12-01&to=2026-12-31&type=income",
+            headers={
+                "accept": "text/csv",
+                "authorization": f"Bearer {user['access']}",
+                "x-forwarded-for": "198.51.100.44",
+            },
+        )
+        _assert_rate_limited_problem(second)
 
 
 def test_transactions_import_export_behavior_unchanged_under_limit(monkeypatch):
@@ -3944,6 +4010,56 @@ def test_transactions_export_returns_csv_headers_and_row_count():
         lines = [line for line in response.text.strip().splitlines() if line]
         assert lines[0] == "date,type,account,category,amount_cents,merchant,note,mood,is_impulse"
         assert len(lines) == 3
+
+
+def test_transactions_export_neutralizes_formula_prefixed_text_cells():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "=danger-account")
+        category_id = _create_category(client, headers, "@danger-category", "income")
+
+        status, _ = _create_transaction(
+            client,
+            headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            merchant="+danger-merchant",
+            note="-danger-note",
+            date="2026-10-05",
+        )
+        assert status == 201
+
+        status, _ = _create_transaction(
+            client,
+            headers,
+            type_="income",
+            account_id=account_id,
+            category_id=category_id,
+            merchant="safe-merchant",
+            note="safe-note",
+            date="2026-10-06",
+        )
+        assert status == 201
+
+        response = client.get(
+            "/api/transactions/export?from=2026-10-01&to=2026-10-31&type=income",
+            headers={"accept": "text/csv", "authorization": f"Bearer {user['access']}"},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+
+        rows = list(csv.DictReader(response.text.splitlines()))
+        assert len(rows) == 2
+        assert all(row["account"].startswith("'") for row in rows)
+        assert all(row["category"].startswith("'") for row in rows)
+
+        dangerous_row = next(row for row in rows if row["merchant"].startswith("'+"))
+        assert dangerous_row["note"].startswith("'-")
+
+        safe_row = next(row for row in rows if row["merchant"] == "safe-merchant")
+        assert safe_row["note"] == "safe-note"
 
 
 def test_transactions_import_export_auth_and_negotiation_matrix():

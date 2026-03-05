@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import emit_audit_event
 from app.core.config import settings
 from app.core.errors import APIError
+from app.core.network import resolve_rate_limit_client_ip
 from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limited
 from app.core.responses import vendor_response
 from app.core.security import (
@@ -59,17 +60,6 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
-
-
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "").strip()
-    if forwarded:
-        first = forwarded.split(",", 1)[0].strip()
-        if first:
-            return first
-    if request.client and request.client.host:
-        return request.client.host
-    return "unknown"
 
 
 def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
@@ -222,7 +212,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     username_key = payload.username.strip().lower() if payload.username.strip() else "unknown-username"
-    _auth_rate_limit_or_429(request, endpoint="login", identity=f"{username_key}:{_client_ip(request)}")
+    _auth_rate_limit_or_429(request, endpoint="login", identity=f"{username_key}:{resolve_rate_limit_client_ip(request)}")
 
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
@@ -251,7 +241,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
         raise unauthorized_error("Refresh token is invalid or expired")
 
     token_key = hash_refresh_token(refresh_token)
-    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{_client_ip(request)}")
+    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{resolve_rate_limit_client_ip(request)}")
 
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)

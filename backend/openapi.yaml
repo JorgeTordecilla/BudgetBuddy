@@ -1746,7 +1746,7 @@ paths:
           format: date
       responses:
         '200':
-          description: CSV export stream
+          description: CSV export stream. Text cells beginning with `=`, `+`, `-`, or `@` are prefixed with a single quote to prevent spreadsheet formula execution.
           content:
             text/csv:
               schema:

@@ -593,6 +593,22 @@ The HTTP contract MUST define deterministic throttling behavior for import/expor
 - **WHEN** any rate-limited endpoint returns `429`
 - **THEN** `type`, `title`, and `status` SHALL match canonical rate-limited ProblemDetails identity
 
+#### Scenario: Untrusted forwarded headers do not redefine throttling identity
+- **WHEN** rate-limited auth/import/export endpoints receive `X-Forwarded-For` from non-trusted sources
+- **THEN** throttling identity SHALL be resolved from trusted connection context
+- **AND** spoofed forwarded values SHALL NOT bypass configured limits.
+
+### Requirement: Transactions CSV export is spreadsheet-formula safe
+The API SHALL harden `GET /transactions/export` output against spreadsheet formula execution while preserving `text/csv` response semantics.
+
+#### Scenario: Text cells with formula prefixes are neutralized
+- **WHEN** exported transaction text fields start with `=`, `+`, `-`, or `@` after leading-whitespace normalization
+- **THEN** CSV output SHALL neutralize the cell so spreadsheet clients treat it as plain text instead of executing formulas.
+
+#### Scenario: Non-dangerous values are exported without semantic regression
+- **WHEN** exported values do not start with dangerous formula prefixes
+- **THEN** CSV content SHALL preserve the original business value formatting under existing column contract.
+
 ### Requirement: API responses include baseline security headers
 The HTTP contract MUST define baseline security headers for API responses.
 
