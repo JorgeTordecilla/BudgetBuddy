@@ -57,8 +57,9 @@ describe("shared components", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.className).toContain("rounded-2xl");
     const mobileViewportContainer = Array.from(dialog.querySelectorAll("div")).find((element) =>
-      element.className.includes("max-h-[calc(100svh-1.5rem)]")
+      element.className.includes("max-h-[calc(100svh_-_1rem)]")
     );
     expect(mobileViewportContainer).toBeTruthy();
     const contentScrollContainer = dialog.querySelector(".overscroll-contain");
@@ -175,7 +176,9 @@ describe("shared components", () => {
       />
     );
 
-    expect(screen.getByRole("alertdialog")).toHaveAttribute("aria-modal", "true");
+    const alertDialog = screen.getByRole("alertdialog");
+    expect(alertDialog).toHaveAttribute("aria-modal", "true");
+    expect(alertDialog.className).toContain("rounded-2xl");
     fireEvent.click(screen.getByRole("button", { name: "Archive" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);

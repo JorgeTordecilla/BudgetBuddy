@@ -80,20 +80,20 @@ export default function ConfirmDialog({
             event.preventDefault();
           }
         }}
-        className="w-[calc(100vw-1.5rem)] max-w-md gap-0 overflow-hidden border-border/70 bg-card p-0"
+        className="w-auto max-w-none gap-0 overflow-hidden rounded-2xl border-border/70 bg-card p-0 sm:w-[calc(100dvw_-_1.5rem)] sm:max-w-md"
       >
         <AlertDialogHeader className="space-y-1 border-b border-border/60 bg-card/95 px-4 pb-4 pt-5 text-left sm:px-5">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="bg-card/98 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
+        <AlertDialogFooter className="flex-row gap-2 bg-card/98 px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
           <AlertDialogCancel
             onClick={(event) => {
               event.preventDefault();
               handleCancel();
             }}
             disabled={confirming}
-            className="w-full sm:w-auto"
+            className="mt-0 min-h-11 flex-1"
           >
             Cancel
           </AlertDialogCancel>
@@ -103,7 +103,7 @@ export default function ConfirmDialog({
               void onConfirm();
             }}
             disabled={confirming}
-            className="w-full sm:min-w-32 sm:w-auto"
+            className="min-h-11 flex-1 sm:min-w-32"
           >
             {confirming ? "Working..." : confirmLabel}
           </AlertDialogAction>

@@ -83,6 +83,12 @@ export default function DatePickerField({
         className={cn("field-date-input w-full sr-only")}
         aria-label={ariaLabel}
         value={value}
+        tabIndex={-1}
+        readOnly
+        inputMode="none"
+        onFocus={(event) => {
+          event.currentTarget.blur();
+        }}
         onChange={(event) => onChange(event.target.value)}
       />
       <Popover open={open} onOpenChange={setOpen}>

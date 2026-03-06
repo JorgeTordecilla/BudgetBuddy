@@ -186,7 +186,11 @@ describe("AppShell", () => {
   it("keeps primary navigation accessible on mobile width", () => {
     setupModalDataMocks();
     renderShellAt(375);
-    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+    const mobileNav = screen.getByRole("navigation", { name: "Main" });
+    expect(mobileNav).toBeInTheDocument();
+    expect(mobileNav).toHaveClass("w-full");
+    const navCard = mobileNav.firstElementChild as HTMLElement;
+    expect(navCard).toHaveClass("max-w-none");
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   });
 

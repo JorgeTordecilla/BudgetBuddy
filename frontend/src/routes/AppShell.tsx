@@ -96,6 +96,10 @@ export default function AppShell() {
     [location.pathname]
   );
   const currencyCode = user?.currency_code ?? "USD";
+  const isStandaloneMode =
+    typeof window !== "undefined" &&
+    ((typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches) ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
   useEffect(() => {
     void clearAppBadgeIfSupported();
@@ -247,7 +251,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen pb-[calc(8.75rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="min-h-screen overflow-x-hidden pb-[calc(8.75rem_+_env(safe-area-inset-bottom))] md:pb-0">
       <OfflineBanner />
       <AppBadgeSync />
 
@@ -305,42 +309,30 @@ export default function AppShell() {
 
       {!isDesktop ? (
         <nav
-          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-border/80 bg-card/95 p-2 shadow-lg backdrop-blur"
+          className={cn(
+            "pointer-events-none fixed inset-x-0 z-40 w-full",
+            isStandaloneMode
+              ? "bottom-[max(0px,_calc(env(safe-area-inset-bottom)_-_0.25rem))] px-4"
+              : "bottom-[calc(0.9rem_+_env(safe-area-inset-bottom))] px-3"
+          )}
+          style={{
+            paddingLeft: isStandaloneMode
+              ? "max(1rem, calc(env(safe-area-inset-left) + 0.5rem))"
+              : "max(0.75rem, env(safe-area-inset-left))",
+            paddingRight: isStandaloneMode
+              ? "max(1rem, calc(env(safe-area-inset-right) + 0.5rem))"
+              : "max(0.75rem, env(safe-area-inset-right))"
+          }}
           aria-label="Main"
         >
-          <div className="grid grid-cols-5 gap-1">
-            {mobilePrimaryLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={(event) => {
-                  handleInAppNav(event, link.to);
-                  setOverflowOpen(false);
-                }}
-                className={({ isActive }) =>
-                  cn(
-                    "flex min-h-12 items-center justify-center rounded-xl px-2 text-[11px] font-semibold",
-                    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70"
-                  )
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-            <Button
-              type="button"
-              variant={overflowOpen ? "outline" : "ghost"}
-              className="flex min-h-12 items-center justify-center rounded-xl px-2 text-[11px] font-semibold"
-              aria-expanded={overflowOpen}
-              aria-controls="mobile-nav-overflow"
-              onClick={() => setOverflowOpen((current) => !current)}
-            >
-              More
-            </Button>
-          </div>
-          {overflowOpen ? (
-            <div id="mobile-nav-overflow" className="mt-2 grid gap-1 border-t border-border/70 pt-2">
-              {mobileSecondaryLinks.map((link) => (
+          <div
+            className={cn(
+              "pointer-events-auto mx-auto w-full overflow-x-clip rounded-2xl border border-border/80 bg-card/95 p-2 shadow-lg backdrop-blur",
+              isStandaloneMode ? "max-w-[30rem]" : "max-w-none"
+            )}
+          >
+            <div className="grid min-w-0 grid-cols-5 gap-1">
+              {mobilePrimaryLinks.map((link) => (
                 <NavLink
                   key={link.to}
                   to={link.to}
@@ -350,7 +342,7 @@ export default function AppShell() {
                   }}
                   className={({ isActive }) =>
                     cn(
-                      "rounded-lg px-3 py-2 text-sm font-semibold",
+                      "flex min-h-12 min-w-0 items-center justify-center whitespace-nowrap rounded-xl px-1 text-[clamp(9px,2.6vw,11px)] font-semibold",
                       isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70"
                     )
                   }
@@ -360,17 +352,49 @@ export default function AppShell() {
               ))}
               <Button
                 type="button"
-                variant="ghost"
-                className="justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setOverflowOpen(false);
-                  void handleLogout();
-                }}
+                variant={overflowOpen ? "outline" : "ghost"}
+                className="flex min-h-12 min-w-0 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2 text-[11px] font-semibold"
+                aria-expanded={overflowOpen}
+                aria-controls="mobile-nav-overflow"
+                onClick={() => setOverflowOpen((current) => !current)}
               >
-                Logout
+                More
               </Button>
             </div>
-          ) : null}
+            {overflowOpen ? (
+              <div id="mobile-nav-overflow" className="mt-2 grid gap-1 border-t border-border/70 pt-2">
+                {mobileSecondaryLinks.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    onClick={(event) => {
+                      handleInAppNav(event, link.to);
+                      setOverflowOpen(false);
+                    }}
+                    className={({ isActive }) =>
+                      cn(
+                        "rounded-lg px-3 py-2 text-sm font-semibold",
+                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70"
+                      )
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setOverflowOpen(false);
+                    void handleLogout();
+                  }}
+                >
+                  Logout
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </nav>
       ) : null}
 
@@ -381,7 +405,8 @@ export default function AppShell() {
           </Button>
         ) : (
           <Button
-            className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-30 h-[clamp(2.9rem,11vw,3.35rem)] w-[clamp(2.9rem,11vw,3.35rem)] rounded-full p-0 shadow-xl transition-transform duration-200 hover:-translate-y-0.5 active:scale-95"
+            className="fixed bottom-[calc(6rem_+_env(safe-area-inset-bottom))] z-30 h-[clamp(2.9rem,11vw,3.35rem)] w-[clamp(2.9rem,11vw,3.35rem)] rounded-full p-0 shadow-xl transition-transform duration-200 hover:-translate-y-0.5 active:scale-95"
+            style={{ right: "max(1rem, env(safe-area-inset-right))" }}
             aria-label="Create transaction"
             onClick={openQuickTransaction}
           >

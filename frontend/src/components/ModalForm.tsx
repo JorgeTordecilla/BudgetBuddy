@@ -89,9 +89,9 @@ export default function ModalForm({
             event.preventDefault();
           }
         }}
-        className="w-[calc(100vw-1.5rem)] max-w-xl gap-0 overflow-hidden border-border/70 bg-card p-0"
+        className="w-auto max-w-none gap-0 overflow-hidden rounded-2xl border-border/70 bg-card p-0 sm:w-[calc(100dvw_-_1.5rem)] sm:max-w-xl"
       >
-        <div className="flex max-h-[calc(100svh-1.5rem)] min-h-0 flex-col sm:max-h-[min(90dvh,56rem)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 space-y-1 border-b border-border/60 bg-card/95 px-4 pb-4 pt-5 text-left sm:px-5">
             <DialogTitle className="text-xl">{title}</DialogTitle>
             <DialogDescription className={description ? undefined : "sr-only"}>
@@ -100,16 +100,16 @@ export default function ModalForm({
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
-            <form id={formId} className="space-y-3 pb-2" onSubmit={onSubmit}>
+            <form id={formId} className="min-w-0 space-y-3 pb-2" onSubmit={onSubmit}>
               {children}
             </form>
           </div>
 
-          <DialogFooter className="shrink-0 border-t border-border/70 bg-card/98 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleClose} disabled={submitting}>
+          <DialogFooter className="shrink-0 flex-row gap-2 border-t border-border/70 bg-card/98 px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-4">
+            <Button type="button" variant="outline" className="min-h-11 flex-1" onClick={handleClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" form={formId} className="w-full min-w-40 sm:w-auto" disabled={submitting}>
+            <Button type="submit" form={formId} className="min-h-11 min-w-40 flex-1" disabled={submitting}>
               {submitting ? "Saving..." : submitLabel}
             </Button>
           </DialogFooter>
