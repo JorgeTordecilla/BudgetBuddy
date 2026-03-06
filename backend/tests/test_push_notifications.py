@@ -190,3 +190,97 @@ def test_payload_builder_due_today_and_in_three_days():
     due_three = due_date_for_month(8, today)
     payload_three = build_bill_payload(bill=bill, today=today, due_date=due_three)
     assert "3 days" in payload_three["title"].lower()
+
+
+def test_due_date_for_month_clamps_to_month_end_for_short_months():
+    february_anchor = date(2026, 2, 1)
+    assert due_date_for_month(29, february_anchor) == date(2026, 2, 28)
+    assert due_date_for_month(30, february_anchor) == date(2026, 2, 28)
+    assert due_date_for_month(31, february_anchor) == date(2026, 2, 28)
+
+    april_anchor = date(2026, 4, 1)
+    assert due_date_for_month(31, april_anchor) == date(2026, 4, 30)
+
+
+def test_upsert_subscription_uses_postgres_branch_with_get_bind(monkeypatch):
+    body = push_router.PushSubscribeRequest(
+        endpoint="https://push.example/subscriptions/device-101",
+        keys={"p256dh": "p-key", "auth": "a-key"},
+        user_agent="ua-postgres",
+    )
+
+    fake_sub = types.SimpleNamespace(endpoint=body.endpoint)
+
+    class _FakeStmt:
+        def values(self, **_kwargs):
+            return self
+
+        def on_conflict_do_update(self, **_kwargs):
+            return self
+
+        def returning(self, _model):
+            return self
+
+    class _FakeResult:
+        def scalar_one(self):
+            return fake_sub
+
+    class _FakeDb:
+        def __init__(self):
+            self.executed = 0
+
+        def get_bind(self):
+            return types.SimpleNamespace(dialect=types.SimpleNamespace(name="postgresql"))
+
+        def execute(self, _stmt):
+            self.executed += 1
+            return _FakeResult()
+
+    fake_stmt = _FakeStmt()
+    monkeypatch.setattr(push_router, "pg_insert", lambda _model: fake_stmt)
+
+    fake_db = _FakeDb()
+    result = push_router._upsert_subscription(fake_db, "user-1", body)
+
+    assert result is fake_sub
+    assert fake_db.executed == 1
+
+
+def test_upsert_subscription_uses_sqlite_fallback_branch(monkeypatch):
+    body = push_router.PushSubscribeRequest(
+        endpoint="https://push.example/subscriptions/device-202",
+        keys={"p256dh": "p-key", "auth": "a-key"},
+        user_agent="ua-sqlite",
+    )
+
+    class _FakeDb:
+        def __init__(self):
+            self.added = None
+            self.existing = None
+
+        def get_bind(self):
+            return types.SimpleNamespace(dialect=types.SimpleNamespace(name="sqlite"))
+
+        def scalar(self, _stmt):
+            return self.existing
+
+        def add(self, obj):
+            self.added = obj
+
+    fake_db = _FakeDb()
+    created = push_router._upsert_subscription(fake_db, "user-2", body)
+    assert created.endpoint == body.endpoint
+    assert created.user_id == "user-2"
+    assert fake_db.added is created
+
+    fake_db.existing = created
+    body_update = push_router.PushSubscribeRequest(
+        endpoint=body.endpoint,
+        keys={"p256dh": "p-key-updated", "auth": "a-key-updated"},
+        user_agent="ua-sqlite-updated",
+    )
+    updated = push_router._upsert_subscription(fake_db, "user-3", body_update)
+    assert updated is created
+    assert updated.user_id == "user-3"
+    assert updated.p256dh == "p-key-updated"
+    assert updated.auth == "a-key-updated"

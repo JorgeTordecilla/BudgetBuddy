@@ -113,7 +113,7 @@ const PROBLEM_UI_MAP: Record<string, ProblemUiEntry> = {
     presentation: "inline"
   },
   [PROBLEM_TYPE_BILL_DUE_DAY_INVALID]: {
-    message: "Due day must be between 1 and 28.",
+    message: "Due day must be between 1 and 31.",
     presentation: "inline"
   },
   [PROBLEM_TYPE_BILL_ALREADY_PAID]: {

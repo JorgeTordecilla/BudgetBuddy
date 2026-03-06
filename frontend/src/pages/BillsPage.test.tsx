@@ -264,10 +264,10 @@ describe("BillsPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Add bill" }));
     fireEvent.click(screen.getByRole("button", { name: "Create bill" }));
-    expect(await screen.findByText("Due day must be between 1 and 28.")).toBeInTheDocument();
+    expect(await screen.findByText("Due day must be between 1 and 31.")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("Electricity"), { target: { value: "Electricity" } });
-    fireEvent.change(screen.getByPlaceholderText("28"), { target: { value: "28" } });
+    fireEvent.change(screen.getByPlaceholderText("31"), { target: { value: "28" } });
     fireEvent.change(screen.getByPlaceholderText("200000"), { target: { value: "200000" } });
     fireEvent.change(screen.getByLabelText("Bill account"), { target: { value: "acc_1" } });
     fireEvent.change(screen.getByLabelText("Bill category"), { target: { value: "cat_1" } });
@@ -487,3 +487,4 @@ describe("BillsPage", () => {
     });
   });
 });
+

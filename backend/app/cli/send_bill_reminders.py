@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.push_dispatcher import build_bill_payload, due_date_for_month, send_push
 from app.db import SessionLocal
-from app.models import Bill, BillPayment, PushSubscription
+from app.models import Bill, BillPayment, PushSubscription, User
 
 
 def list_due_bills(db: Session, *, today: date, target_dates: list[date]) -> list[tuple[Bill, date]]:
@@ -42,13 +42,24 @@ def run(*, dry_run: bool = False, log_fn=print) -> int:
 
     with SessionLocal() as db:
         due_bills = list_due_bills(db, today=today, target_dates=targets)
+        user_currency_by_id: dict[str, str] = {}
         for bill, due_date in due_bills:
             subs = list(db.scalars(select(PushSubscription).where(PushSubscription.user_id == bill.user_id)))
             if not subs:
                 skipped += 1
                 continue
 
-            payload = build_bill_payload(bill=bill, today=today, due_date=due_date)
+            currency_code = user_currency_by_id.get(bill.user_id)
+            if currency_code is None:
+                currency_code = db.scalar(select(User.currency_code).where(User.id == bill.user_id)) or "USD"
+                user_currency_by_id[bill.user_id] = currency_code
+
+            payload = build_bill_payload(
+                bill=bill,
+                today=today,
+                due_date=due_date,
+                currency_code=currency_code,
+            )
             for sub in subs:
                 if dry_run:
                     log_fn(

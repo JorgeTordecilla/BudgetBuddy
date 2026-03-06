@@ -7,7 +7,7 @@ Define recurring bills domain behavior and payment lifecycle semantics.
 The system MUST provide `/bills` CRUD endpoints for authenticated users with strict ownership checks and soft-delete lifecycle behavior.
 
 #### Scenario: Create valid bill
-- **WHEN** an authenticated user submits `POST /bills` with `name`, `due_day` in `[1..28]`, `budget_cents >= 0`, owned `account_id`, and owned expense `category_id`
+- **WHEN** an authenticated user submits `POST /bills` with `name`, `due_day` in `[1..31]`, `budget_cents >= 0`, owned `account_id`, and owned expense `category_id`
 - **THEN** the API SHALL return `201` with `is_active=true` and `archived_at=null`.
 
 #### Scenario: Reject non-expense category
@@ -15,7 +15,7 @@ The system MUST provide `/bills` CRUD endpoints for authenticated users with str
 - **THEN** the API SHALL return `409` ProblemDetails with canonical type `bill-category-type-mismatch`.
 
 #### Scenario: Reject invalid due_day
-- **WHEN** create or patch payload contains `due_day` outside `[1..28]`
+- **WHEN** create or patch payload contains `due_day` outside `[1..31]`
 - **THEN** the API SHALL return `422` ProblemDetails with canonical type `bill-due-day-invalid`.
 
 #### Scenario: Enforce ownership on bill/account/category references
@@ -36,6 +36,11 @@ The system MUST provide `/bills` CRUD endpoints for authenticated users with str
 
 ### Requirement: Monthly status provides operational state for active non-archived bills
 The system MUST expose `GET /bills/monthly-status?month=YYYY-MM` returning per-bill status and month summary for active operational bills only.
+
+#### Scenario: Due date uses month-end clamping for long due_day
+- **WHEN** a bill has `due_day` greater than the selected month's last day
+- **THEN** monthly status due-date calculation SHALL clamp to that month's last day
+- **AND** response generation SHALL remain successful.
 
 #### Scenario: Monthly status excludes archived and inactive bills
 - **WHEN** monthly status is requested
@@ -90,3 +95,4 @@ All bills endpoints MUST enforce the same auth contract as other protected budge
 #### Scenario: Unauthenticated request is rejected
 - **WHEN** any `/bills` endpoint is called without valid auth
 - **THEN** the API SHALL return canonical `401` ProblemDetails.
+

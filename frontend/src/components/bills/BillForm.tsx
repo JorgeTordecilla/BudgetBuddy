@@ -61,7 +61,7 @@ export default function BillForm({
     <ModalForm
       open={open}
       title={editing ? "Edit bill" : "Create recurring bill"}
-      description="Recurring bills use due day 1-28 and integer cents for budget."
+      description="Recurring bills use due day 1-31 and integer cents for budget."
       submitLabel={editing ? "Save changes" : "Create bill"}
       submitting={submitting}
       onClose={onClose}
@@ -81,14 +81,14 @@ export default function BillForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span>Due day (1-28)</span>
+          <span>Due day (1-31)</span>
           <Input
             value={state.dueDay}
             onChange={(event) => onFieldChange("dueDay", event.target.value)}
             inputMode="numeric"
             aria-invalid={Boolean(fieldErrors.dueDay)}
             className={fieldErrors.dueDay ? "border-destructive focus-visible:ring-destructive/40" : undefined}
-            placeholder="28"
+            placeholder="31"
           />
           {fieldErrors.dueDay ? <p className="text-xs text-destructive">{fieldErrors.dueDay}</p> : null}
         </label>

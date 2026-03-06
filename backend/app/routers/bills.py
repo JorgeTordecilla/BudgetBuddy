@@ -1,3 +1,4 @@
+import calendar
 import re
 from datetime import date
 from uuid import UUID
@@ -39,7 +40,7 @@ _MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def _validate_due_day(due_day: int) -> int:
-    if due_day < 1 or due_day > 28:
+    if due_day < 1 or due_day > 31:
         raise bill_due_day_invalid_error()
     return due_day
 
@@ -59,7 +60,9 @@ def _validate_month_or_422(month: str) -> str:
 def _month_due_date(month: str, due_day: int) -> date:
     year = int(month[:4])
     month_num = int(month[5:7])
-    return date(year, month_num, due_day)
+    last_day = calendar.monthrange(year, month_num)[1]
+    effective_due_day = min(due_day, last_day)
+    return date(year, month_num, effective_due_day)
 
 
 def _owned_bill_or_403(db: Session, user_id: str, bill_id: str) -> Bill:

@@ -20,8 +20,22 @@ The API MUST expose VAPID public key retrieval and authenticated subscription ma
 - **THEN** persisted record SHALL update `user_id`, `p256dh`, and `auth`
 - **AND** duplicate endpoint rows SHALL NOT be created.
 
+#### Scenario: Upsert dialect detection is SQLAlchemy 2.x safe
+- **WHEN** subscribe upsert chooses Postgres-specific or fallback execution path
+- **THEN** dialect detection SHALL use SQLAlchemy 2.x-safe bind resolution
+- **AND** behavior SHALL remain correct in both Postgres runtime and SQLite tests.
+
 ### Requirement: Reminder dispatch MUST target unpaid active bills due today and in three days
 Daily reminder execution MUST compute due-date targets from bill domain fields and skip paid or inactive records.
+
+#### Scenario: Due-date computation clamps day to month end
+- **WHEN** a bill has `due_day` greater than the current month's last day (for example, `31` in February)
+- **THEN** scheduler due-date computation SHALL clamp to the month's last valid calendar day
+- **AND** reminder execution SHALL NOT crash for this bill.
+
+#### Scenario: Notification amount uses user currency context
+- **WHEN** reminder payload amount text is generated
+- **THEN** amount formatting SHALL use user currency context instead of a hardcoded dollar symbol.
 
 #### Scenario: Today reminder is generated for unpaid active bill
 - **WHEN** a bill is active, not archived, unpaid for current month, and computed due date equals today
@@ -55,6 +69,16 @@ The frontend MUST migrate to injected custom service worker logic without regres
 #### Scenario: Update prompt activation still works
 - **WHEN** frontend triggers update action from `useRegisterSW().updateServiceWorker(true)`
 - **THEN** worker SHALL process `SKIP_WAITING` message and activate new worker on reload flow.
+
+#### Scenario: Push handler behavior is test-executed
+- **WHEN** service-worker tests run
+- **THEN** tests SHALL execute `push` handler logic with mocked runtime APIs
+- **AND** verify `showNotification` payload composition for title/body/icon/badge/actions/data.
+
+#### Scenario: Notification click behavior is test-executed
+- **WHEN** service-worker tests run
+- **THEN** tests SHALL execute `notificationclick` branches for body click, `mark_paid`, and `dismiss`
+- **AND** verify expected navigation/focus/no-navigation behavior per action.
 
 ### Requirement: Notification interactions MUST route users into bills workflow
 Push payload and click handling MUST provide deterministic deep-link behavior for bill reminder actions.
