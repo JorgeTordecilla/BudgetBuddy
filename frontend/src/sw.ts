@@ -4,8 +4,11 @@ import { NavigationRoute, registerRoute } from "workbox-routing";
 import { NetworkFirst, NetworkOnly } from "workbox-strategies";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import { ExpirationPlugin } from "workbox-expiration";
+import type { PrecacheEntry } from "workbox-precaching";
 
-declare const self: ServiceWorkerGlobalScope;
+declare const self: ServiceWorkerGlobalScope & {
+  __WB_MANIFEST: Array<string | PrecacheEntry>;
+};
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
