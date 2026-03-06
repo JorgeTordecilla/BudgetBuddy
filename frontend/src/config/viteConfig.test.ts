@@ -16,21 +16,25 @@ describe("vite dev proxy config", () => {
   it("keeps PWA runtime caching safeguards and ordered auth exclusions", () => {
     const configPath = path.resolve(__dirname, "../../vite.config.ts");
     const source = readFileSync(configPath, "utf8");
+    const swPath = path.resolve(__dirname, "../../src/sw.ts");
+    const swSource = readFileSync(swPath, "utf8");
 
     expect(source).toContain('registerType: "prompt"');
     expect(source).toContain('enabled: false');
     expect(source).toContain('start_url: "/app/transactions"');
     expect(source).toContain('display: "standalone"');
+    expect(source).toContain('strategies: "injectManifest"');
+    expect(source).toContain('filename: "sw.ts"');
 
-    const networkOnlyIndex = source.indexOf('handler: "NetworkOnly"');
-    const networkFirstIndex = source.indexOf('handler: "NetworkFirst"');
+    const networkOnlyIndex = swSource.indexOf("new NetworkOnly()");
+    const networkFirstIndex = swSource.indexOf("new NetworkFirst(");
     expect(networkOnlyIndex).toBeGreaterThan(-1);
     expect(networkFirstIndex).toBeGreaterThan(-1);
     expect(networkOnlyIndex).toBeLessThan(networkFirstIndex);
 
-    expect(source).toContain('url.pathname.startsWith("/api/auth/")');
-    expect(source).toContain('url.pathname === "/api/me"');
-    expect(source).toContain('url.pathname === "/api/token"');
-    expect(source).toContain('url.pathname === "/api/refresh"');
+    expect(swSource).toContain('url.pathname.startsWith("/api/auth/")');
+    expect(swSource).toContain('url.pathname === "/api/me"');
+    expect(swSource).toContain('url.pathname === "/api/token"');
+    expect(swSource).toContain('url.pathname === "/api/refresh"');
   });
 });

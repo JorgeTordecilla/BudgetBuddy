@@ -9,20 +9,24 @@ function LocationProbe() {
   return <p data-testid="location">{location.pathname}</p>;
 }
 
-function renderBridge(initialPath = "/start", preventBrowserNavigation = false) {
+type TestLinkProps = {
+  href: string;
+  label: string;
+};
+
+function TestLink({ href, label }: TestLinkProps) {
+  return (
+    <a href={href} onClick={(event) => event.preventDefault()}>
+      {label}
+    </a>
+  );
+}
+
+function renderBridge(initialPath = "/start") {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <StandaloneNavigationBridge />
-      <a
-        href="/next"
-        onClick={(event) => {
-          if (preventBrowserNavigation) {
-            event.preventDefault();
-          }
-        }}
-      >
-        Go next
-      </a>
+      <TestLink href="/next" label="Go next" />
       <Routes>
         <Route path="*" element={<LocationProbe />} />
       </Routes>
@@ -46,7 +50,7 @@ describe("StandaloneNavigationBridge", () => {
     Object.defineProperty(navigator, "standalone", { configurable: true, value: false });
     window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
 
-    renderBridge(undefined, true);
+    renderBridge();
     fireEvent.click(screen.getByRole("link", { name: "Go next" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent("/start");
@@ -56,9 +60,50 @@ describe("StandaloneNavigationBridge", () => {
     Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
     window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
 
-    renderBridge(undefined, true);
+    renderBridge();
     fireEvent.click(screen.getByRole("link", { name: "Go next" }), { ctrlKey: true });
 
+    expect(screen.getByTestId("location")).toHaveTextContent("/start");
+  });
+
+  it("does not hijack external or special-scheme links", () => {
+    Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+
+    render(
+      <MemoryRouter initialEntries={["/start"]}>
+        <StandaloneNavigationBridge />
+        <TestLink href="https://example.com" label="External" />
+        <TestLink href="mailto:test@example.com" label="Mail" />
+        <TestLink href="tel:+573001112233" label="Tel" />
+        <Routes>
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "External" }));
+    fireEvent.click(screen.getByRole("link", { name: "Mail" }));
+    fireEvent.click(screen.getByRole("link", { name: "Tel" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/start");
+  });
+
+  it("does not navigate when destination equals current location", () => {
+    Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+
+    render(
+      <MemoryRouter initialEntries={["/start"]}>
+        <StandaloneNavigationBridge />
+        <TestLink href="/start" label="Same" />
+        <Routes>
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Same" }));
     expect(screen.getByTestId("location")).toHaveTextContent("/start");
   });
 });

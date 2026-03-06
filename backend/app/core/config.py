@@ -67,6 +67,10 @@ class Settings:
     bootstrap_demo_currency_code: str
     db_pool_pre_ping: bool
     db_pool_recycle_seconds: int
+    vapid_private_key: str
+    vapid_public_key: str
+    vapid_contact: str
+    push_test_token: str
 
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "").strip()
@@ -151,6 +155,10 @@ class Settings:
             raise ValueError("BOOTSTRAP_DEMO_CURRENCY_CODE must be a 3-letter code")
         self.db_pool_pre_ping = _env_bool("DB_POOL_PRE_PING", True)
         self.db_pool_recycle_seconds = _env_positive_int("DB_POOL_RECYCLE_SECONDS", "240")
+        self.vapid_private_key = os.getenv("VAPID_PRIVATE_KEY", "").strip()
+        self.vapid_public_key = os.getenv("VAPID_PUBLIC_KEY", "").strip()
+        self.vapid_contact = os.getenv("VAPID_CONTACT", "").strip()
+        self.push_test_token = os.getenv("PUSH_TEST_TOKEN", "").strip()
         log_level_raw = os.getenv("LOG_LEVEL", "INFO").strip().upper()
         allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if log_level_raw not in allowed_log_levels:
@@ -192,6 +200,8 @@ class Settings:
             "bootstrap_seed_minimal_data": self.bootstrap_seed_minimal_data,
             "db_pool_pre_ping": self.db_pool_pre_ping,
             "db_pool_recycle_seconds": self.db_pool_recycle_seconds,
+            "vapid_configured": bool(self.vapid_private_key and self.vapid_public_key and self.vapid_contact),
+            "push_test_token_configured": bool(self.push_test_token),
         }
 
 

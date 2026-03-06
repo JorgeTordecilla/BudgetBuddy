@@ -11,6 +11,7 @@ import type { Account, Category, IncomeSource, ProblemDetails, TransactionCreate
 import { useAuth } from "@/auth/useAuth";
 import AppBadgeSync from "@/components/pwa/AppBadgeSync";
 import OfflineBanner from "@/components/pwa/OfflineBanner";
+import PushPermissionRequest from "@/components/pwa/PushPermissionRequest";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import TransactionForm, { type TransactionFormState } from "@/components/transactions/TransactionForm";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
@@ -298,6 +299,7 @@ export default function AppShell() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+        <PushPermissionRequest />
         <Outlet />
       </main>
 

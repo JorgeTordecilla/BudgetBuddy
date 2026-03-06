@@ -21,11 +21,13 @@ export default defineConfig({
         "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "src/main.tsx",
+        "src/sw.ts",
         "src/vite-env.d.ts",
         "src/api/types.ts",
         "src/pages/SavingsPage.tsx",
         "src/components/savings/**/*.tsx",
-        "src/api/savings.ts"
+        "src/api/savings.ts",
+        "src/test/mocks/**/*.ts"
       ],
       thresholds: {
         lines: 90,

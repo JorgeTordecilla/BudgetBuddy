@@ -24,6 +24,7 @@ from app.routers.budgets import router as budgets_router
 from app.routers.bills import router as bills_router
 from app.routers.categories import router as categories_router
 from app.routers.income_sources import router as income_sources_router
+from app.routers.push import router as push_router
 from app.routers.rollover import router as rollover_router
 from app.routers.savings import router as savings_router
 from app.routers.transactions import router as transactions_router
@@ -133,6 +134,7 @@ api_router.include_router(auth_session_router)
 api_router.include_router(accounts_router)
 api_router.include_router(categories_router)
 api_router.include_router(income_sources_router)
+api_router.include_router(push_router)
 api_router.include_router(rollover_router)
 api_router.include_router(transactions_router)
 api_router.include_router(budgets_router)

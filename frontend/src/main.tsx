@@ -81,6 +81,11 @@ const router = createBrowserRouter([
 
 const queryClient = createAppQueryClient();
 initializeObservability();
+if (typeof window !== "undefined") {
+  const key = "pwa_session_count";
+  const sessions = Number.parseInt(localStorage.getItem(key) ?? "0", 10);
+  localStorage.setItem(key, String(Number.isNaN(sessions) ? 1 : sessions + 1));
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
