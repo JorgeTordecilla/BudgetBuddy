@@ -171,8 +171,8 @@ export default function BillsPage() {
       nextErrors.name = "Name is required.";
     }
     const dueDay = Number(formState.dueDay);
-    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) {
-      nextErrors.dueDay = "Due day must be between 1 and 28.";
+    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+      nextErrors.dueDay = "Due day must be between 1 and 31.";
     }
     const budget = Number(formState.budget);
     if (!Number.isInteger(budget) || budget < 0) {

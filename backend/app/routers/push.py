@@ -29,7 +29,8 @@ def get_vapid_public_key():
 
 
 def _upsert_subscription(db: Session, current_user_id: str, body: PushSubscribeRequest) -> PushSubscription:
-    dialect_name = db.bind.dialect.name if db.bind is not None else ""
+    bind = db.get_bind()
+    dialect_name = bind.dialect.name if bind is not None else ""
     if dialect_name == "postgresql":
         stmt = (
             pg_insert(PushSubscription)

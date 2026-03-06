@@ -1,3 +1,4 @@
+import calendar
 import json
 from datetime import date
 
@@ -32,18 +33,27 @@ def send_push(subscription: PushSubscription, payload: dict) -> bool:
         raise
 
 
-def format_cents(cents: int) -> str:
+def format_cents(cents: int, currency_code: str = "USD") -> str:
     major = cents // 100
-    return f"${major:,}".replace(",", ".")
+    formatted = f"{major:,}".replace(",", ".")
+    symbols = {
+        "USD": "$",
+        "COP": "$",
+        "MXN": "$",
+        "EUR": "EUR ",
+    }
+    return f"{symbols.get(currency_code.upper(), f'{currency_code.upper()} ')}{formatted}"
 
 
 def due_date_for_month(due_day: int, anchor_date: date) -> date:
-    return date(anchor_date.year, anchor_date.month, due_day)
+    last_day = calendar.monthrange(anchor_date.year, anchor_date.month)[1]
+    effective_due_day = min(due_day, last_day)
+    return date(anchor_date.year, anchor_date.month, effective_due_day)
 
 
-def build_bill_payload(*, bill: Bill, today: date, due_date: date) -> dict:
+def build_bill_payload(*, bill: Bill, today: date, due_date: date, currency_code: str = "USD") -> dict:
     days_left = (due_date - today).days
-    amount = format_cents(bill.budget_cents)
+    amount = format_cents(bill.budget_cents, currency_code)
 
     if days_left == 0:
         title = f"Payment due today: {bill.name}"

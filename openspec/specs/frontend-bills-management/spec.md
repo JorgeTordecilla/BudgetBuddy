@@ -37,8 +37,12 @@ The frontend MUST consume monthly status and render an operational dashboard for
 The frontend MUST support create/edit/archive actions with deterministic validation and canonical error handling.
 
 #### Scenario: Create bill validates due day range
-- **WHEN** user enters `due_day` outside `[1..28]`
+- **WHEN** user enters `due_day` outside `[1..31]`
 - **THEN** form SHALL block submit and show inline validation.
+
+#### Scenario: Bills form communicates updated due-day range
+- **WHEN** bills create/edit form is rendered
+- **THEN** helper text, placeholders, and validation copy SHALL communicate the canonical due-day range `1-31`.
 
 #### Scenario: Create bill filters category options to expense
 - **WHEN** bill form category selector is shown
@@ -81,3 +85,4 @@ Bills feature MUST follow canonical ProblemDetails UX behavior and existing qual
 #### Scenario: Bills implementation passes quality gates
 - **WHEN** feature validation runs
 - **THEN** `npm run test`, `npm run test:coverage`, `npm run build`, and backend `pytest` SHALL pass.
+

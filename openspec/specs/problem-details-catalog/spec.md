@@ -222,7 +222,7 @@ The ProblemDetails catalog MUST include stable canonical identities for recurrin
 
 #### Scenario: Catalog includes bill due day invalid
 - **WHEN** catalog entries are reviewed
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-due-day-invalid`, title `Bill due day must be between 1 and 28`, status `422`.
+- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-due-day-invalid`, title `Bill due day must be between 1 and 31`, status `422`.
 
 #### Scenario: Catalog includes bill already paid
 - **WHEN** catalog entries are reviewed
@@ -272,3 +272,4 @@ Runtime savings endpoint failures MUST emit exact cataloged `type/title/status` 
 #### Scenario: Savings runtime and catalog stay aligned
 - **WHEN** savings create/patch/complete/cancel/contribution operations fail on modeled rules
 - **THEN** emitted ProblemDetails match catalog entries exactly.
+

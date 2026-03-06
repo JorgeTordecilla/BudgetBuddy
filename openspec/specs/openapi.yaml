@@ -3714,7 +3714,7 @@ components:
     title: Bill category must be of type expense
     status: 409
   - type: https://api.budgetbuddy.dev/problems/bill-due-day-invalid
-    title: Bill due day must be between 1 and 28
+    title: Bill due day must be between 1 and 31
     status: 422
   - type: https://api.budgetbuddy.dev/problems/bill-already-paid
     title: Bill already paid for this month
@@ -4320,7 +4320,7 @@ components:
         due_day:
           type: integer
           minimum: 1
-          maximum: 28
+          maximum: 31
         budget_cents:
           type: integer
           minimum: 0
@@ -4347,7 +4347,7 @@ components:
         due_day:
           type: integer
           minimum: 1
-          maximum: 28
+          maximum: 31
         budget_cents:
           type: integer
           minimum: 0
@@ -4385,7 +4385,7 @@ components:
         due_day:
           type: integer
           minimum: 1
-          maximum: 28
+          maximum: 31
         budget_cents:
           type: integer
           minimum: 0
@@ -5616,9 +5616,9 @@ components:
       summary: Canonical 422 bill due day invalid
       value:
         type: https://api.budgetbuddy.dev/problems/bill-due-day-invalid
-        title: Bill due day must be between 1 and 28
+        title: Bill due day must be between 1 and 31
         status: 422
-        detail: due_day must be between 1 and 28.
+        detail: due_day must be between 1 and 31.
     Problem422TransactionMoodInvalid:
       summary: Canonical 422 transaction mood invalid
       value:
@@ -5640,3 +5640,4 @@ components:
         title: Service Unavailable
         status: 503
         detail: Service temporarily unavailable, please retry.
+

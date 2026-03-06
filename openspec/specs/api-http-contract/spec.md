@@ -667,6 +667,17 @@ The OpenAPI components section MUST include reusable schemas for bills and payme
 - **WHEN** OpenAPI components are reviewed
 - **THEN** schemas SHALL include monthly status item and wrapper structures with summary totals and payment linkage fields.
 
+### Requirement: Bills request schema bounds are contract-accurate
+The API contract MUST define recurring-bill due-day bounds consistent with runtime validation.
+
+#### Scenario: Bills create/update schemas allow full month day range
+- **WHEN** OpenAPI schemas for bill create/update are reviewed
+- **THEN** `due_day` minimum SHALL be `1` and maximum SHALL be `31`.
+
+#### Scenario: Bills due-day invalid examples match canonical catalog
+- **WHEN** OpenAPI ProblemDetails examples for invalid bill due day are reviewed
+- **THEN** example title/detail SHALL reflect range `1 and 31` consistently with canonical catalog.
+
 ### Requirement: OpenAPI error mappings include canonical bill problem types
 The contract MUST map bill endpoints to the canonical bill-specific ProblemDetails identities.
 

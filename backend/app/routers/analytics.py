@@ -15,7 +15,8 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 def _month_expr(db: Session):
-    dialect = db.bind.dialect.name if db.bind is not None else ""
+    bind = db.get_bind()
+    dialect = bind.dialect.name if bind is not None else ""
     if dialect == "sqlite":
         return func.strftime("%Y-%m", Transaction.date)
     return func.to_char(Transaction.date, "YYYY-MM")

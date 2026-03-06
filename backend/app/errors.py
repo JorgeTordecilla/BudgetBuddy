@@ -71,7 +71,7 @@ BILL_CATEGORY_TYPE_MISMATCH_TITLE = "Bill category must be of type expense"
 BILL_CATEGORY_TYPE_MISMATCH_STATUS = 409
 
 BILL_DUE_DAY_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/bill-due-day-invalid"
-BILL_DUE_DAY_INVALID_TITLE = "Bill due day must be between 1 and 28"
+BILL_DUE_DAY_INVALID_TITLE = "Bill due day must be between 1 and 31"
 BILL_DUE_DAY_INVALID_STATUS = 422
 
 BILL_ALREADY_PAID_TYPE = "https://api.budgetbuddy.dev/problems/bill-already-paid"

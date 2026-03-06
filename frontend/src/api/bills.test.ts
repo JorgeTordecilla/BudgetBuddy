@@ -174,7 +174,7 @@ describe("bills api wrappers", () => {
         new Response(
           JSON.stringify({
             type: "https://api.budgetbuddy.dev/problems/bill-due-day-invalid",
-            title: "Bill due day must be between 1 and 28",
+            title: "Bill due day must be between 1 and 31",
             status: 422
           }),
           { status: 422, headers: { "content-type": "application/problem+json" } }
@@ -218,7 +218,7 @@ describe("bills api wrappers", () => {
 
     await expect(createBill(client, {
       name: "Bad due day",
-      due_day: 31,
+      due_day: 32,
       budget_cents: 1,
       category_id: "cat_1",
       account_id: "acc_1"
@@ -228,3 +228,4 @@ describe("bills api wrappers", () => {
     await expect(markBillPaid(client, "bill_1", { month: "2026-03" })).rejects.toMatchObject({ status: 409 });
   });
 });
+
