@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { archiveAccount, createAccount, listAccounts, updateAccount } from "@/api/accounts";
@@ -19,7 +19,7 @@ import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { Textarea } from "@/ui/textarea";
-import { formatCents } from "@/utils/money";
+import { centsToInputValue, formatCents } from "@/utils/money";
 
 type AccountFormState = {
   name: string;
@@ -139,40 +139,43 @@ export default function AccountsPage() {
     setPageProblem(null);
   }, [includeArchived]);
 
-  function openCreateModal() {
+  const openCreateModal = useCallback(() => {
     setEditing(null);
     setFormProblem(null);
     setFormState(EMPTY_FORM);
     setFormOpen(true);
-  }
+  }, []);
 
-  function openEditModal(account: Account) {
+  const openEditModal = useCallback((account: Account) => {
     setEditing(account);
     setFormProblem(null);
     setFormState({
       name: account.name,
       type: account.type,
-      initialBalanceCents: String(account.initial_balance_cents),
+      initialBalanceCents: centsToInputValue(currencyCode, account.initial_balance_cents),
       note: account.note ?? ""
     });
     setFormOpen(true);
-  }
+  }, [currencyCode]);
 
   function parseFormPayload(): AccountCreate | null {
-    const parsed = Number(formState.initialBalanceCents);
-    if (!Number.isInteger(parsed)) {
+    const raw = formState.initialBalanceCents.trim();
+    const normalized = raw.replace(/\s/g, "").replace(/,/g, "");
+    const parsed = Number(normalized);
+    const scaled = parsed * 100;
+    if (!Number.isFinite(parsed) || Math.abs(scaled - Math.round(scaled)) > 1e-8) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "initial_balance_cents must be an integer."
+        detail: "Amount must be a valid money value with up to two decimals."
       }));
       return null;
     }
     return {
       name: formState.name.trim(),
       type: formState.type,
-      initial_balance_cents: parsed,
+      initial_balance_cents: Math.round(scaled),
       note: formState.note.trim() ? formState.note.trim() : undefined
     };
   }
@@ -225,7 +228,7 @@ export default function AccountsPage() {
         </td>
       </tr>
     ));
-  }, [currencyCode, items]);
+  }, [currencyCode, items, openEditModal]);
   const mobileCards = useMemo(
     () =>
       items.map((account) => (
@@ -257,7 +260,7 @@ export default function AccountsPage() {
           </Card>
         </li>
       )),
-    [currencyCode, items]
+    [currencyCode, items, openEditModal]
   );
 
   return (
@@ -326,7 +329,7 @@ export default function AccountsPage() {
       <ModalForm
         open={formOpen}
         title={isEditing ? "Edit account" : "Create account"}
-        description="Fields follow backend cents and type invariants."
+        description="Enter initial balance in major units (for example 10.50)."
         submitLabel={isEditing ? "Save changes" : "Create account"}
         submitting={saveMutation.isPending}
         onClose={() => setFormOpen(false)}

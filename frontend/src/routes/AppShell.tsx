@@ -158,6 +158,8 @@ export default function AppShell() {
     const queryError = accountsQuery.error ?? categoriesQuery.error ?? incomeSourcesQuery.error ?? null;
     if (queryError) {
       setFormProblem(queryError);
+    } else {
+      setFormProblem(null);
     }
   }, [accountsQuery.error, categoriesQuery.error, formOpen, incomeSourcesQuery.error]);
 

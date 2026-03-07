@@ -70,6 +70,12 @@ Frontend error rendering policy SHALL be consistent across React Query query and
 - **THEN** frontend SHALL trigger toast by default
 - **AND** SHALL allow form-level inline rendering when the screen has actionable field context.
 
+#### Scenario: Query-derived local form errors clear after recovery
+- **WHEN** a UI surface derives a local `formProblem` from one or more query errors
+- **AND** all source query errors become `null` after successful refetch/recovery
+- **THEN** local `formProblem` SHALL be cleared
+- **AND** stale error messages SHALL NOT persist in recovered form state.
+
 ### Requirement: Frontend quality gates must verify global error UX behavior
 The global error UX rollout SHALL be guarded by unit/component verification and existing frontend quality gates.
 

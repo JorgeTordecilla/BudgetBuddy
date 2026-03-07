@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import { ApiProblemError } from "@/api/problem";
 import { AuthContext } from "@/auth/AuthContext";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
@@ -415,6 +416,40 @@ describe("AppShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
     await waitFor(() => expect(createTransaction).not.toHaveBeenCalled());
+  });
+
+  it("clears stale quick transaction form error after option queries recover", async () => {
+    vi.mocked(listAccounts)
+      .mockRejectedValueOnce(
+        new ApiProblemError(403, {
+          type: "https://api.budgetbuddy.dev/problems/forbidden",
+          title: "Forbidden",
+          status: 403,
+          detail: "Not allowed"
+        })
+      )
+      .mockResolvedValue({
+        items: [{ id: "a1", name: "Main", type: "cash", initial_balance_cents: 0, archived_at: null }],
+        next_cursor: null
+      });
+    vi.mocked(listCategories).mockResolvedValue({
+      items: [{ id: "c1", name: "Food", type: "expense", archived_at: null }],
+      next_cursor: null
+    });
+    vi.mocked(listIncomeSources).mockResolvedValue({ items: [] });
+
+    renderShellAt(375);
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    expect(await screen.findByText("You do not have access to this resource.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    await screen.findByRole("heading", { name: "Create transaction" });
+    await waitFor(() => {
+      expect(screen.queryByText("You do not have access to this resource.")).not.toBeInTheDocument();
+    });
   });
 
   it("submits quick income transaction with selected income source", async () => {

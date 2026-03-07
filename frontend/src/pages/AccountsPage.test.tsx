@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -90,7 +90,7 @@ describe("AccountsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Savings" } });
-    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "5000" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "50.00" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() =>
@@ -128,6 +128,7 @@ describe("AccountsPage", () => {
     await screen.findByText("Main Wallet");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Initial balance")).toHaveValue("10.00");
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Main Updated" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
@@ -140,13 +141,13 @@ describe("AccountsPage", () => {
     );
   });
 
-  it("shows validation problem for non-integer cents", async () => {
+  it("shows validation problem for invalid money input", async () => {
     renderPage();
     await screen.findByText("Main Wallet");
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Invalid" } });
-    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "1.5" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "1.999" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
