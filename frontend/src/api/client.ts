@@ -178,7 +178,14 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       headers.set("Content-Type", VENDOR_MEDIA_TYPE);
     }
     if (auth) {
-      const token = bindings.getAccessToken();
+      let token = bindings.getAccessToken();
+      if (!token && retryOn401) {
+        await refresh({
+          silentAuthFailure: true,
+          suppressAuthFailureRedirect: true
+        });
+        token = bindings.getAccessToken();
+      }
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }

@@ -128,3 +128,50 @@ Frontend MUST provide a centralized, consistent error experience that preserves 
 - **WHEN** frontend reports runtime or API errors
 - **THEN** access tokens, refresh cookies, and credential payloads SHALL NOT be attached to events
 - **AND** only allowlisted diagnostic metadata SHALL be emitted.
+
+### Requirement: Auth pages SHALL expose actionable retry semantics for rate-limit and service unavailability
+Login and Register routes SHALL render deterministic, actionable UX for `429` and `503` failures using normalized error metadata.
+
+#### Scenario: Retry-After creates visible countdown and submit lockout
+- **WHEN** auth submit fails with mapped `retryAfter` value greater than zero
+- **THEN** frontend SHALL display a countdown message (`Retry in Xs`)
+- **AND** submit action SHALL remain disabled until countdown reaches zero.
+
+#### Scenario: Service unavailable exposes explicit retry action
+- **WHEN** auth submit fails with mapped HTTP status `503`
+- **THEN** frontend SHALL render service-unavailable messaging
+- **AND** it SHALL expose a retry action that triggers a new submit attempt.
+
+### Requirement: Auth pages SHALL prioritize submit-state rendering deterministically
+Auth submit controls SHALL follow one explicit state precedence to avoid contradictory messaging.
+
+#### Scenario: Submitting state has higher priority than countdown state
+- **WHEN** auth submit is in-flight and retry countdown is non-zero
+- **THEN** button label SHALL render submitting copy (`Signing in...` / `Creating account...`)
+- **AND** button SHALL remain disabled due to submitting state.
+
+#### Scenario: Retry action resets countdown before new submit attempt
+- **WHEN** user triggers retry action from service-unavailable state
+- **THEN** countdown state SHALL be reset to zero before submit starts
+- **AND** button UI SHALL transition directly to submitting state without mixed labels.
+
+### Requirement: Offline auth failures SHALL use explicit offline messaging
+Auth pages SHALL distinguish offline client failure from server-side auth failures.
+
+#### Scenario: Offline catch path uses dedicated message
+- **WHEN** auth submit catch executes while `navigator.onLine` is false
+- **THEN** frontend SHALL render dedicated offline copy
+- **AND** it SHALL avoid rendering misleading credential or server-status messaging.
+
+### Requirement: Auth pages SHALL enforce shared frontend password policy prechecks
+Login and Register SHALL block submit attempts when password does not satisfy the shared frontend complexity policy.
+
+#### Scenario: Invalid password pattern blocks submit before API call
+- **WHEN** password misses any required class (uppercase, lowercase, number, special) or length < 8
+- **THEN** frontend SHALL render a deterministic inline error message
+- **AND** it SHALL not call auth API submit handlers.
+
+#### Scenario: Shared password policy implementation is reused across auth routes
+- **WHEN** login and register perform password prechecks
+- **THEN** both SHALL use a shared policy source (single helper/module)
+- **AND** policy message/regex semantics SHALL remain identical across routes.

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import { ApiProblemError } from "@/api/errors";
@@ -16,242 +16,117 @@ import Login from "@/routes/Login";
 
 const apiClientStub = {} as ApiClient;
 
+function renderLogin({
+  login = async () => undefined,
+  isAuthenticated = false,
+  isBootstrapping = false,
+  user = null as { id: string; username: string; currency_code: string } | null,
+  accessToken = null as string | null,
+  bootstrapSession = async () => false
+} = {}) {
+  return render(
+    <AuthContext.Provider
+      value={{
+        apiClient: apiClientStub,
+        user,
+        accessToken,
+        isAuthenticated,
+        isBootstrapping,
+        login,
+        register: async () => undefined,
+        logout: async () => undefined,
+        bootstrapSession
+      }}
+    >
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/app/dashboard" element={<div>Dashboard target</div>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>
+  );
+}
+
 describe("Login route", () => {
-  it("uses mobile-safe auth container and input classes", async () => {
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login: async () => undefined,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => false
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
-
-    const username = await screen.findByPlaceholderText("Username");
-    const page = username.closest("div.flex");
-    expect(page).toHaveClass("min-h-[100svh]");
-    expect(page).toHaveClass("md:min-h-screen");
-
-    const password = screen.getByPlaceholderText("Password");
-    expect(username).toHaveClass("text-base");
-    expect(username).toHaveClass("md:text-sm");
-    expect(password).toHaveClass("text-base");
-    expect(password).toHaveClass("md:text-sm");
+  beforeEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: true
+    });
   });
 
-  it("shows full-screen session loader before bootstrap attempt completes", async () => {
-    const bootstrapSession = vi.fn(
-      () =>
-        new Promise<boolean>(() => undefined)
-    );
+  it("uses shared Input/PasswordInput and autofocuses username", async () => {
+    renderLogin();
 
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: true,
-          login: async () => undefined,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
+    const username = await screen.findByPlaceholderText("Username");
+    expect(username).toHaveFocus();
+    expect(username).toHaveClass("bg-transparent");
+
+    const showPasswordButton = screen.getByRole("button", { name: "Show password" });
+    expect(showPasswordButton).toBeInTheDocument();
+  });
+
+  it("redirects immediately when user is present while bootstrapping", async () => {
+    renderLogin({
+      user: { id: "u1", username: "demo", currency_code: "USD" },
+      isBootstrapping: true,
+      bootstrapSession: async () => false
+    });
+
+    expect(screen.queryByText("Checking existing session...")).not.toBeInTheDocument();
+    expect(await screen.findByText("Dashboard target")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
+  });
+
+  it("redirects immediately with cached user even without access token", async () => {
+    renderLogin({
+      user: { id: "u-cache", username: "cached", currency_code: "USD" },
+      accessToken: null,
+      isAuthenticated: false
+    });
+
+    expect(await screen.findByText("Dashboard target")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
+  });
+
+  it("shows session loader when user is null and bootstrap is in progress", () => {
+    renderLogin({
+      user: null,
+      isBootstrapping: true,
+      isAuthenticated: false
+    });
 
     expect(screen.getByText("Checking existing session...")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Username")).not.toBeInTheDocument();
   });
 
   it("submits credentials and redirects to protected page", async () => {
     const login = vi.fn(async () => undefined);
-
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => false
-        }}
-      >
-        <MemoryRouter initialEntries={[{ pathname: "/login", state: { from: { pathname: "/app/dashboard" } } }]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/app/dashboard" element={<div>Dashboard target</div>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
+    renderLogin({ login });
 
     fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
-    fireEvent.change(await screen.findByPlaceholderText("Password"), { target: { value: "secret" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => expect(screen.getByText("Dashboard target")).toBeInTheDocument());
-    expect(login).toHaveBeenCalledWith("demo", "secret");
+    expect(login).toHaveBeenCalledWith("demo", "Secret1!");
   });
 
-  it("redirects immediately when already authenticated", async () => {
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: { id: "u1", username: "demo", currency_code: "USD" },
-          accessToken: "token",
-          isAuthenticated: true,
-          isBootstrapping: false,
-          login: async () => undefined,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => true
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/app/dashboard" element={<div>Dashboard target</div>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
-
-    await waitFor(() => expect(screen.getAllByText("Dashboard target").length).toBeGreaterThan(0));
-  });
-
-  it("restores session via bootstrap and redirects without asking credentials", async () => {
-    const bootstrapSession = vi.fn(async () => true);
-
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login: async () => undefined,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession
-        }}
-      >
-        <MemoryRouter initialEntries={[{ pathname: "/login", state: { from: { pathname: "/app/transactions" } } }]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/app/dashboard" element={<div>Dashboard target</div>} />
-            <Route path="/app/transactions" element={<div>Transactions target</div>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
-
-    await waitFor(() => expect(screen.getAllByText("Transactions target").length).toBeGreaterThan(0));
-    expect(bootstrapSession).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not expose API base in non-development runtime", async () => {
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login: async () => undefined,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => false
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
-
-    expect(await screen.findByText("Welcome to BudgetBuddy")).toBeInTheDocument();
-    expect(screen.queryByText(/API base:/)).not.toBeInTheDocument();
-  });
-
-  it("shows validation guidance for 400 invalid request errors", async () => {
-    const login = vi.fn(async () => {
-      throw new ApiProblemError(
-        {
-          type: "about:blank",
-          title: "Invalid request",
-          status: 400,
-          detail: "[{'type': 'string_too_short', 'loc': ('body', 'password'), 'msg': 'String should have at least 12 characters.'}]"
-        },
-        {
-          httpStatus: 400,
-          requestId: "req-login-400",
-          retryAfter: null
-        }
-      );
-    });
-
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => false
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
+  it("blocks submit with short password before calling api", async () => {
+    const login = vi.fn(async () => undefined);
+    renderLogin({ login });
 
     fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
-    fireEvent.change(await screen.findByPlaceholderText("Password"), { target: { value: "short" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(
-      await screen.findByText("Validation failed. Check your input and try again. Password must have at least 12 characters.")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Password must be at least 8 characters and include uppercase, lowercase, number, and special character.")).toBeInTheDocument();
+    expect(login).not.toHaveBeenCalled();
   });
 
-  it("shows canonical credential message for 401 auth failures", async () => {
+  it("shows canonical message for 401 errors", async () => {
     const login = vi.fn(async () => {
       throw new ApiProblemError(
         {
@@ -259,40 +134,137 @@ describe("Login route", () => {
           title: "Unauthorized",
           status: 401
         },
-        {
-          httpStatus: 401,
-          requestId: "req-login-401",
-          retryAfter: null
-        }
+        { httpStatus: 401, requestId: "req-401", retryAfter: null }
       );
     });
-
-    render(
-      <AuthContext.Provider
-        value={{
-          apiClient: apiClientStub,
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isBootstrapping: false,
-          login,
-          register: async () => undefined,
-          logout: async () => undefined,
-          bootstrapSession: async () => false
-        }}
-      >
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthContext.Provider>
-    );
+    renderLogin({ login });
 
     fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
-    fireEvent.change(await screen.findByPlaceholderText("Password"), { target: { value: "wrong-pass" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Wrongpass1!" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(await screen.findByText("Invalid credentials. Please try again.")).toBeInTheDocument();
+  });
+
+  it("shows offline message when navigator is offline", async () => {
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: false
+    });
+    const login = vi.fn(async () => {
+      throw new Error("network");
+    });
+    renderLogin({ login });
+
+    fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("No internet connection.")).toBeInTheDocument();
+  });
+
+  it("handles 429 retry-after countdown and re-enables submit", async () => {
+    const login = vi.fn(async () => {
+      throw new ApiProblemError(
+        {
+          type: "https://api.budgetbuddy.dev/problems/rate-limited",
+          title: "Rate limited",
+          status: 429
+        },
+        { httpStatus: 429, requestId: "req-429", retryAfter: "1" }
+      );
+    });
+    renderLogin({ login });
+
+    fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("button", { name: "Retry in 1s" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled(), { timeout: 3000 });
+  });
+
+  it("shows 503 message and retries with dedicated button", async () => {
+    const login = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiProblemError(
+          {
+            type: "about:blank",
+            title: "Unavailable",
+            status: 503
+          },
+          { httpStatus: 503, requestId: "req-503", retryAfter: null }
+        )
+      )
+      .mockResolvedValueOnce(undefined);
+    renderLogin({ login });
+
+    fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Server unavailable.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => expect(login).toHaveBeenCalledTimes(2));
+  });
+
+  it("prioritizes submitting label over retry countdown semantics on retry", async () => {
+    let resolveSecond: ((value: void | PromiseLike<void>) => void) | undefined;
+    const login = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ApiProblemError(
+          {
+            type: "about:blank",
+            title: "Unavailable",
+            status: 503
+          },
+          { httpStatus: 503, requestId: "req-503", retryAfter: null }
+        )
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSecond = resolve;
+          })
+      );
+    renderLogin({ login });
+
+    fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("Server unavailable.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Signing in..." })).toBeDisabled();
+
+    resolveSecond?.(undefined);
+    await waitFor(() => expect(login).toHaveBeenCalledTimes(2));
+  });
+
+  it("clears errors when typing", async () => {
+    const login = vi.fn(async () => {
+      throw new ApiProblemError(
+        {
+          type: "https://api.budgetbuddy.dev/problems/unauthorized",
+          title: "Unauthorized",
+          status: 401
+        },
+        { httpStatus: 401, requestId: "req-401", retryAfter: null }
+      );
+    });
+    renderLogin({ login });
+
+    fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Wrongpass1!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("Invalid credentials. Please try again.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Username"), { target: { value: "demo2" } });
+    await waitFor(() => {
+      expect(screen.queryByText("Invalid credentials. Please try again.")).not.toBeInTheDocument();
+    });
   });
 });

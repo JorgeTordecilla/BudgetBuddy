@@ -11,11 +11,11 @@ type RequireAuthProps = {
 
 export default function RequireAuth({ children }: RequireAuthProps): ReactElement {
   const location = useLocation();
-  const { isAuthenticated, bootstrapSession, isBootstrapping } = useAuth();
+  const { isAuthenticated, user, bootstrapSession, isBootstrapping } = useAuth();
   const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated || bootstrapAttempted || isBootstrapping) {
+    if (isAuthenticated || user || bootstrapAttempted || isBootstrapping) {
       return;
     }
     let active = true;
@@ -27,14 +27,14 @@ export default function RequireAuth({ children }: RequireAuthProps): ReactElemen
     return () => {
       active = false;
     };
-  }, [isAuthenticated, bootstrapAttempted, isBootstrapping, bootstrapSession]);
+  }, [isAuthenticated, user, bootstrapAttempted, isBootstrapping, bootstrapSession]);
+
+  if (isAuthenticated || user) {
+    return children;
+  }
 
   if (isBootstrapping) {
     return <SessionLoader />;
-  }
-
-  if (isAuthenticated) {
-    return children;
   }
 
   if (!bootstrapAttempted) {

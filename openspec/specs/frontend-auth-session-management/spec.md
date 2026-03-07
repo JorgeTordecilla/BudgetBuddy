@@ -106,3 +106,29 @@ Logout behavior MUST invalidate both browser session cookie state (server-side e
 - **THEN** frontend SHALL call `POST /auth/logout` with credentials included
 - **AND** it SHALL clear in-memory token/user state
 - **AND** it SHALL redirect to `/login`
+
+### Requirement: Optimistic auth bootstrap SHALL support safe cached-user hydration
+The frontend SHALL allow immediate auth-shell rendering from a cached `User` profile in browser storage (`localStorage` primary, `sessionStorage` fallback) while refresh validation runs in background.
+
+#### Scenario: Cached user enables immediate auth rendering during refresh bootstrap
+- **WHEN** `bootstrapSession` starts with no in-memory token and browser storage contains a valid cached user shape
+- **THEN** the frontend SHALL set session user state immediately with `accessToken = null`
+- **AND** it SHALL continue refresh validation in background without blocking render behind a bootstrap loader.
+
+#### Scenario: Cached user is cleared when bootstrap refresh fails
+- **WHEN** background refresh during bootstrap fails
+- **THEN** frontend SHALL clear auth session state
+- **AND** it SHALL remove cached user entry from both `localStorage` and `sessionStorage`.
+
+### Requirement: Storage access failures SHALL not break auth flow
+Auth bootstrap and session state transitions SHALL treat browser storage as optional infrastructure.
+
+#### Scenario: Cached user read failure degrades gracefully
+- **WHEN** browser storage access (`localStorage.getItem` or `sessionStorage.getItem`) throws (including `SecurityError`)
+- **THEN** cached user hydration SHALL return `null` without throwing
+- **AND** bootstrap SHALL continue through normal refresh path.
+
+#### Scenario: Cached user write/remove failure does not block state transition
+- **WHEN** cached-user write/remove to browser storage throws
+- **THEN** frontend SHALL still update React auth session state normally
+- **AND** it SHALL not surface blocking runtime errors to the user.

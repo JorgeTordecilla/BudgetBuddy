@@ -42,3 +42,34 @@ Shadcn migrations SHALL preserve responsive behavior and accessible labels/roles
 - **WHEN** migrated pages render loading, empty, success, and error states
 - **THEN** each state SHALL remain visually and semantically distinct
 - **AND** user recovery actions (retry, dismiss, confirm, cancel) SHALL remain available where currently required.
+
+### Requirement: Auth route forms SHALL use shared shadcn input primitives
+Login and Register pages SHALL use shared design-system primitives for text and selection controls instead of route-local native control implementations.
+
+#### Scenario: Login fields use shared input primitives
+- **WHEN** login route renders username and password fields
+- **THEN** username SHALL use shared `Input` primitive
+- **AND** password SHALL use reusable shared `PasswordInput` primitive.
+
+#### Scenario: Register currency uses shared select primitive
+- **WHEN** register route renders currency selection
+- **THEN** route SHALL use shared shadcn `Select` composition (`SelectTrigger`, `SelectContent`, `SelectItem`)
+- **AND** selected value behavior SHALL remain contract-compatible with existing submit payload.
+
+### Requirement: Reusable PasswordInput SHALL provide deterministic toggle behavior
+A shared password field component SHALL encapsulate show/hide behavior and preserve pass-through input props.
+
+#### Scenario: Toggle switches input type and aria label
+- **WHEN** user activates password toggle control
+- **THEN** input type SHALL switch between `password` and `text`
+- **AND** toggle control aria-label SHALL switch between `Show password` and `Hide password`.
+
+#### Scenario: PasswordInput preserves input contract
+- **WHEN** consumers pass `name`, `required`, `value`, `onChange`, `autoComplete`, or `autoFocus`
+- **THEN** component SHALL pass those props to underlying shared `Input`
+- **AND** password toggle SHALL not mutate payload semantics.
+
+#### Scenario: Toggle tab-order decision remains explicit and documented
+- **WHEN** PasswordInput renders toggle control with `tabIndex = -1`
+- **THEN** implementation SHALL include inline documentation of this mobile-first accessibility tradeoff
+- **AND** behavior SHALL remain deterministic for future accessibility-policy revision.

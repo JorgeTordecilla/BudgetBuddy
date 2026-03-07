@@ -29,6 +29,40 @@ function renderWithAuth(value: Parameters<typeof AuthContext.Provider>[0]["value
 }
 
 describe("RequireAuth", () => {
+  it("renders protected content immediately when cached user exists without token", () => {
+    const bootstrapSession = vi.fn(async () => true);
+    renderWithAuth({
+      apiClient: apiClientStub,
+      user: { id: "u1", username: "demo", currency_code: "USD" },
+      accessToken: null,
+      isAuthenticated: false,
+      isBootstrapping: false,
+      login: async () => undefined,
+      register: async () => undefined,
+      logout: async () => undefined,
+      bootstrapSession
+    });
+    expect(screen.getByText("Private area")).toBeInTheDocument();
+    expect(screen.queryByText("Checking session...")).not.toBeInTheDocument();
+    expect(bootstrapSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps content visible when user exists and bootstrap is in progress", () => {
+    renderWithAuth({
+      apiClient: apiClientStub,
+      user: { id: "u1", username: "demo", currency_code: "USD" },
+      accessToken: null,
+      isAuthenticated: false,
+      isBootstrapping: true,
+      login: async () => undefined,
+      register: async () => undefined,
+      logout: async () => undefined,
+      bootstrapSession: async () => true
+    });
+    expect(screen.getByText("Private area")).toBeInTheDocument();
+    expect(screen.queryByText("Checking session...")).not.toBeInTheDocument();
+  });
+
   it("shows loader while auth bootstrap is in progress", () => {
     renderWithAuth({
       apiClient: apiClientStub,

@@ -120,3 +120,34 @@ Frontend production session behavior MUST remain predictable under cross-site co
 - **WHEN** cross-site refresh-cookie model is documented
 - **THEN** frontend documentation SHALL explicitly mark CSRF strategy as a follow-up security decision
 - **AND** SHALL avoid implying CSRF is already solved by this change.
+
+### Requirement: Silent refresh SHALL be scheduled proactively from JWT expiry
+The frontend SHALL schedule refresh before token expiration using JWT `exp` metadata and deterministic timer replacement semantics.
+
+#### Scenario: Access token with future expiry schedules refresh at exp minus sixty seconds
+- **WHEN** auth session receives a valid access token with numeric `exp`
+- **THEN** frontend SHALL schedule one timer with delay `max(0, (exp - now - 60) * 1000)`
+- **AND** any previously scheduled timer SHALL be canceled first.
+
+#### Scenario: Token reset cancels outstanding silent refresh timer
+- **WHEN** session transitions to `accessToken = null` (including logout)
+- **THEN** frontend SHALL cancel the active silent refresh timer
+- **AND** no further silent refresh callback SHALL run for the cleared token.
+
+#### Scenario: Refresh callback failures remain non-blocking
+- **WHEN** scheduled silent refresh call fails
+- **THEN** frontend SHALL swallow the callback error without user-facing interruption
+- **AND** normal 401 interceptor behavior SHALL remain the recovery path for subsequent requests.
+
+### Requirement: JWT payload decode SHALL support Base64URL and malformed-token safety
+The frontend SHALL decode access token payload in a Base64URL-safe way and fail closed on malformed token structures.
+
+#### Scenario: Base64URL payload with dash and underscore decodes correctly
+- **WHEN** JWT payload contains Base64URL characters (`-` and `_`)
+- **THEN** frontend SHALL normalize payload to Base64 with proper padding before decode
+- **AND** it SHALL parse and use numeric `exp` when available.
+
+#### Scenario: Malformed JWT payload does not schedule timer
+- **WHEN** token is malformed, payload is not JSON, or `exp` is missing/non-numeric
+- **THEN** frontend SHALL return `null` from expiry extraction
+- **AND** it SHALL not schedule a silent refresh timer.
