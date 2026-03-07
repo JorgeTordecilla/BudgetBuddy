@@ -14,7 +14,7 @@ describe("budgets query keys", () => {
 });
 
 describe("invalidateBudgetCaches", () => {
-  it("invalidates budgets and analytics keys", async () => {
+  it("invalidates budgets, analytics, and dashboard keys", async () => {
     const invalidateQueries = vi.fn().mockResolvedValue(undefined);
     const queryClient = { invalidateQueries } as never;
 
@@ -23,6 +23,7 @@ describe("invalidateBudgetCaches", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["budgets"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["budgets", "detail", "b1"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["analytics"] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
   });
 
   it("skips detail invalidation when budget id is not provided", async () => {
@@ -33,6 +34,7 @@ describe("invalidateBudgetCaches", () => {
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["budgets"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["analytics"] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
     expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["budgets", "detail", expect.any(String)] });
   });
 });

@@ -264,7 +264,6 @@ export default function AppShell() {
     <div className="min-h-screen overflow-x-hidden pb-[calc(8.75rem_+_env(safe-area-inset-bottom))] md:pb-0">
       <OfflineBanner />
       <AppBadgeSync />
-      <InstallPrompt />
 
       <header className="sticky top-0 z-30 border-b border-border/50 bg-card/70 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6">
@@ -317,6 +316,7 @@ export default function AppShell() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+        <InstallPrompt />
         <PushPermissionRequest />
         <Outlet />
       </main>

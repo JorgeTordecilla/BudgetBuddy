@@ -1,9 +1,7 @@
 ## Purpose
 
 Define the frontend contract and behavior for authenticated budget management, including list/create/update/archive flows, deterministic ProblemDetails handling, and quality gates aligned with the BudgetBuddy API contract.
-
 ## Requirements
-
 ### Requirement: Authenticated budgets route and range list must be available
 The frontend SHALL expose a protected budgets page under the authenticated app shell, support month-range list retrieval, and keep month/range controls synchronized with URL state.
 
@@ -131,22 +129,12 @@ The budgets UI SHALL align with existing frontend auth/session and verification 
 - **AND** `npm run test`, `npm run test:coverage`, and `npm run build` SHALL pass.
 
 ### Requirement: Budgets query architecture must expose list and detail cache boundaries
-The frontend SHALL define explicit budgets query modules and stable query key semantics for list and detail operations.
+The frontend SHALL define explicit budgets query modules and stable query key semantics for list and detail operations, and SHALL invalidate dependent cockpit namespaces after successful mutations.
 
-#### Scenario: List query key uses normalized structure
-- **WHEN** frontend fetches budgets by month range
-- **THEN** React Query key SHALL be `["budgets", "list", { from, to }]`
-- **AND** list mutations SHALL invalidate the corresponding list cache entries.
-
-#### Scenario: Detail query key uses normalized structure
-- **WHEN** frontend fetches a budget by id
-- **THEN** React Query key SHALL be `["budgets", "detail", budgetId]`
-- **AND** mutations affecting that budget SHALL invalidate the detail cache entry.
-
-#### Scenario: Budgets mutations invalidate analytics caches
+#### Scenario: Successful budget mutation refreshes analytics and dashboard queries
 - **WHEN** create, update, or archive budget succeeds
-- **THEN** frontend SHALL invalidate impacted analytics queries
-- **AND** overlay-dependent analytics views SHALL refresh deterministically.
+- **THEN** frontend SHALL invalidate analytics query namespace (`["analytics"]`)
+- **AND** frontend SHALL invalidate dashboard query namespace (`["dashboard"]`).
 
 ### Requirement: Budgets feature structure must separate page orchestration from reusable UI components
 The budgets frontend SHALL keep orchestration, table rendering, and form interactions in explicit module boundaries.
@@ -175,3 +163,4 @@ Budget range controls SHALL maintain clear input grouping and apply behavior acr
 - **WHEN** a user changes from/to month values and applies filters on any supported viewport
 - **THEN** the page updates results and retains understandable filter context without layout breakage
 - **AND** native `input[type="month"]` controls SHALL remain within container bounds on iOS Safari/Chrome/Brave and Android Chrome/Brave.
+

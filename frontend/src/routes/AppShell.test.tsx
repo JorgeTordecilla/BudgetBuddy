@@ -20,6 +20,9 @@ vi.mock("@/api/categories", () => ({ listCategories: vi.fn() }));
 vi.mock("@/api/incomeSources", () => ({ listIncomeSources: vi.fn() }));
 vi.mock("@/api/transactions", () => ({ createTransaction: vi.fn() }));
 vi.mock("@/components/feedback/successToastStore", () => ({ publishSuccessToast: vi.fn() }));
+vi.mock("@/components/pwa/InstallPrompt", () => ({
+  default: () => <div data-testid="install-prompt-marker">InstallPrompt</div>
+}));
 
 const apiClientStub = {} as ApiClient;
 
@@ -182,6 +185,15 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Savings" })).toHaveAttribute("href", "/app/savings");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/app/budgets");
     expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute("href", "/app/transactions");
+  });
+
+  it("renders install prompt marker below the shell header", () => {
+    setupModalDataMocks();
+    renderShellAt(375);
+
+    const header = screen.getByRole("banner");
+    const promptMarker = screen.getByTestId("install-prompt-marker");
+    expect(header.compareDocumentPosition(promptMarker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("keeps primary navigation accessible on mobile width", () => {

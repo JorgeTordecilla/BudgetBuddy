@@ -2,7 +2,6 @@
 
 ## Purpose
 TBD - created by syncing change frontend-pwa-installable-offline-readonly. Update Purpose after archive.
-
 ## Requirements
 ### Requirement: Frontend MUST be installable as a standards-compliant PWA
 The frontend SHALL provide manifest metadata, icon assets, and service-worker registration needed for installability on supported Android and iOS browsers.
@@ -106,39 +105,8 @@ PWA integration SHALL compile and test cleanly with install-prompt behavior cove
 ### Requirement: Install prompt UX MUST be deterministic and non-intrusive
 The app SHALL expose a contextual install banner backed by a single install lifecycle hook, and SHALL never show install CTA while already running in standalone mode.
 
-#### Scenario: Hook captures beforeinstallprompt lifecycle
-- **WHEN** the browser dispatches `beforeinstallprompt`
-- **THEN** the hook SHALL call `preventDefault()`, persist a deferred prompt reference, and expose `canInstall = true` unless the app is standalone.
+#### Scenario: App shell places install/fallback prompt below header
+- **WHEN** AppShell renders on mobile or iOS Safari fallback flow
+- **THEN** install/fallback guidance SHALL appear below the BB header/title block
+- **AND** it SHALL NOT render above the shell header container.
 
-#### Scenario: Hook promptInstall returns canonical outcomes
-- **WHEN** `promptInstall()` is invoked and a deferred prompt exists
-- **THEN** the hook SHALL trigger browser prompt and resolve exactly one of: `"accepted"` or `"dismissed"`
-- **AND** if prompt is unavailable it SHALL resolve `"unavailable"`.
-
-#### Scenario: Hook disables install in standalone mode
-- **WHEN** the app is running in standalone display mode
-- **THEN** the hook SHALL expose `canInstall = false` even if install events were previously observed.
-
-#### Scenario: Banner renders when install is available
-- **WHEN** `canInstall = true`
-- **THEN** `InstallPrompt` SHALL render a non-intrusive banner with copy "Install BudgetBuddy for quick access", primary action "Install", and secondary action "Not now".
-
-#### Scenario: Not-now action hides prompt for current session
-- **WHEN** user clicks "Not now"
-- **THEN** the banner SHALL hide immediately
-- **AND** it SHALL not reappear during the same session.
-
-#### Scenario: Install action always closes banner
-- **WHEN** user clicks "Install"
-- **THEN** component SHALL call `promptInstall()`
-- **AND** banner SHALL hide regardless of result (`accepted`, `dismissed`, or `unavailable`).
-
-#### Scenario: App shell exposes install prompt with other PWA surfaces
-- **WHEN** AppShell renders top-level PWA state components
-- **THEN** `InstallPrompt` SHALL be rendered in the same top shell zone as `OfflineBanner` and `AppBadgeSync`.
-
-#### Scenario: Session counter storage failures do not break app bootstrap
-- **WHEN** the app attempts to read or write `pwa_session_count` during startup
-- **AND** browser storage APIs throw (for example `SecurityError` in restricted/private contexts)
-- **THEN** the app SHALL continue bootstrapping without throwing
-- **AND** install/session-counter behavior SHALL degrade gracefully.

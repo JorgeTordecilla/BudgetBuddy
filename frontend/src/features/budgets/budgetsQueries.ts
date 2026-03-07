@@ -40,4 +40,5 @@ export async function invalidateBudgetCaches(queryClient: QueryClient, budgetId?
     await queryClient.invalidateQueries({ queryKey: budgetsKeys.detail(budgetId) });
   }
   await queryClient.invalidateQueries({ queryKey: ["analytics"] });
+  await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 }

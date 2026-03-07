@@ -1,9 +1,7 @@
 ## Purpose
 
 Define frontend behavior for savings-goals UI, including route integration, progress display, actions, and error handling.
-
 ## Requirements
-
 ### Requirement: Savings route is available under authenticated AppShell
 The frontend MUST expose `/app/savings` under the existing auth guard and AppShell navigation.
 
@@ -72,19 +70,8 @@ Contribution add/delete and complete/cancel actions MUST update progress/status 
 ### Requirement: Canonical error mapping and responsive behavior are preserved
 Savings UI MUST respect canonical ProblemDetails handling and mobile layout constraints.
 
-#### Scenario: ProblemDetails types map to specific messages
-- **WHEN** API returns canonical `400/401/403/409/422` savings problems
-- **THEN** frontend renders type-specific error feedback.
+#### Scenario: Savings surfaces follow shared app-shell visual pattern
+- **WHEN** `/app/savings` is rendered in authenticated shell
+- **THEN** the page SHALL use the same container rhythm used by Dashboard/Transactions (`max-width`, spacing, and overflow constraints)
+- **AND** primary cards and panels SHALL use consistent shell styling (`border-border/70`, `bg-card/95`, `shadow-sm`) to avoid visual drift.
 
-#### Scenario: Savings screens remain responsive
-- **WHEN** rendered on mobile/narrow viewports
-- **THEN** page, cards, and modals avoid horizontal overflow.
-
-#### Scenario: Delete contribution failure is surfaced to the user
-- **WHEN** deleting a contribution fails (for example mutation rejection or ProblemDetails error)
-- **THEN** frontend SHALL capture the error in page/form problem state instead of letting it propagate uncaught
-- **AND** user SHALL see deterministic error feedback consistent with existing savings mutation handlers.
-
-#### Scenario: Quality gates pass
-- **WHEN** feature validation runs
-- **THEN** frontend `test`, `test:coverage`, `build` and backend `pytest` pass.

@@ -303,7 +303,7 @@ export default function SavingsPage() {
   }
 
   return (
-    <div data-testid="savings-page" className="space-y-4 overflow-x-hidden">
+    <section data-testid="savings-page" className="relative mx-auto w-full max-w-6xl space-y-4 overflow-x-hidden pb-3 sm:space-y-5">
       <PageHeader
         title="Savings Goals"
         description="Track targets, progress, and contributions in one place."
@@ -312,25 +312,25 @@ export default function SavingsPage() {
       />
 
       <div className="grid gap-3 md:grid-cols-4">
-        <Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Active goals</CardTitle>
           </CardHeader>
           <CardContent className="text-xl font-semibold">{summaryQuery.data?.active_count ?? 0}</CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Total saved</CardTitle>
           </CardHeader>
           <CardContent className="text-xl font-semibold">{formatCents(currencyCode, summaryQuery.data?.total_saved_cents ?? 0)}</CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Total remaining</CardTitle>
           </CardHeader>
           <CardContent className="text-xl font-semibold">{formatCents(currencyCode, summaryQuery.data?.total_remaining_cents ?? 0)}</CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Overall progress</CardTitle>
           </CardHeader>
@@ -338,7 +338,7 @@ export default function SavingsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="border-border/70 bg-card/95 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Filter</CardTitle>
         </CardHeader>
@@ -353,7 +353,7 @@ export default function SavingsPage() {
       </Card>
 
       {goals.length === 0 ? (
-        <Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             <p>No savings goals yet - set your first goal.</p>
             <Button type="button" className="mt-4" onClick={openCreateForm}>Create goal</Button>
@@ -362,7 +362,7 @@ export default function SavingsPage() {
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {goals.map((goal) => (
-            <Card key={goal.id} className="overflow-hidden">
+            <Card key={goal.id} className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
               <CardHeader className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <button
@@ -441,6 +441,6 @@ export default function SavingsPage() {
         onNoteChange={setContributionNote}
         onSubmit={submitContribution}
       />
-    </div>
+    </section>
   );
 }
