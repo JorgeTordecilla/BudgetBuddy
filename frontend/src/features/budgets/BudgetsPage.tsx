@@ -18,6 +18,7 @@ import BudgetsTable from "@/features/budgets/components/BudgetsTable";
 import { centsToDecimalInput, isValidMonth, isValidMonthRange, parseLimitInputToCents } from "@/lib/budgets";
 import { toLocalProblem } from "@/lib/problemDetails";
 import { normalizeMonthParam } from "@/lib/queryState";
+import { optionQueryKeys } from "@/query/queryKeys";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 import { currentIsoMonth } from "@/utils/dates";
@@ -80,7 +81,7 @@ export default function BudgetsPage() {
 
   const rangeIsValid = isValidMonthRange(appliedRange.from, appliedRange.to);
   const categoriesQuery = useQuery({
-    queryKey: ["categories", { include_archived: false }] as const,
+    queryKey: optionQueryKeys.categories({ includeArchived: false, type: "all", limit: 100 }),
     queryFn: () =>
       listCategories(apiClient, {
         includeArchived: false,

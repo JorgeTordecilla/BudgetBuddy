@@ -405,6 +405,21 @@ describe("TransactionsPage", () => {
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
+  it("blocks create when amount is zero", async () => {
+    renderPage();
+    await screen.findByText("Market");
+
+    fireEvent.click(screen.getByRole("button", { name: "New transaction" }));
+    fireEvent.change(screen.getAllByLabelText("Account")[1]!, { target: { value: "a1" } });
+    fireEvent.change(screen.getAllByLabelText("Category")[1]!, { target: { value: "c1" } });
+    fireEvent.change(screen.getByLabelText("Date", { selector: "input" }), { target: { value: "2026-02-20" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+
+    expect(await screen.findByText("Amount must be a positive money value with up to two decimals.")).toBeInTheDocument();
+    expect(createTransaction).not.toHaveBeenCalled();
+  });
+
   it("renders list amounts formatted in user currency instead of raw cents", async () => {
     renderPage();
     await screen.findByText("Market");

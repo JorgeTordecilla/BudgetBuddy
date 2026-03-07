@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+﻿import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -73,6 +73,14 @@ describe("AccountsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Main Wallet")).toBeInTheDocument();
+    const expectedBalance = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(10);
+    expect(screen.getAllByText(expectedBalance).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Initial cents: 1000")).not.toBeInTheDocument();
     expect(listAccounts).toHaveBeenCalledWith(apiClientStub, expect.objectContaining({ includeArchived: false }));
   });
 
@@ -82,7 +90,7 @@ describe("AccountsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Savings" } });
-    fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "5000" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "5000" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() =>
@@ -138,7 +146,7 @@ describe("AccountsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Invalid" } });
-    fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "1.5" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "1.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Validation failed. Check your input and try again.")).toBeInTheDocument();
@@ -226,7 +234,7 @@ describe("AccountsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Fallback" } });
-    fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
@@ -239,7 +247,7 @@ describe("AccountsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Duplicate" } });
-    fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Conflict detected. Review your input and try again.")).toBeInTheDocument();
@@ -318,7 +326,7 @@ describe("AccountsPage", () => {
     vi.mocked(createAccount).mockRejectedValueOnce(new ApiProblemError(409, null));
     fireEvent.click(screen.getByRole("button", { name: "New account" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Duplicate" } });
-    fireEvent.change(screen.getByLabelText("Initial balance (cents)"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "100" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     expect(await screen.findByText("Conflict detected. Review your input and try again.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));

@@ -46,6 +46,22 @@ The frontend SHALL expose a protected transactions experience under the private 
 - **THEN** frontend SHALL fallback to existing default filter values using client local month-to-date for `from` and `to`
 - **AND** SHALL avoid emitting invalid list requests from initialization.
 
+#### Scenario: `action=new` deep link opens create modal deterministically
+- **WHEN** user navigates to `/app/transactions?action=new`
+- **THEN** frontend SHALL open the create transaction modal exactly once for that navigation state
+- **AND** frontend SHALL remove the `action` query param via replace navigation after opening
+- **AND** route effect behavior SHALL remain dependency-complete to avoid stale callback usage.
+
+#### Scenario: Modal-open callbacks remain dependency-stable
+- **WHEN** effects and memos reference modal open/edit/restore callbacks
+- **THEN** callback identity and dependency arrays SHALL remain lint-complete and stale-closure-safe
+- **AND** navigation/query-param side effects SHALL remain deterministic.
+
+#### Scenario: Quick-transaction options reuse normalized cache keys
+- **WHEN** quick-transaction option lists are requested from transactions-related surfaces
+- **THEN** queries SHALL use shared `optionQueryKeys` families for accounts/categories/income-sources
+- **AND** repeated modal opens SHALL be able to reuse warm cache state.
+
 ### Requirement: Transaction create and update flows must follow contract
 The frontend SHALL support creating and updating transactions with deterministic payload and response handling.
 
@@ -68,6 +84,11 @@ The frontend SHALL support creating and updating transactions with deterministic
 - **WHEN** amount input cannot be parsed into a valid positive cents integer
 - **THEN** frontend SHALL block submission
 - **AND** SHALL show inline deterministic validation guidance for the amount field.
+
+#### Scenario: Parsed amount validation uses explicit null semantics
+- **WHEN** create/edit payload builders parse `formState.amount`
+- **THEN** validation SHALL treat parse failure as `amount === null`
+- **AND** frontend SHALL NOT use broad falsy checks for parsed cents values.
 
 ### Requirement: Transaction soft-delete lifecycle must be supported
 The frontend SHALL support archive and restore actions through contract-defined endpoints.
@@ -116,6 +137,11 @@ The transactions experience SHALL follow the established frontend policy for sta
 - **WHEN** the page is rendered or mutated
 - **THEN** loading, empty, success, and error states SHALL be explicit
 - **AND** interactive controls/dialogs SHALL remain keyboard-accessible.
+
+#### Scenario: Option-list queries follow resource-oriented cache keys
+- **WHEN** transactions page requests account, category, and income-source options
+- **THEN** query keys SHALL use normalized resource-oriented key families aligned with cross-page conventions
+- **AND** keys SHALL include relevant option params to preserve deterministic cache boundaries.
 
 #### Scenario: Quality gates are executed
 - **WHEN** implementation is verified

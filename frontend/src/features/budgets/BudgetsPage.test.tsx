@@ -408,4 +408,41 @@ describe("BudgetsPage", () => {
     renderPage();
     expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
+
+  it("stores categories options under normalized optionQueryKeys cache key", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/app/budgets"]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              apiClient: apiClientStub,
+              user: { id: "u1", username: "demo", currency_code: "USD" },
+              accessToken: "token",
+              isAuthenticated: true,
+              isBootstrapping: false,
+              login: async () => undefined,
+              register: async () => undefined,
+              logout: async () => undefined,
+              bootstrapSession: async () => true
+            }}
+          >
+            <BudgetsPage />
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("2026-03");
+
+    expect(
+      queryClient.getQueryData([
+        "categories",
+        { includeArchived: false, type: "all", limit: 100 }
+      ])
+    ).toBeTruthy();
+  });
 });

@@ -2,8 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { archiveAccount, createAccount, listAccounts, updateAccount } from "@/api/accounts";
-import { ApiProblemError } from "@/api/errors";
-import type { Account, AccountCreate, AccountType, ProblemDetails } from "@/api/types";
+import type { Account, AccountCreate, AccountType } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModalForm from "@/components/ModalForm";
@@ -13,12 +12,14 @@ import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ProblemBanner from "@/components/ProblemBanner";
 import { publishSuccessToast } from "@/components/feedback/successToastStore";
 import { appendCursorPage } from "@/lib/pagination";
+import { toLocalProblem } from "@/lib/problemDetails";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { Textarea } from "@/ui/textarea";
+import { formatCents } from "@/utils/money";
 
 type AccountFormState = {
   name: string;
@@ -34,14 +35,6 @@ const EMPTY_FORM: AccountFormState = {
   note: ""
 };
 
-function toLocalProblem(problem: ProblemDetails): ApiProblemError {
-  return new ApiProblemError(problem, {
-    httpStatus: problem.status,
-    requestId: null,
-    retryAfter: null
-  });
-}
-
 function dedupeById(items: Account[]): Account[] {
   const map = new Map<string, Account>();
   items.forEach((item) => map.set(item.id, item));
@@ -49,7 +42,7 @@ function dedupeById(items: Account[]): Account[] {
 }
 
 export default function AccountsPage() {
-  const { apiClient } = useAuth();
+  const { apiClient, user } = useAuth();
   const queryClient = useQueryClient();
   const [includeArchived, setIncludeArchived] = useState(false);
   const [items, setItems] = useState<Account[]>([]);
@@ -61,6 +54,7 @@ export default function AccountsPage() {
   const [archiveTarget, setArchiveTarget] = useState<Account | null>(null);
   const [formState, setFormState] = useState<AccountFormState>(EMPTY_FORM);
   const isDesktop = useIsDesktop();
+  const currencyCode = user?.currency_code ?? "USD";
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
@@ -214,7 +208,7 @@ export default function AccountsPage() {
       <tr key={account.id} className="border-t">
         <td className="px-3 py-2 font-medium">{account.name}</td>
         <td className="px-3 py-2">{account.type}</td>
-        <td className="px-3 py-2 text-right">{account.initial_balance_cents}</td>
+        <td className="px-3 py-2 text-right">{formatCents(currencyCode, account.initial_balance_cents)}</td>
         <td className="px-3 py-2">{account.note ?? "-"}</td>
         <td className="px-3 py-2">{account.archived_at ? "Archived" : "Active"}</td>
         <td className="px-3 py-2 text-right">
@@ -231,7 +225,7 @@ export default function AccountsPage() {
         </td>
       </tr>
     ));
-  }, [items]);
+  }, [currencyCode, items]);
   const mobileCards = useMemo(
     () =>
       items.map((account) => (
@@ -247,7 +241,7 @@ export default function AccountsPage() {
                   {account.archived_at ? "Archived" : "Active"}
                 </span>
               </div>
-              <p className="text-sm tabular-nums">Initial cents: {account.initial_balance_cents}</p>
+              <p className="text-sm tabular-nums">Initial balance: {formatCents(currencyCode, account.initial_balance_cents)}</p>
               {account.note ? <p className="text-xs text-muted-foreground">{account.note}</p> : null}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(account)}>
@@ -263,7 +257,7 @@ export default function AccountsPage() {
           </Card>
         </li>
       )),
-    [items]
+    [currencyCode, items]
   );
 
   return (
@@ -297,7 +291,7 @@ export default function AccountsPage() {
                       <TableRow>
                         <TableHead className="px-3 py-2">Name</TableHead>
                         <TableHead className="px-3 py-2">Type</TableHead>
-                        <TableHead className="px-3 py-2 text-right">Initial cents</TableHead>
+                        <TableHead className="px-3 py-2 text-right">Initial balance</TableHead>
                         <TableHead className="px-3 py-2">Note</TableHead>
                         <TableHead className="px-3 py-2">State</TableHead>
                         <TableHead className="px-3 py-2 text-right">Actions</TableHead>
@@ -363,7 +357,7 @@ export default function AccountsPage() {
             />
           </label>
           <label className="min-w-0 space-y-1 text-sm">
-            <span>Initial balance (cents)</span>
+            <span>Initial balance</span>
             <Input
               className="field-input"
               value={formState.initialBalanceCents}

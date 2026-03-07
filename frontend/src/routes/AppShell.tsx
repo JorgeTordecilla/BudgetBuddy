@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
@@ -20,6 +20,7 @@ import { Button } from "@/ui/button";
 import { todayIsoDate } from "@/utils/dates";
 import { parseMoneyInputToCents } from "@/utils/money";
 import { toLocalProblem } from "@/lib/problemDetails";
+import { optionQueryKeys } from "@/query/queryKeys";
 import { cn } from "@/lib/utils";
 
 const appLinks = [
@@ -82,9 +83,6 @@ export default function AppShell() {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const isDesktop = useIsDesktop();
@@ -101,6 +99,41 @@ export default function AppShell() {
     typeof window !== "undefined" &&
     ((typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches) ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+  const accountsQuery = useQuery({
+    queryKey: optionQueryKeys.accounts({ includeArchived: false, limit: 100 }),
+    enabled: formOpen,
+    staleTime: 60_000,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () =>
+      listAccounts(apiClient, {
+        includeArchived: false,
+        limit: 100
+      })
+  });
+  const categoriesQuery = useQuery({
+    queryKey: optionQueryKeys.categories({ includeArchived: false, type: "all", limit: 100 }),
+    enabled: formOpen,
+    staleTime: 60_000,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () =>
+      listCategories(apiClient, {
+        includeArchived: false,
+        type: "all",
+        limit: 100
+      })
+  });
+  const incomeSourcesQuery = useQuery({
+    queryKey: optionQueryKeys.incomeSources({ includeArchived: false }),
+    enabled: formOpen,
+    staleTime: 60_000,
+    meta: { skipGlobalErrorToast: true },
+    queryFn: () => listIncomeSources(apiClient, { includeArchived: false })
+  });
+
+  const accounts: Account[] = accountsQuery.data?.items ?? [];
+  const categories: Category[] = categoriesQuery.data?.items ?? [];
+  const incomeSources: IncomeSource[] = incomeSourcesQuery.data?.items ?? [];
 
   useEffect(() => {
     void clearAppBadgeIfSupported();
@@ -122,30 +155,11 @@ export default function AppShell() {
     if (!formOpen) {
       return;
     }
-    let active = true;
-    void Promise.all([
-      listAccounts(apiClient, { includeArchived: false, limit: 100 }),
-      listCategories(apiClient, { includeArchived: false, type: "all", limit: 100 }),
-      listIncomeSources(apiClient, { includeArchived: false })
-    ])
-      .then(([accountsResponse, categoriesResponse, incomeSourcesResponse]) => {
-        if (!active) {
-          return;
-        }
-        setAccounts(accountsResponse.items);
-        setCategories(categoriesResponse.items);
-        setIncomeSources(incomeSourcesResponse.items);
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-        setFormProblem(error);
-      });
-    return () => {
-      active = false;
-    };
-  }, [apiClient, formOpen]);
+    const queryError = accountsQuery.error ?? categoriesQuery.error ?? incomeSourcesQuery.error ?? null;
+    if (queryError) {
+      setFormProblem(queryError);
+    }
+  }, [accountsQuery.error, categoriesQuery.error, formOpen, incomeSourcesQuery.error]);
 
   function setField(field: keyof TransactionFormState, value: string) {
     setFormState((previous) => {
@@ -176,7 +190,7 @@ export default function AppShell() {
 
   function buildCreatePayload(): TransactionCreate | null {
     const amount = parseMoneyInputToCents(currencyCode, formState.amount);
-    if (!amount) {
+    if (amount === null) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",

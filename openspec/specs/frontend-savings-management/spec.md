@@ -80,6 +80,11 @@ Savings UI MUST respect canonical ProblemDetails handling and mobile layout cons
 - **WHEN** rendered on mobile/narrow viewports
 - **THEN** page, cards, and modals avoid horizontal overflow.
 
+#### Scenario: Delete contribution failure is surfaced to the user
+- **WHEN** deleting a contribution fails (for example mutation rejection or ProblemDetails error)
+- **THEN** frontend SHALL capture the error in page/form problem state instead of letting it propagate uncaught
+- **AND** user SHALL see deterministic error feedback consistent with existing savings mutation handlers.
+
 #### Scenario: Quality gates pass
 - **WHEN** feature validation runs
 - **THEN** frontend `test`, `test:coverage`, `build` and backend `pytest` pass.

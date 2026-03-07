@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -330,16 +330,6 @@ export default function TransactionsPage() {
   }, [initialFilters]);
 
   useEffect(() => {
-    if (searchParams.get("action") !== "new") {
-      return;
-    }
-    openCreateModal();
-    const next = new URLSearchParams(searchParams);
-    next.delete("action");
-    setSearchParams(next, { replace: true });
-  }, [openCreateModal, searchParams, setSearchParams]);
-
-  useEffect(() => {
     if (isDateRangeInvalid) {
       return;
     }
@@ -405,15 +395,15 @@ export default function TransactionsPage() {
     });
   }
 
-  function openCreateModal() {
+  const openCreateModal = useCallback(() => {
     setEditing(null);
     setFormProblem(null);
     setFormState(EMPTY_FORM);
     setMoreActionsOpen(false);
     setFormOpen(true);
-  }
+  }, []);
 
-  function openEditModal(transaction: Transaction) {
+  const openEditModal = useCallback((transaction: Transaction) => {
     setEditing(transaction);
     setFormProblem(null);
     setFormState({
@@ -429,11 +419,21 @@ export default function TransactionsPage() {
       note: transaction.note ?? ""
     });
     setFormOpen(true);
-  }
+  }, [currencyCode]);
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "new") {
+      return;
+    }
+    openCreateModal();
+    const next = new URLSearchParams(searchParams);
+    next.delete("action");
+    setSearchParams(next, { replace: true });
+  }, [openCreateModal, searchParams, setSearchParams]);
 
   function buildCreatePayload(): TransactionCreate | null {
     const amount = parseMoneyInputToCents(currencyCode, formState.amount);
-    if (!amount) {
+    if (amount === null) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
@@ -484,7 +484,7 @@ export default function TransactionsPage() {
       payload.income_source_id = incomeSourceId;
     }
     const amount = parseMoneyInputToCents(currencyCode, formState.amount);
-    if (!amount) {
+    if (amount === null) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
@@ -553,7 +553,7 @@ export default function TransactionsPage() {
     }
   }
 
-  async function handleRestore(transactionId: string) {
+  const handleRestore = useCallback(async (transactionId: string) => {
     setRestoringId(transactionId);
     setPageProblem(null);
     try {
@@ -563,7 +563,7 @@ export default function TransactionsPage() {
     } finally {
       setRestoringId(null);
     }
-  }
+  }, [restoreMutation]);
 
   const rows = useMemo(
     () =>
@@ -606,7 +606,7 @@ export default function TransactionsPage() {
           </td>
         </tr>
       )),
-    [currencyCode, items, restoringId]
+    [currencyCode, handleRestore, items, openEditModal, restoringId]
   );
   const mobileCards = useMemo(
     () =>
@@ -664,7 +664,7 @@ export default function TransactionsPage() {
           </Card>
         </li>
       )),
-    [currencyCode, items, restoringId]
+    [currencyCode, handleRestore, items, openEditModal, restoringId]
   );
 
   const accountOptions = accountsQuery.data?.items ?? [];
