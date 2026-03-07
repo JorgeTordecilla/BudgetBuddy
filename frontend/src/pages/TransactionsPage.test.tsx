@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
@@ -614,6 +614,49 @@ describe("TransactionsPage", () => {
     renderPage(["/app/transactions?action=new"]);
     await screen.findByText("Market");
     expect(screen.getByRole("button", { name: "Create transaction" })).toBeInTheDocument();
+  });
+
+  it("cleans action=new query param after opening create modal", async () => {
+    function Harness() {
+      const location = useLocation();
+      return (
+        <>
+          <p data-testid="location-search">{location.search}</p>
+          <TransactionsPage />
+        </>
+      );
+    }
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    });
+    render(
+      <MemoryRouter initialEntries={["/app/transactions?action=new"]}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              apiClient: apiClientStub,
+              user: { id: "u1", username: "demo", currency_code: "USD" },
+              accessToken: "token",
+              isAuthenticated: true,
+              isBootstrapping: false,
+              login: async () => undefined,
+              register: async () => undefined,
+              logout: async () => undefined,
+              bootstrapSession: async () => true
+            }}
+          >
+            <Routes>
+              <Route path="/app/transactions" element={<Harness />} />
+            </Routes>
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Market");
+    expect(screen.getByRole("button", { name: "Create transaction" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location-search").textContent).not.toContain("action="));
   });
 
   it("navigates to import page from the more-options menu", async () => {

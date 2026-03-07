@@ -434,6 +434,13 @@ describe("AnalyticsPage", () => {
     expect(await screen.findByText("No tagged transactions yet.")).toBeInTheDocument();
   });
 
+  it("renders impulse empty-state copy when summary payload is missing", async () => {
+    vi.mocked(getImpulseSummary).mockResolvedValueOnce(null as never);
+
+    renderPage();
+    expect(await screen.findByText("No tagged transactions yet.")).toBeInTheDocument();
+  });
+
   it("shows non-blocking impulse error while keeping analytics content visible", async () => {
     vi.mocked(getImpulseSummary).mockRejectedValueOnce(
       new ApiProblemError(400, {

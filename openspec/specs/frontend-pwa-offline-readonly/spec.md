@@ -136,3 +136,9 @@ The app SHALL expose a contextual install banner backed by a single install life
 #### Scenario: App shell exposes install prompt with other PWA surfaces
 - **WHEN** AppShell renders top-level PWA state components
 - **THEN** `InstallPrompt` SHALL be rendered in the same top shell zone as `OfflineBanner` and `AppBadgeSync`.
+
+#### Scenario: Session counter storage failures do not break app bootstrap
+- **WHEN** the app attempts to read or write `pwa_session_count` during startup
+- **AND** browser storage APIs throw (for example `SecurityError` in restricted/private contexts)
+- **THEN** the app SHALL continue bootstrapping without throwing
+- **AND** install/session-counter behavior SHALL degrade gracefully.

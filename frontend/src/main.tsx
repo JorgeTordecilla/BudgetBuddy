@@ -18,6 +18,7 @@ import RequireAuth from "@/routes/RequireAuth";
 import RouteChunkErrorBoundary from "@/routes/RouteChunkErrorBoundary";
 import { createAppQueryClient } from "@/query/queryClient";
 import { initializeObservability } from "@/observability/runtime";
+import { incrementPwaSessionCount } from "@/lib/pwaSessionCounter";
 
 const Dashboard = lazy(() => import("@/routes/Dashboard"));
 const AnalyticsPage = lazy(() => import("@/features/analytics/AnalyticsPage"));
@@ -82,9 +83,7 @@ const router = createBrowserRouter([
 const queryClient = createAppQueryClient();
 initializeObservability();
 if (typeof window !== "undefined") {
-  const key = "pwa_session_count";
-  const sessions = Number.parseInt(localStorage.getItem(key) ?? "0", 10);
-  localStorage.setItem(key, String(Number.isNaN(sessions) ? 1 : sessions + 1));
+  incrementPwaSessionCount();
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

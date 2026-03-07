@@ -61,6 +61,11 @@ The frontend SHALL support budget creation and partial updates using vendor medi
 - **THEN** frontend SHALL call `PATCH /budgets/{budget_id}` with only changed fields
 - **AND** successful response SHALL reflect updated values in the budgets list.
 
+#### Scenario: Update budget applies explicit null-check and keeps positive-limit policy
+- **WHEN** user edits an existing budget and enters a limit value
+- **THEN** frontend SHALL use explicit `parsedLimit === null` validation semantics (not falsy checks)
+- **AND** budget limits parsed as `0` or below SHALL remain invalid under positive-limit policy.
+
 #### Scenario: Budget detail endpoint is available in frontend API module
 - **WHEN** frontend requires a single budget record by identifier
 - **THEN** frontend SHALL provide a contract-safe wrapper for `GET /budgets/{budget_id}`

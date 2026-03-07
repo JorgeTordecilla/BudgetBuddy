@@ -5,9 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
 import { listIncomeSources } from "@/api/incomeSources";
-import { ApiProblemError } from "@/api/errors";
 import { createTransaction } from "@/api/transactions";
-import type { Account, Category, IncomeSource, ProblemDetails, TransactionCreate } from "@/api/types";
+import type { Account, Category, IncomeSource, TransactionCreate } from "@/api/types";
 import { useAuth } from "@/auth/useAuth";
 import AppBadgeSync from "@/components/pwa/AppBadgeSync";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
@@ -20,6 +19,7 @@ import { clearAppBadgeIfSupported } from "@/hooks/useAppBadge";
 import { Button } from "@/ui/button";
 import { todayIsoDate } from "@/utils/dates";
 import { parseMoneyInputToCents } from "@/utils/money";
+import { toLocalProblem } from "@/lib/problemDetails";
 import { cn } from "@/lib/utils";
 
 const appLinks = [
@@ -146,14 +146,6 @@ export default function AppShell() {
       active = false;
     };
   }, [apiClient, formOpen]);
-
-  function toLocalProblem(problem: ProblemDetails): ApiProblemError {
-    return new ApiProblemError(problem, {
-      httpStatus: problem.status,
-      requestId: null,
-      retryAfter: null
-    });
-  }
 
   function setField(field: keyof TransactionFormState, value: string) {
     setFormState((previous) => {
