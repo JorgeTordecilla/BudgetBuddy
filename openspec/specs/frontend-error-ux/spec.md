@@ -164,7 +164,7 @@ Auth pages SHALL distinguish offline client failure from server-side auth failur
 - **AND** it SHALL avoid rendering misleading credential or server-status messaging.
 
 ### Requirement: Auth pages SHALL enforce shared frontend password policy prechecks
-Login and Register SHALL block submit attempts when password does not satisfy the shared frontend complexity policy.
+Login and Register SHALL block submit attempts when password does not satisfy the shared frontend complexity policy while preserving deterministic, user-actionable validation precedence.
 
 #### Scenario: Invalid password pattern blocks submit before API call
 - **WHEN** password misses any required class (uppercase, lowercase, number, special) or length < 8
@@ -175,3 +175,13 @@ Login and Register SHALL block submit attempts when password does not satisfy th
 - **WHEN** login and register perform password prechecks
 - **THEN** both SHALL use a shared policy source (single helper/module)
 - **AND** policy message/regex semantics SHALL remain identical across routes.
+
+#### Scenario: Password mismatch has precedence over policy failure in Register
+- **WHEN** register submit receives passwords that do not match and the password also fails policy
+- **THEN** frontend SHALL render `Passwords do not match.` first
+- **AND** it SHALL not render password-policy messaging for that submit attempt.
+
+#### Scenario: Policy failure remains enforced when passwords match
+- **WHEN** register submit receives matching passwords that fail shared policy
+- **THEN** frontend SHALL render the existing password-policy message
+- **AND** it SHALL not call register API submit handler.

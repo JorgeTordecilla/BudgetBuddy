@@ -108,7 +108,7 @@ Logout behavior MUST invalidate both browser session cookie state (server-side e
 - **AND** it SHALL redirect to `/login`
 
 ### Requirement: Optimistic auth bootstrap SHALL support safe cached-user hydration
-The frontend SHALL allow immediate auth-shell rendering from a cached `User` profile in browser storage (`localStorage` primary, `sessionStorage` fallback) while refresh validation runs in background.
+The frontend SHALL persist only a minimal cached-user hint in browser storage for optimistic bootstrap.
 
 #### Scenario: Cached user enables immediate auth rendering during refresh bootstrap
 - **WHEN** `bootstrapSession` starts with no in-memory token and browser storage contains a valid cached user shape
@@ -119,6 +119,15 @@ The frontend SHALL allow immediate auth-shell rendering from a cached `User` pro
 - **WHEN** background refresh during bootstrap fails
 - **THEN** frontend SHALL clear auth session state
 - **AND** it SHALL remove cached user entry from both `localStorage` and `sessionStorage`.
+
+#### Scenario: Cached user payload is storage-minimized
+- **WHEN** session state writes cached auth user to browser storage
+- **THEN** frontend SHALL serialize only `{ id, username }`
+- **AND** it SHALL not persist additional `User` fields.
+
+#### Scenario: Minimized payload remains bootstrap-compatible
+- **WHEN** app initializes from cached user hint
+- **THEN** `readCachedUser` SHALL accept the minimized shape and restore optimistic user bootstrap behavior.
 
 ### Requirement: Storage access failures SHALL not break auth flow
 Auth bootstrap and session state transitions SHALL treat browser storage as optional infrastructure.

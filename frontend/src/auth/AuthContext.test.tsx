@@ -100,6 +100,12 @@ describe("AuthProvider", () => {
     });
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.user?.username).toBe("demo");
+    expect(window.localStorage.getItem("bb_session_user")).toBe(
+      JSON.stringify({ id: "u1", username: "demo" })
+    );
+    expect(window.sessionStorage.getItem("bb_session_user")).toBe(
+      JSON.stringify({ id: "u1", username: "demo" })
+    );
   });
 
   it("skips refresh bootstrap when a token already exists", async () => {

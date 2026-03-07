@@ -26,6 +26,11 @@ type SessionState = {
   accessToken: string | null;
 };
 
+type CachedUserHint = {
+  id: string;
+  username: string;
+};
+
 function readCachedUser(): User | null {
   try {
     if (typeof window === "undefined") {
@@ -122,8 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (typeof window !== "undefined") {
         if (next.user) {
-          window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next.user));
-          window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next.user));
+          const cachedUser = {
+            id: next.user.id,
+            username: next.user.username
+          } satisfies CachedUserHint;
+          window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(cachedUser));
+          window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(cachedUser));
         } else {
           window.localStorage.removeItem(SESSION_STORAGE_KEY);
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);

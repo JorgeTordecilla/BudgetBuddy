@@ -53,13 +53,13 @@ export default function Register() {
       return;
     }
 
-    if (!isPasswordPolicyValid(password)) {
-      setError(PASSWORD_POLICY_MESSAGE);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    if (!isPasswordPolicyValid(password)) {
+      setError(PASSWORD_POLICY_MESSAGE);
       return;
     }
 
