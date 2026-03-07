@@ -26,5 +26,5 @@
 ## Scope Guard
 
 - [x] S1. No backend endpoints, OpenAPI schema, or media-type contract changes.
-- [ ] S2. Keep Phase A and Phase B commits separable to simplify review and rollback.
+- [x] S2. Keep Phase A and Phase B commits separable to simplify review and rollback.
 

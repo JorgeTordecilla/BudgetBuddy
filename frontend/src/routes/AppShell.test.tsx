@@ -380,6 +380,27 @@ describe("AppShell", () => {
     expect(publishSuccessToast).toHaveBeenCalledWith("Your transaction was saved successfully.");
   });
 
+  it("reuses warm options cache when reopening quick transaction modal", async () => {
+    setupModalDataMocks();
+    renderShellAt(375);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    await screen.findByRole("heading", { name: "Create transaction" });
+    await waitFor(() => {
+      expect(within(screen.getByRole("dialog")).getByRole("option", { name: "Main" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
+    await screen.findByRole("heading", { name: "Create transaction" });
+
+    expect(listAccounts).toHaveBeenCalledTimes(1);
+    expect(listCategories).toHaveBeenCalledTimes(1);
+    expect(listIncomeSources).toHaveBeenCalledTimes(1);
+  });
+
   it("blocks quick transaction submit when amount input is invalid", async () => {
     setupModalDataMocks();
     renderShellAt(375);
