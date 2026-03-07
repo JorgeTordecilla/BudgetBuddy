@@ -87,6 +87,11 @@ The frontend SHALL populate budget category selection from active categories wit
 - **THEN** frontend SHALL call `GET /categories?include_archived=false`
 - **AND** selector SHALL include both `income` and `expense` categories that are active.
 
+#### Scenario: Categories query key is normalized for cache reuse
+- **WHEN** budget create/edit flows request category options
+- **THEN** frontend SHALL use shared `optionQueryKeys.categories(...)` with normalized params
+- **AND** cache entries SHALL align with other pages requesting the same active-category option set.
+
 ### Requirement: Budget ProblemDetails handling must be deterministic
 The frontend SHALL parse `application/problem+json` and provide canonical, contract-aware feedback.
 

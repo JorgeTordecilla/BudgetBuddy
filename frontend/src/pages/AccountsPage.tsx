@@ -357,7 +357,7 @@ export default function AccountsPage() {
             />
           </label>
           <label className="min-w-0 space-y-1 text-sm">
-            <span>Initial balance (cents)</span>
+            <span>Initial balance</span>
             <Input
               className="field-input"
               value={formState.initialBalanceCents}

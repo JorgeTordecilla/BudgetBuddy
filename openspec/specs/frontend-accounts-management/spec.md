@@ -1,4 +1,8 @@
-﻿## NEW Requirements
+## Purpose
+
+Define frontend behavior for accounts management presentation and shared ProblemDetails helper usage.
+
+## Requirements
 
 ### Requirement: Accounts presentation must be user-facing and money-formatted
 The frontend accounts list and mobile card views SHALL render balances using user-facing currency formatting instead of raw cents.
@@ -15,4 +19,3 @@ Accounts frontend SHALL reuse the shared local ProblemDetails wrapper helper ins
 - **WHEN** accounts needs a local synthetic ProblemDetails error
 - **THEN** it SHALL import `toLocalProblem` from `@/lib/problemDetails`
 - **AND** page-local duplicate helper implementations SHALL NOT be present.
-
