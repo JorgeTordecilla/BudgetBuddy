@@ -21,7 +21,7 @@ def _register_user(client: TestClient) -> dict[str, str]:
     username = f"push_{uuid.uuid4().hex[:8]}"
     response = client.post(
         "/api/auth/register",
-        json={"username": username, "password": "supersecurepwd123", "currency_code": "USD"},
+        json={"username": username, "password": "StrongPwd123!", "currency_code": "USD"},
         headers={"accept": VENDOR, "content-type": VENDOR},
     )
     assert response.status_code == 201

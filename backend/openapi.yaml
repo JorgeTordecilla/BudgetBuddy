@@ -3897,7 +3897,8 @@ components:
           pattern: ^[a-zA-Z0-9_]{3,20}$
         password:
           type: string
-          minLength: 12
+          minLength: 8
+          pattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$
         currency_code:
           type: string
           enum:
@@ -3938,7 +3939,8 @@ components:
           pattern: ^[a-zA-Z0-9_]{3,20}$
         password:
           type: string
-          minLength: 12
+          minLength: 8
+          pattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$
     Account:
       type: object
       required:

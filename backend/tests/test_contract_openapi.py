@@ -6,6 +6,7 @@ import yaml
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas import PASSWORD_POLICY_PATTERN
 
 SPEC = yaml.safe_load(Path("openapi.yaml").read_text(encoding="utf-8"))
 COMPONENTS = SPEC.get("components", {}).get("schemas", {})
@@ -122,7 +123,7 @@ def _refresh_cookie_from_response(response) -> str:
 def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
     register = client.post(
         "/api/auth/register",
-        json={"username": username, "password": "supersecurepwd123", "currency_code": "USD"},
+        json={"username": username, "password": "StrongPwd123!", "currency_code": "USD"},
         headers={"accept": VENDOR, "content-type": VENDOR},
     )
     _assert_contract(register, "/auth/register", "post")
@@ -130,7 +131,7 @@ def _auth_flow(client: TestClient, username: str) -> tuple[str, str]:
 
     login = client.post(
         "/api/auth/login",
-        json={"username": username, "password": "supersecurepwd123"},
+        json={"username": username, "password": "StrongPwd123!"},
         headers={"accept": VENDOR, "content-type": VENDOR},
     )
     _assert_contract(login, "/auth/login", "post")
@@ -392,6 +393,16 @@ def test_auth_rate_limit_contract_mappings_exist():
 
     assert "503" in refresh_responses
     assert "application/problem+json" in refresh_responses["503"]["content"]
+
+
+def test_auth_password_policy_contract_matches_runtime_schema():
+    register_password_schema = COMPONENTS["RegisterRequest"]["properties"]["password"]
+    login_password_schema = COMPONENTS["LoginRequest"]["properties"]["password"]
+
+    for schema in (register_password_schema, login_password_schema):
+        assert schema["type"] == "string"
+        assert schema["minLength"] == 8
+        assert schema["pattern"] == PASSWORD_POLICY_PATTERN
 
 
 def test_transactions_rate_limit_contract_mappings_exist():

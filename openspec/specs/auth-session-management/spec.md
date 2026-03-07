@@ -11,6 +11,11 @@ The backend MUST implement `POST /auth/register` with schema validation for `Reg
 - **WHEN** the username already exists
 - **THEN** the API SHALL return `409` as `ProblemDetails`
 
+#### Scenario: Register password policy is enforced
+- **WHEN** a register request includes a password that does not meet policy (min 8, uppercase, lowercase, number, special)
+- **THEN** the API SHALL return `400` as `ProblemDetails`
+- **AND** user creation SHALL NOT occur.
+
 ### Requirement: Registration emits refresh cookie and session payload
 Auth session management MUST treat registration as a session bootstrap flow equivalent to login.
 
@@ -28,6 +33,11 @@ The backend MUST implement `POST /auth/login` validating credentials, returning 
 #### Scenario: Login invalid credentials
 - **WHEN** credentials are invalid
 - **THEN** the API SHALL return `401` as `ProblemDetails`
+
+#### Scenario: Login password policy is enforced before credential verification
+- **WHEN** a login request includes a password that does not meet policy (min 8, uppercase, lowercase, number, special)
+- **THEN** the API SHALL return `400` as `ProblemDetails`
+- **AND** credential verification against stored hash SHALL NOT execute.
 
 ### Requirement: Refresh token flow
 The backend MUST implement `POST /auth/refresh` with cookie-based refresh-token verification, expiration checks, revocation checks, and token rotation.

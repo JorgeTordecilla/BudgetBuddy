@@ -105,7 +105,7 @@ def _register_user(client: TestClient):
     username = f"u_{uuid.uuid4().hex[:8]}"
     payload = {
         "username": username,
-        "password": "supersecurepwd123",
+        "password": "StrongPwd123!",
         "currency_code": "USD",
     }
     r = client.post("/api/auth/register", json=payload, headers={"accept": VENDOR, "content-type": VENDOR})
@@ -528,7 +528,7 @@ def test_problem_details_on_invalid_accept():
     with TestClient(app) as client:
         r = client.post(
             "/api/auth/register",
-            json={"username": "abc_123", "password": "supersecurepwd123", "currency_code": "USD"},
+            json={"username": "abc_123", "password": "StrongPwd123!", "currency_code": "USD"},
             headers={"accept": "application/xml", "content-type": VENDOR},
         )
         assert r.status_code == 406
@@ -544,7 +544,7 @@ def test_accept_header_rejects_partial_media_type_match():
     with TestClient(app) as client:
         response = client.post(
             "/api/auth/register",
-            json={"username": "abc_124", "password": "supersecurepwd123", "currency_code": "USD"},
+            json={"username": "abc_124", "password": "StrongPwd123!", "currency_code": "USD"},
             headers={"accept": "application/vnd.budgetbuddy.v1+json-foo", "content-type": VENDOR},
         )
         assert response.status_code == 406
@@ -559,7 +559,7 @@ def test_accept_header_with_q_zero_is_rejected():
     with TestClient(app) as client:
         response = client.post(
             "/api/auth/register",
-            json={"username": "abc_1245", "password": "supersecurepwd123", "currency_code": "USD"},
+            json={"username": "abc_1245", "password": "StrongPwd123!", "currency_code": "USD"},
             headers={"accept": f"{VENDOR};q=0", "content-type": VENDOR},
         )
         assert response.status_code == 406
@@ -574,7 +574,7 @@ def test_content_type_rejects_partial_media_type_match():
     with TestClient(app) as client:
         response = client.post(
             "/api/auth/register",
-            json={"username": "abc_125", "password": "supersecurepwd123", "currency_code": "USD"},
+            json={"username": "abc_125", "password": "StrongPwd123!", "currency_code": "USD"},
             headers={"accept": VENDOR, "content-type": "application/vnd.budgetbuddy.v1+json-foo"},
         )
         assert response.status_code == 400
@@ -778,7 +778,7 @@ def test_auth_lifecycle_and_204_logout():
 
         bad_login = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert bad_login.status_code == 401
@@ -799,6 +799,35 @@ def test_auth_lifecycle_and_204_logout():
         logout_cookie_header = logout.headers.get("set-cookie", "")
         assert f"{REFRESH_COOKIE_NAME}=" in logout_cookie_header
         assert "Max-Age=0" in logout_cookie_header
+
+
+def test_register_rejects_password_that_violates_policy():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={"username": "pw_policy_u1", "password": "alllowercase1!", "currency_code": "USD"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["title"] == "Invalid request"
+        assert body["status"] == 400
+
+
+def test_login_rejects_password_that_violates_policy_before_credential_check():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        response = client.post(
+            "/api/auth/login",
+            json={"username": user["username"], "password": "alllowercase1!"},
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["title"] == "Invalid request"
+        assert body["status"] == 400
 
 
 def test_me_returns_authenticated_user():
@@ -1256,14 +1285,14 @@ def test_auth_login_rate_limit_exceeded_returns_canonical_429(monkeypatch):
         user = _register_user(client)
         first = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert first.status_code == 401
 
         second = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         _assert_rate_limited_problem(second)
@@ -1290,14 +1319,14 @@ def test_auth_login_rate_limit_untrusted_forwarded_headers_cannot_bypass(monkeyp
         user = _register_user(client)
         first = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR, "x-forwarded-for": "203.0.113.10"},
         )
         assert first.status_code == 401
 
         second = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR, "x-forwarded-for": "198.51.100.44"},
         )
         _assert_rate_limited_problem(second)
@@ -1337,14 +1366,14 @@ def test_auth_login_lock_window_is_deterministic(monkeypatch):
         user = _register_user(client)
         first = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert first.status_code == 401
 
         second = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         _assert_rate_limited_problem(second)
@@ -1353,7 +1382,7 @@ def test_auth_login_lock_window_is_deterministic(monkeypatch):
         clock["now"] = 1_060.0
         third = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         _assert_rate_limited_problem(third)
@@ -1361,7 +1390,7 @@ def test_auth_login_lock_window_is_deterministic(monkeypatch):
         clock["now"] = 1_121.0
         after_lock = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert after_lock.status_code == 401
@@ -1508,13 +1537,13 @@ def test_rate_limited_log_event_is_structured_and_secret_safe(monkeypatch, caplo
         user = _register_user(client)
         first = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         assert first.status_code == 401
         second = client.post(
             "/api/auth/login",
-            json={"username": user["username"], "password": "wrongpassword123"},
+            json={"username": user["username"], "password": "WrongPwd123!"},
             headers={"accept": VENDOR, "content-type": VENDOR},
         )
         _assert_rate_limited_problem(second)
@@ -1525,7 +1554,7 @@ def test_rate_limited_log_event_is_structured_and_secret_safe(monkeypatch, caplo
     assert any("method=POST" in message for message in messages)
     assert any("path=/api/auth/login" in message for message in messages)
     assert any("retry_after=" in message for message in messages)
-    assert not any("wrongpassword123" in message for message in messages)
+    assert not any("WrongPwd123!" in message for message in messages)
 
 
 def test_domain_and_analytics_flow():

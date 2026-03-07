@@ -518,6 +518,19 @@ Register success examples MUST not include `refresh_token` in JSON body.
 - **WHEN** OpenAPI examples for `POST /auth/register` are reviewed
 - **THEN** success examples SHALL omit `refresh_token` and remain schema-valid under `AuthSessionResponse`
 
+### Requirement: Auth endpoints document request-body constraints consistent with runtime validation
+The HTTP contract MUST keep login/register request constraints aligned with backend runtime validation rules.
+
+#### Scenario: Register request schema reflects password policy
+- **WHEN** OpenAPI contract for `POST /auth/register` is reviewed
+- **THEN** password constraints SHALL reflect runtime policy (minimum 8 + uppercase + lowercase + number + special)
+- **AND** schema/examples SHALL remain internally consistent.
+
+#### Scenario: Login request schema reflects password policy
+- **WHEN** OpenAPI contract for `POST /auth/login` is reviewed
+- **THEN** password constraints SHALL reflect runtime policy (minimum 8 + uppercase + lowercase + number + special)
+- **AND** schema/examples SHALL remain internally consistent.
+
 ### Requirement: Auth endpoints document request correlation header
 The HTTP contract MUST explicitly document `X-Request-Id` response header behavior for core auth session endpoints.
 

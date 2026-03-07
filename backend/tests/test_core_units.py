@@ -121,8 +121,8 @@ def test_cursor_helpers_roundtrip_and_errors():
 
 
 def test_password_and_token_security_paths(monkeypatch):
-    hashed = hash_password("supersecurepwd123")
-    assert verify_password("supersecurepwd123", hashed) is True
+    hashed = hash_password("StrongPwd123!")
+    assert verify_password("StrongPwd123!", hashed) is True
     assert verify_password("wrong", hashed) is False
     assert verify_password("wrong", "invalid-format") is False
 
