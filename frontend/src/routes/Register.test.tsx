@@ -146,8 +146,8 @@ describe("Register route", () => {
     renderRegister({ register });
 
     fireEvent.change(await screen.findByPlaceholderText("Username"), { target: { value: "demo" } });
-    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "Secret1!" } });
-    fireEvent.change(screen.getByPlaceholderText("Confirm password"), { target: { value: "different" } });
+    fireEvent.change(screen.getByPlaceholderText("Password"), { target: { value: "weak" } });
+    fireEvent.change(screen.getByPlaceholderText("Confirm password"), { target: { value: "other-weak" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByText("Passwords do not match.")).toBeInTheDocument();
