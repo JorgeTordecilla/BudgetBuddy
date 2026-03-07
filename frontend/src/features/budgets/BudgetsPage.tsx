@@ -1,7 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { archiveBudget, createBudget, updateBudget } from "@/api/budgets";
 import { listCategories } from "@/api/categories";
@@ -17,6 +16,7 @@ import { useBudgetsList, invalidateBudgetCaches } from "@/features/budgets/budge
 import BudgetFormModal, { type BudgetFormState } from "@/features/budgets/components/BudgetFormModal";
 import BudgetsTable from "@/features/budgets/components/BudgetsTable";
 import { centsToDecimalInput, isValidMonth, isValidMonthRange, parseLimitInputToCents } from "@/lib/budgets";
+import { toLocalProblem } from "@/lib/problemDetails";
 import { normalizeMonthParam } from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
@@ -36,18 +36,6 @@ const EMPTY_FORM: BudgetFormState = {
   categoryId: "",
   limit: ""
 };
-
-function currentMonth(): string {
-  return currentIsoMonth();
-}
-
-function toLocalProblem(problem: ProblemDetails): ApiProblemError {
-  return new ApiProblemError(problem, {
-    httpStatus: problem.status,
-    requestId: null,
-    retryAfter: null
-  });
-}
 
 function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
   if (!problem) {
@@ -76,7 +64,7 @@ export default function BudgetsPage() {
     if (month && isValidMonth(month)) {
       return { from: month, to: month };
     }
-    const current = currentMonth();
+    const current = currentIsoMonth();
     return { from: current, to: current };
   }, [searchParams]);
   const [draftFrom, setDraftFrom] = useState(initialRange.from);
@@ -281,7 +269,7 @@ export default function BudgetsPage() {
       payload.category_id = formState.categoryId;
     }
     const parsedLimit = parseLimitInputToCents(formState.limit);
-    if (!parsedLimit) {
+    if (parsedLimit === null) {
       setFormProblem(toLocalProblem({
         type: `${MONEY_AMOUNT_PREFIX}invalid`,
         title: "Invalid limit",

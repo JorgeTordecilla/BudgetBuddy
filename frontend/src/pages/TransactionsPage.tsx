@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { listAccounts } from "@/api/accounts";
 import { listCategories } from "@/api/categories";
 import { listIncomeSources } from "@/api/incomeSources";
-import { ApiProblemError } from "@/api/errors";
 import {
   archiveTransaction,
   createTransaction,
@@ -16,7 +15,6 @@ import {
 } from "@/api/transactions";
 import type {
   TransactionMood,
-  ProblemDetails,
   Transaction,
   TransactionCreate,
   IncomeSource,
@@ -34,6 +32,7 @@ import TransactionForm, { type TransactionFormState } from "@/components/transac
 import TransactionRowActions from "@/components/transactions/TransactionRowActions";
 import { invalidateTransactionsAndAnalytics } from "@/features/transactions/transactionCache";
 import { appendCursorPage } from "@/lib/pagination";
+import { toLocalProblem } from "@/lib/problemDetails";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import {
   normalizeBooleanParam,
@@ -42,6 +41,7 @@ import {
   normalizeTransactionTypeParam
 } from "@/lib/queryState";
 import { Button } from "@/ui/button";
+import { optionQueryKeys } from "@/query/queryKeys";
 import { Card, CardContent } from "@/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { defaultAnalyticsRange } from "@/utils/dates";
@@ -194,16 +194,8 @@ export default function TransactionsPage() {
   ] as const;
   const isDateRangeInvalid = Boolean(filters.from && filters.to && filters.from > filters.to);
 
-  function toLocalProblem(problem: ProblemDetails): ApiProblemError {
-    return new ApiProblemError(problem, {
-      httpStatus: problem.status,
-      requestId: null,
-      retryAfter: null
-    });
-  }
-
   const accountsQuery = useQuery({
-    queryKey: ["accounts-options"],
+    queryKey: optionQueryKeys.accounts({ includeArchived: false, limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listAccounts(apiClient, {
@@ -213,7 +205,7 @@ export default function TransactionsPage() {
   });
 
   const categoriesQuery = useQuery({
-    queryKey: ["categories-options"],
+    queryKey: optionQueryKeys.categories({ includeArchived: false, type: "all", limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () =>
       listCategories(apiClient, {
@@ -223,7 +215,7 @@ export default function TransactionsPage() {
       })
   });
   const incomeSourcesQuery = useQuery({
-    queryKey: ["income-sources-options"],
+    queryKey: optionQueryKeys.incomeSources({ includeArchived: false }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () => listIncomeSources(apiClient, { includeArchived: false })
   });
@@ -345,7 +337,7 @@ export default function TransactionsPage() {
     const next = new URLSearchParams(searchParams);
     next.delete("action");
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [openCreateModal, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (isDateRangeInvalid) {

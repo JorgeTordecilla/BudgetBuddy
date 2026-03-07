@@ -295,6 +295,8 @@ export default function SavingsPage() {
       await deleteContributionMutation.mutateAsync({ goalId: selectedGoalId, contributionId });
       publishSuccessToast("Contribution deleted.");
       await queryClient.invalidateQueries({ queryKey: ["savings-goals", "detail", selectedGoalId] });
+    } catch (error) {
+      setFormProblem(error);
     } finally {
       setDeletingContributionId(null);
     }
@@ -410,6 +412,7 @@ export default function SavingsPage() {
 
       {goalsQuery.error ? <ProblemDetailsInline error={goalsQuery.error} /> : null}
       {summaryQuery.error ? <ProblemDetailsInline error={summaryQuery.error} /> : null}
+      {formProblem ? <ProblemDetailsInline error={formProblem} onDismiss={() => setFormProblem(null)} /> : null}
 
       <SavingsGoalForm
         open={isFormOpen}

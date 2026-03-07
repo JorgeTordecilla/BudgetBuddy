@@ -118,6 +118,48 @@ export default function AnalyticsPage() {
   );
 
   const combinedError = monthQuery.error ?? categoryQuery.error ?? incomeQuery.error ?? null;
+  const impulseSummary = impulseSummaryQuery.data;
+  const impulseSummaryContent = (() => {
+    if (!impulseSummary) {
+      return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
+    }
+    if (
+      impulseSummary.impulse_count === 0 &&
+      impulseSummary.intentional_count === 0 &&
+      impulseSummary.untagged_count === 0
+    ) {
+      return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
+    }
+    return (
+      <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Impulse</CardTitle></CardHeader>
+            <CardContent>{impulseSummary.impulse_count}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Intentional</CardTitle></CardHeader>
+            <CardContent>{impulseSummary.intentional_count}</CardContent>
+          </Card>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">Top impulse categories</p>
+          {impulseSummary.top_impulse_categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No impulse purchases tagged yet.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {impulseSummary.top_impulse_categories.map((item) => (
+                <li key={item.category_id} className="flex items-center justify-between gap-2">
+                  <span>{item.category_name}</span>
+                  <span className="text-muted-foreground">{item.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  })();
 
   function applyRange() {
     if (!isValidDateRange(draftRange.from, draftRange.to)) {
@@ -301,44 +343,7 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">Loading impulse summary...</p>
           ) : impulseSummaryQuery.error ? (
             <ProblemDetailsInline error={impulseSummaryQuery.error} />
-          ) : (() => {
-            const summary = impulseSummaryQuery.data;
-            if (!summary) {
-              return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
-            }
-            if (summary.impulse_count === 0 && summary.intentional_count === 0 && summary.untagged_count === 0) {
-              return <p className="text-sm text-muted-foreground">No tagged transactions yet.</p>;
-            }
-            return (
-              <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm">Impulse</CardTitle></CardHeader>
-                    <CardContent>{summary.impulse_count}</CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm">Intentional</CardTitle></CardHeader>
-                    <CardContent>{summary.intentional_count}</CardContent>
-                  </Card>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium">Top impulse categories</p>
-                  {summary.top_impulse_categories.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No impulse purchases tagged yet.</p>
-                  ) : (
-                    <ul className="space-y-1 text-sm">
-                      {summary.top_impulse_categories.map((item) => (
-                        <li key={item.category_id} className="flex items-center justify-between gap-2">
-                          <span>{item.category_name}</span>
-                          <span className="text-muted-foreground">{item.count}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+          ) : impulseSummaryContent}
         </CardContent>
       </Card>
 

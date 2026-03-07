@@ -253,4 +253,69 @@ describe("SavingsPage", () => {
     const pageContainer = screen.getByTestId("savings-page");
     expect(pageContainer).toHaveClass("overflow-x-hidden");
   });
+
+  it("shows form problem feedback when deleting contribution fails", async () => {
+    const deleteContributionError = new Error("delete failed");
+    const deleteMutation = mutationStub();
+    deleteMutation.mutateAsync = vi.fn().mockRejectedValue(deleteContributionError);
+    vi.mocked(useDeleteSavingsContribution).mockReturnValue(deleteMutation as never);
+
+    vi.mocked(listSavingsGoals).mockResolvedValue({
+      items: [
+        {
+          id: "goal_1",
+          name: "Emergency Fund",
+          target_cents: 500000,
+          account_id: "acc_1",
+          category_id: "cat_1",
+          deadline: "2026-12-31",
+          note: null,
+          status: "active",
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z",
+          saved_cents: 150000,
+          remaining_cents: 350000,
+          progress_pct: 30.0
+        }
+      ]
+    });
+    vi.mocked(getSavingsGoal).mockResolvedValue({
+      id: "goal_1",
+      name: "Emergency Fund",
+      target_cents: 500000,
+      account_id: "acc_1",
+      category_id: "cat_1",
+      deadline: "2026-12-31",
+      note: null,
+      status: "active",
+      archived_at: null,
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-03-01T00:00:00Z",
+      saved_cents: 150000,
+      remaining_cents: 350000,
+      progress_pct: 30.0,
+      contributions: [
+        {
+          id: "contrib_1",
+          goal_id: "goal_1",
+          amount_cents: 5000,
+          transaction_id: "tx_1",
+          note: "seed",
+          contributed_at: "2026-03-02T00:00:00Z"
+        }
+      ]
+    });
+
+    renderPage();
+    await screen.findByText("Emergency Fund");
+
+    fireEvent.click(screen.getByRole("button", { name: "Emergency Fund" }));
+    await screen.findByRole("button", { name: "Delete" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(deleteMutation.mutateAsync).toHaveBeenCalled());
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
+  });
 });

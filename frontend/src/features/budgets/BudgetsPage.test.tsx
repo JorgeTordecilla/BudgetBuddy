@@ -313,7 +313,7 @@ describe("BudgetsPage", () => {
 
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Category"), { target: { value: "c1" } });
-    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "0" } });
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "1.999" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
     expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
@@ -346,6 +346,19 @@ describe("BudgetsPage", () => {
     await waitFor(() =>
       expect(updateBudget).toHaveBeenCalledWith(apiClientStub, expect.any(String), expect.objectContaining({ limit_cents: 30000 }))
     );
+  });
+
+  it("shows validation feedback when updating budget with zero limit", async () => {
+    renderPage();
+    await screen.findByText("2026-03");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "0" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+
+    expect((await screen.findAllByText("Limit must be a positive amount with up to two decimals.")).length).toBeGreaterThan(0);
+    expect(updateBudget).not.toHaveBeenCalled();
   });
 
   it("blocks update when there are no changes", async () => {
