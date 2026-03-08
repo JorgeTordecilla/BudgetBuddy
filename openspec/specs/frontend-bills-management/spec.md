@@ -34,7 +34,7 @@ The frontend MUST consume monthly status and render an operational dashboard for
 - **THEN** UI SHALL show `No bills yet — add your first recurring bill` with create CTA.
 
 ### Requirement: Bills create/edit/archive flows are contract-safe and validated
-The frontend MUST support create/edit/archive actions with deterministic validation and canonical error handling.
+The frontend MUST support create/edit/archive actions with deterministic validation, major-unit money UX, and canonical error handling.
 
 #### Scenario: Create bill validates due day range
 - **WHEN** user enters `due_day` outside `[1..31]`
@@ -52,20 +52,42 @@ The frontend MUST support create/edit/archive actions with deterministic validat
 - **WHEN** user edits or archives a bill
 - **THEN** frontend SHALL call `PATCH /bills/{id}` or `DELETE /bills/{id}` and refresh bills status/list views deterministically.
 
-### Requirement: Mark paid and unmark flows manage linked payment lifecycle
-The frontend MUST provide guided payment actions matching backend lifecycle ownership rules.
+#### Scenario: Create/edit budget uses major-unit input with cents-safe payload
+- **WHEN** user enters bill budget in create/edit form
+- **THEN** frontend SHALL parse major-unit money input to integer cents before API submission
+- **AND** invalid/ambiguous money values SHALL be blocked with inline validation
+- **AND** raw cents SHALL NOT be shown in editable budget field prefill.
 
-#### Scenario: Mark as paid modal pre-fills budget amount
+#### Scenario: Page-level archive failures stay on page-level problem surface
+- **WHEN** archive bill action fails
+- **THEN** error SHALL be routed to page-level error surface
+- **AND** form-local edit/create error state SHALL remain unchanged.
+
+### Requirement: Mark paid and unmark flows manage linked payment lifecycle
+The frontend MUST provide guided payment actions matching backend lifecycle ownership rules while preserving consistent money UX.
+
+#### Scenario: Mark as paid modal pre-fills major-unit amount
 - **WHEN** user opens mark-paid action for pending/overdue bill
-- **THEN** modal SHALL prefill `actual_cents` from bill budget and show account/category read-only context.
+- **THEN** modal input SHALL prefill as major-unit money value derived from `budget_cents`
+- **AND** input SHALL NOT show raw cents.
 
 #### Scenario: Mark as paid submits month and amount
 - **WHEN** user confirms payment
 - **THEN** frontend SHALL call `POST /bills/{bill_id}/payments` with active month and selected `actual_cents` and refresh bills state.
 
+#### Scenario: Mark as paid submits integer cents from parsed major-unit input
+- **WHEN** user confirms payment amount in modal
+- **THEN** frontend SHALL parse modal amount input as major-unit value and submit integer `actual_cents`
+- **AND** malformed values SHALL be blocked locally.
+
 #### Scenario: Unmark removes payment and returns pending
 - **WHEN** user triggers unmark on paid bill
 - **THEN** frontend SHALL call `DELETE /bills/{bill_id}/payments/{month}` and item SHALL return to non-paid state.
+
+#### Scenario: Unmark failures stay on page-level problem surface
+- **WHEN** unmark payment action fails
+- **THEN** error SHALL be routed to page-level problem surface
+- **AND** pay-modal-local problem state SHALL remain reserved for mark-paid submission context.
 
 #### Scenario: Payment correction guidance is explicit
 - **WHEN** mark-paid modal is shown
@@ -85,4 +107,12 @@ Bills feature MUST follow canonical ProblemDetails UX behavior and existing qual
 #### Scenario: Bills implementation passes quality gates
 - **WHEN** feature validation runs
 - **THEN** `npm run test`, `npm run test:coverage`, `npm run build`, and backend `pytest` SHALL pass.
+
+### Requirement: Bills options loaders reuse shared query-key families
+Bills options queries MUST reuse shared React Query keys for cache coherence across features.
+
+#### Scenario: Accounts and categories options use shared keys
+- **WHEN** bills page queries selectable accounts/categories options
+- **THEN** queries SHALL use `optionQueryKeys.accounts(...)` and `optionQueryKeys.categories(...)` with explicit params
+- **AND** ad-hoc keys (for example `accounts-options` variants) SHALL NOT be used.
 

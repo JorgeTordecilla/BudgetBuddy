@@ -34,7 +34,7 @@ export default function SavingsContributionModal({
     <ModalForm
       open={open}
       title={`Add contribution: ${goalName}`}
-      description="Record an amount in cents to move this goal forward."
+      description="Record an amount to move this goal forward."
       submitLabel="Add contribution"
       submitting={submitting}
       onClose={onClose}
@@ -42,8 +42,8 @@ export default function SavingsContributionModal({
     >
       <div className="grid gap-3 overflow-x-hidden">
         <label className="space-y-1 text-sm">
-          <span>Amount (cents)</span>
-          <Input value={amount} onChange={(event) => onAmountChange(event.target.value)} inputMode="numeric" placeholder="50000" />
+          <span>Amount</span>
+          <Input value={amount} onChange={(event) => onAmountChange(event.target.value)} inputMode="decimal" placeholder="50.00" />
         </label>
         <label className="space-y-1 text-sm">
           <span>Note</span>

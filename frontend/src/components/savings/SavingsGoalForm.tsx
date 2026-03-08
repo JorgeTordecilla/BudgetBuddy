@@ -73,8 +73,8 @@ export default function SavingsGoalForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span>Target amount (cents)</span>
-          <Input value={state.target} onChange={(event) => onFieldChange("target", event.target.value)} inputMode="numeric" placeholder="500000" />
+          <span>Target amount</span>
+          <Input value={state.target} onChange={(event) => onFieldChange("target", event.target.value)} inputMode="decimal" placeholder="5000.00" />
           {fieldErrors.target ? <p className="text-xs text-destructive">{fieldErrors.target}</p> : null}
         </label>
 

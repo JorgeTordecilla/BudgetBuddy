@@ -318,4 +318,80 @@ describe("SavingsPage", () => {
     await waitFor(() => expect(deleteMutation.mutateAsync).toHaveBeenCalled());
     expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
   });
+
+  it("submits contribution amount in major units and sends integer cents payload", async () => {
+    const createContribution = mutationStub();
+    vi.mocked(useCreateSavingsContribution).mockReturnValue(createContribution as never);
+
+    vi.mocked(listSavingsGoals).mockResolvedValue({
+      items: [
+        {
+          id: "goal_1",
+          name: "Emergency Fund",
+          target_cents: 500000,
+          account_id: "acc_1",
+          category_id: "cat_1",
+          deadline: "2026-12-31",
+          note: null,
+          status: "active",
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z",
+          saved_cents: 150000,
+          remaining_cents: 350000,
+          progress_pct: 30.0
+        }
+      ]
+    });
+
+    renderPage();
+    await screen.findByText("Emergency Fund");
+    fireEvent.click(screen.getByRole("button", { name: "Add contribution" }));
+
+    fireEvent.change(screen.getByPlaceholderText("50.00"), { target: { value: "50.00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add contribution" }));
+
+    await waitFor(() => {
+      expect(createContribution.mutateAsync).toHaveBeenCalledWith({
+        goalId: "goal_1",
+        payload: {
+          amount_cents: 5000,
+          note: null
+        }
+      });
+    });
+  });
+
+  it("shows page-level problem when archive action fails", async () => {
+    const archiveMutation = mutationStub();
+    archiveMutation.mutateAsync = vi.fn().mockRejectedValue(new Error("archive failed"));
+    vi.mocked(useArchiveSavingsGoal).mockReturnValue(archiveMutation as never);
+
+    vi.mocked(listSavingsGoals).mockResolvedValue({
+      items: [
+        {
+          id: "goal_1",
+          name: "Emergency Fund",
+          target_cents: 500000,
+          account_id: "acc_1",
+          category_id: "cat_1",
+          deadline: "2026-12-31",
+          note: null,
+          status: "active",
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z",
+          saved_cents: 150000,
+          remaining_cents: 350000,
+          progress_pct: 30.0
+        }
+      ]
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Archive" }));
+
+    await waitFor(() => expect(archiveMutation.mutateAsync).toHaveBeenCalledWith("goal_1"));
+    expect(await screen.findByText("Unexpected error. Please retry.")).toBeInTheDocument();
+  });
 });

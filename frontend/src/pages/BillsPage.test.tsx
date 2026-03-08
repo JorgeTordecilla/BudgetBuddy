@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -235,7 +235,8 @@ describe("BillsPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Mark as paid" }));
     expect(screen.getByText("Editing amount? Unmark and re-pay with the correct value.")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "87570" } });
+    expect(screen.getByDisplayValue("2000.00")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("0.00"), { target: { value: "875.70" } });
     fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
 
     await waitFor(() => {
@@ -268,7 +269,7 @@ describe("BillsPage", () => {
 
     fireEvent.change(screen.getByPlaceholderText("Electricity"), { target: { value: "Electricity" } });
     fireEvent.change(screen.getByPlaceholderText("31"), { target: { value: "28" } });
-    fireEvent.change(screen.getByPlaceholderText("200000"), { target: { value: "200000" } });
+    fireEvent.change(screen.getByPlaceholderText("2000.00"), { target: { value: "2000.00" } });
     fireEvent.change(screen.getByLabelText("Bill account"), { target: { value: "acc_1" } });
     fireEvent.change(screen.getByLabelText("Bill category"), { target: { value: "cat_1" } });
     fireEvent.click(screen.getByRole("button", { name: "Create bill" }));
@@ -485,6 +486,132 @@ describe("BillsPage", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Mark paid" })).not.toBeInTheDocument();
     });
+  });
+
+  it("shows page-level problem when unmark action fails", async () => {
+    const unmarkMutation = mutationStub();
+    unmarkMutation.mutateAsync = vi.fn().mockRejectedValue(new Error("unmark failed"));
+    vi.mocked(useUnmarkBillPaid).mockReturnValue(unmarkMutation as never);
+    vi.mocked(listAccounts).mockResolvedValue({ items: [], next_cursor: null });
+    vi.mocked(listCategories).mockResolvedValue({ items: [], next_cursor: null });
+    vi.mocked(listBills).mockResolvedValue({
+      items: [
+        {
+          id: "bill_paid",
+          name: "Water",
+          due_day: 12,
+          budget_cents: 5000,
+          category_id: "cat_1",
+          account_id: "acc_1",
+          note: null,
+          is_active: true,
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z"
+        }
+      ]
+    });
+    vi.mocked(useBillMonthlyStatus).mockReturnValue({
+      data: {
+        month: "2026-03",
+        summary: {
+          total_budget_cents: 5000,
+          total_paid_cents: 5000,
+          total_pending_cents: 0,
+          paid_count: 1,
+          pending_count: 0
+        },
+        items: [
+          {
+            bill_id: "bill_paid",
+            name: "Water",
+            due_day: 12,
+            due_date: "2026-03-12",
+            budget_cents: 5000,
+            status: "paid",
+            actual_cents: 5000,
+            transaction_id: "tx_1",
+            diff_cents: 0
+          }
+        ]
+      },
+      error: null
+    } as never);
+
+    renderPage("/app/bills?month=2026-03");
+    fireEvent.click(await screen.findByRole("button", { name: "Unmark" }));
+
+    await waitFor(() => {
+      expect(unmarkMutation.mutateAsync).toHaveBeenCalledWith({ billId: "bill_paid", month: "2026-03" });
+    });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("keeps mark-paid submit failures inside pay modal problem surface", async () => {
+    const markMutation = mutationStub();
+    markMutation.mutateAsync = vi.fn().mockRejectedValue(new Error("mark failed"));
+    vi.mocked(useMarkBillPaid).mockReturnValue(markMutation as never);
+    vi.mocked(listAccounts).mockResolvedValue({ items: [], next_cursor: null });
+    vi.mocked(listCategories).mockResolvedValue({ items: [], next_cursor: null });
+    vi.mocked(listBills).mockResolvedValue({
+      items: [
+        {
+          id: "bill_pending",
+          name: "Phone",
+          due_day: 5,
+          budget_cents: 3000,
+          category_id: "cat_1",
+          account_id: "acc_1",
+          note: null,
+          is_active: true,
+          archived_at: null,
+          created_at: "2026-03-01T00:00:00Z",
+          updated_at: "2026-03-01T00:00:00Z"
+        }
+      ]
+    });
+    vi.mocked(useBillMonthlyStatus).mockReturnValue({
+      data: {
+        month: "2026-03",
+        summary: {
+          total_budget_cents: 3000,
+          total_paid_cents: 0,
+          total_pending_cents: 3000,
+          paid_count: 0,
+          pending_count: 1
+        },
+        items: [
+          {
+            bill_id: "bill_pending",
+            name: "Phone",
+            due_day: 5,
+            due_date: "2026-03-05",
+            budget_cents: 3000,
+            status: "pending",
+            actual_cents: null,
+            transaction_id: null,
+            diff_cents: null
+          }
+        ]
+      },
+      error: null
+    } as never);
+
+    renderPage("/app/bills?month=2026-03");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mark as paid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark paid" }));
+
+    await waitFor(() => {
+      expect(markMutation.mutateAsync).toHaveBeenCalledWith({
+        billId: "bill_pending",
+        payload: { month: "2026-03", actual_cents: 3000 }
+      });
+    });
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("alert")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
   });
 });
 

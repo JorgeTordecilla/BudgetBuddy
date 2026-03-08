@@ -84,6 +84,21 @@ export function parseMoneyInputToCents(currencyCode: string, input: string, maxC
   return cents;
 }
 
+export function parseNonNegativeMoneyInputToCents(
+  currencyCode: string,
+  input: string,
+  maxCents = DEFAULT_MAX_CENTS
+): number | null {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^0([.,]0+)?$/.test(trimmed)) {
+    return 0;
+  }
+  return parseMoneyInputToCents(currencyCode, trimmed, maxCents);
+}
+
 export function centsToInputValue(currencyCode: string, cents: number): string {
   const fractionDigits = resolveMinorUnits(currencyCode);
   return (cents / (10 ** fractionDigits)).toFixed(fractionDigits);

@@ -22,6 +22,11 @@ The frontend MUST provide a shared money UX contract that accepts major-unit use
 - **AND** no API contract shape change SHALL be introduced.
 
 #### Scenario: Shared utility is reused across money surfaces
-- **WHEN** transactions, income sources, budgets, and analytics money UI is implemented
-- **THEN** frontend SHALL use shared parse/format helpers
+- **WHEN** transactions, income sources, budgets, analytics, savings, and bills money UI is implemented
+- **THEN** frontend SHALL use shared parse/format helpers (including prefill conversion helpers where applicable)
 - **AND** page-local ad-hoc money conversion logic SHALL be avoided.
+
+#### Scenario: Savings and bills forms avoid raw cents exposure
+- **WHEN** savings goal target, contribution amount, bills budget, or bill-pay modal amount is rendered/editable
+- **THEN** UX SHALL use major-unit values for user input/prefill
+- **AND** integer cents SHALL remain an API-boundary concern only.

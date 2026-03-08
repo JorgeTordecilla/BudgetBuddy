@@ -5,7 +5,8 @@ import {
   centsToDecimalString,
   centsToInputValue,
   formatCents,
-  parseMoneyInputToCents
+  parseMoneyInputToCents,
+  parseNonNegativeMoneyInputToCents
 } from "@/utils/money";
 
 describe("money helpers", () => {
@@ -25,6 +26,13 @@ describe("money helpers", () => {
     expect(parseMoneyInputToCents("USD", "-1.00")).toBeNull();
     expect(parseMoneyInputToCents("USD", "1.999")).toBeNull();
     expect(parseMoneyInputToCents("USD", "abc")).toBeNull();
+  });
+
+  it("parses non-negative money input into cents", () => {
+    expect(parseNonNegativeMoneyInputToCents("USD", "0")).toBe(0);
+    expect(parseNonNegativeMoneyInputToCents("USD", "0.00")).toBe(0);
+    expect(parseNonNegativeMoneyInputToCents("USD", "12.34")).toBe(1234);
+    expect(parseNonNegativeMoneyInputToCents("USD", "-1.00")).toBeNull();
   });
 
   it("converts cents to normalized form input value", () => {
