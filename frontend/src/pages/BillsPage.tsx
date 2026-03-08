@@ -23,11 +23,12 @@ import {
   useUnmarkBillPaid,
   useUpdateBill
 } from "@/features/analytics/analyticsQueries";
+import { optionQueryKeys } from "@/query/queryKeys";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import DatePickerField from "@/components/DatePickerField";
 import { currentIsoMonth } from "@/utils/dates";
-import { formatCents } from "@/utils/money";
+import { centsToInputValue, formatCents, parseNonNegativeMoneyInputToCents } from "@/utils/money";
 
 const EMPTY_FORM: BillFormState = {
   name: "",
@@ -43,11 +44,11 @@ function validMonth(value: string | null): value is string {
   return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
 }
 
-function normalizeBillFormState(bill: Bill): BillFormState {
+function normalizeBillFormState(bill: Bill, currencyCode: string): BillFormState {
   return {
     name: bill.name,
     dueDay: String(bill.due_day),
-    budget: String(bill.budget_cents),
+    budget: centsToInputValue(currencyCode, bill.budget_cents),
     accountId: bill.account_id,
     categoryId: bill.category_id,
     note: bill.note ?? "",
@@ -67,6 +68,7 @@ export default function BillsPage() {
   const [formState, setFormState] = useState<BillFormState>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<BillFieldErrors>({});
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
+  const [pageProblem, setPageProblem] = useState<unknown | null>(null);
 
   const [payTarget, setPayTarget] = useState<BillMonthlyStatusItem | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -83,13 +85,13 @@ export default function BillsPage() {
   }, [activeMonth, monthFromUrl, setSearchParams]);
 
   const accountsQuery = useQuery({
-    queryKey: ["accounts-options", "bills"],
+    queryKey: optionQueryKeys.accounts({ includeArchived: false, limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () => listAccounts(apiClient, { includeArchived: false, limit: 100 })
   });
 
   const categoriesQuery = useQuery({
-    queryKey: ["categories-options", "bills"],
+    queryKey: optionQueryKeys.categories({ includeArchived: false, type: "expense", limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () => listCategories(apiClient, { includeArchived: false, type: "expense", limit: 100 })
   });
@@ -142,7 +144,7 @@ export default function BillsPage() {
 
   function openEditForm(bill: Bill) {
     setEditingBill(bill);
-    setFormState(normalizeBillFormState(bill));
+    setFormState(normalizeBillFormState(bill, user?.currency_code ?? "USD"));
     setFieldErrors({});
     setFormProblem(null);
     setIsFormOpen(true);
@@ -160,11 +162,11 @@ export default function BillsPage() {
       await archiveBillMutation.mutateAsync(billId);
       publishSuccessToast("Bill archived successfully.");
     } catch (error) {
-      setFormProblem(error);
+      setPageProblem(error);
     }
   }
 
-  function validateForm(): { valid: boolean; dueDay: number; budget: number } {
+  function validateForm(): { valid: boolean; dueDay: number; budget: number | null } {
     const nextErrors: BillFieldErrors = {};
 
     if (!formState.name.trim()) {
@@ -174,9 +176,9 @@ export default function BillsPage() {
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
       nextErrors.dueDay = "Due day must be between 1 and 31.";
     }
-    const budget = Number(formState.budget);
-    if (!Number.isInteger(budget) || budget < 0) {
-      nextErrors.budget = "Budget must be an integer amount in cents (>= 0).";
+    const budget = parseNonNegativeMoneyInputToCents(user?.currency_code ?? "USD", formState.budget);
+    if (budget === null) {
+      nextErrors.budget = "Budget amount must be a valid non-negative value.";
     }
     if (!formState.accountId) {
       nextErrors.accountId = "Account is required.";
@@ -200,7 +202,7 @@ export default function BillsPage() {
     const payload = {
       name: formState.name.trim(),
       due_day: validation.dueDay,
-      budget_cents: validation.budget,
+      budget_cents: validation.budget as number,
       account_id: formState.accountId,
       category_id: formState.categoryId,
       note: formState.note.trim() || null,
@@ -224,7 +226,7 @@ export default function BillsPage() {
 
   function openMarkPaid(item: BillMonthlyStatusItem) {
     setPayTarget(item);
-    setPayAmount(String(item.budget_cents));
+    setPayAmount(centsToInputValue(user?.currency_code ?? "USD", item.budget_cents));
     setPayProblem(null);
   }
 
@@ -243,8 +245,8 @@ export default function BillsPage() {
       return;
     }
 
-    const amount = Number(payAmount);
-    if (!Number.isInteger(amount) || amount < 0) {
+    const amount = parseNonNegativeMoneyInputToCents(user?.currency_code ?? "USD", payAmount);
+    if (amount === null) {
       setPayProblem(new Error("Invalid amount"));
       return;
     }
@@ -269,7 +271,7 @@ export default function BillsPage() {
       await unmarkPaidMutation.mutateAsync({ billId: item.bill_id, month: activeMonth });
       publishSuccessToast("Bill payment removed.");
     } catch (error) {
-      setPayProblem(error);
+      setPageProblem(error);
     }
   }
 
@@ -403,6 +405,8 @@ export default function BillsPage() {
           ) : null}
         </>
       )}
+
+      {pageProblem ? <ProblemDetailsInline error={pageProblem} onDismiss={() => setPageProblem(null)} /> : null}
 
       <BillForm
         open={isFormOpen}

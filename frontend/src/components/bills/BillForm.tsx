@@ -61,7 +61,7 @@ export default function BillForm({
     <ModalForm
       open={open}
       title={editing ? "Edit bill" : "Create recurring bill"}
-      description="Recurring bills use due day 1-31 and integer cents for budget."
+      description="Recurring bills use due day 1-31 and major-unit budget amounts."
       submitLabel={editing ? "Save changes" : "Create bill"}
       submitting={submitting}
       onClose={onClose}
@@ -98,10 +98,10 @@ export default function BillForm({
           <Input
             value={state.budget}
             onChange={(event) => onFieldChange("budget", event.target.value)}
-            inputMode="numeric"
+            inputMode="decimal"
             aria-invalid={Boolean(fieldErrors.budget)}
             className={fieldErrors.budget ? "border-destructive focus-visible:ring-destructive/40" : undefined}
-            placeholder="200000"
+            placeholder="2000.00"
           />
           {fieldErrors.budget ? <p className="text-xs text-destructive">{fieldErrors.budget}</p> : null}
         </label>

@@ -27,10 +27,11 @@ import {
   useSavingsSummary,
   useUpdateSavingsGoal
 } from "@/features/analytics/analyticsQueries";
+import { optionQueryKeys } from "@/query/queryKeys";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import SelectField from "@/components/SelectField";
-import { formatCents } from "@/utils/money";
+import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
 
 const EMPTY_FORM: SavingsGoalFormState = {
   name: "",
@@ -48,10 +49,10 @@ const statusFilterOptions: Array<{ value: SavingsGoalStatus | "all"; label: stri
   { value: "cancelled", label: "Cancelled" }
 ];
 
-function normalizeGoalToForm(goal: SavingsGoal): SavingsGoalFormState {
+function normalizeGoalToForm(goal: SavingsGoal, currencyCode: string): SavingsGoalFormState {
   return {
     name: goal.name,
-    target: String(goal.target_cents),
+    target: centsToInputValue(currencyCode, goal.target_cents),
     accountId: goal.account_id,
     categoryId: goal.category_id,
     deadline: goal.deadline ?? "",
@@ -70,6 +71,7 @@ export default function SavingsPage() {
   const [formState, setFormState] = useState<SavingsGoalFormState>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<SavingsGoalFieldErrors>({});
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
+  const [pageProblem, setPageProblem] = useState<unknown | null>(null);
 
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
@@ -80,13 +82,13 @@ export default function SavingsPage() {
   const [deletingContributionId, setDeletingContributionId] = useState<string | null>(null);
 
   const accountsQuery = useQuery({
-    queryKey: ["accounts-options", "savings"],
+    queryKey: optionQueryKeys.accounts({ includeArchived: false, limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () => listAccounts(apiClient, { includeArchived: false, limit: 100 })
   });
 
   const categoriesQuery = useQuery({
-    queryKey: ["categories-options", "savings"],
+    queryKey: optionQueryKeys.categories({ includeArchived: false, type: "expense", limit: 100 }),
     meta: { skipGlobalErrorToast: true },
     queryFn: () => listCategories(apiClient, { includeArchived: false, type: "expense", limit: 100 })
   });
@@ -130,7 +132,7 @@ export default function SavingsPage() {
 
   function openEditForm(goal: SavingsGoal) {
     setEditingGoal(goal);
-    setFormState(normalizeGoalToForm(goal));
+    setFormState(normalizeGoalToForm(goal, currencyCode));
     setFieldErrors({});
     setFormProblem(null);
     setIsFormOpen(true);
@@ -143,16 +145,16 @@ export default function SavingsPage() {
     setIsFormOpen(false);
   }
 
-  function validateForm(): { valid: boolean; target: number } {
+  function validateForm(): { valid: boolean; target: number | null } {
     const nextErrors: SavingsGoalFieldErrors = {};
 
     if (!formState.name.trim()) {
       nextErrors.name = "Name is required.";
     }
 
-    const target = Number(formState.target);
-    if (!Number.isInteger(target) || target <= 0) {
-      nextErrors.target = "Target must be an integer amount in cents (> 0).";
+    const target = parseMoneyInputToCents(currencyCode, formState.target);
+    if (target === null) {
+      nextErrors.target = "Target amount must be greater than 0.";
     }
 
     if (!formState.accountId) {
@@ -186,7 +188,7 @@ export default function SavingsPage() {
 
     const payload = {
       name: formState.name.trim(),
-      target_cents: validation.target,
+      target_cents: validation.target as number,
       account_id: formState.accountId,
       category_id: formState.categoryId,
       deadline: formState.deadline || null,
@@ -216,7 +218,7 @@ export default function SavingsPage() {
       }
       publishSuccessToast("Savings goal archived successfully.");
     } catch (error) {
-      setFormProblem(error);
+      setPageProblem(error);
     }
   }
 
@@ -225,7 +227,7 @@ export default function SavingsPage() {
       await completeGoalMutation.mutateAsync(goalId);
       publishSuccessToast("Savings goal marked as completed.");
     } catch (error) {
-      setFormProblem(error);
+      setPageProblem(error);
     }
   }
 
@@ -234,7 +236,7 @@ export default function SavingsPage() {
       await cancelGoalMutation.mutateAsync(goalId);
       publishSuccessToast("Savings goal cancelled.");
     } catch (error) {
-      setFormProblem(error);
+      setPageProblem(error);
     }
   }
 
@@ -261,8 +263,8 @@ export default function SavingsPage() {
       return;
     }
 
-    const amount = Number(contributionAmount);
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = parseMoneyInputToCents(currencyCode, contributionAmount);
+    if (amount === null) {
       setContributionProblem(new Error("Invalid contribution amount"));
       return;
     }
@@ -296,7 +298,7 @@ export default function SavingsPage() {
       publishSuccessToast("Contribution deleted.");
       await queryClient.invalidateQueries({ queryKey: ["savings-goals", "detail", selectedGoalId] });
     } catch (error) {
-      setFormProblem(error);
+      setPageProblem(error);
     } finally {
       setDeletingContributionId(null);
     }
@@ -412,6 +414,7 @@ export default function SavingsPage() {
 
       {goalsQuery.error ? <ProblemDetailsInline error={goalsQuery.error} /> : null}
       {summaryQuery.error ? <ProblemDetailsInline error={summaryQuery.error} /> : null}
+      {pageProblem ? <ProblemDetailsInline error={pageProblem} onDismiss={() => setPageProblem(null)} /> : null}
       {formProblem ? <ProblemDetailsInline error={formProblem} onDismiss={() => setFormProblem(null)} /> : null}
 
       <SavingsGoalForm

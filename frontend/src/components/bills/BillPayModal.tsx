@@ -41,12 +41,12 @@ export default function BillPayModal({
     >
       <div className="grid gap-3 overflow-x-hidden">
         <label className="space-y-1 text-sm">
-          <span>Actual amount (cents)</span>
+          <span>Actual amount</span>
           <Input
             value={amount}
             onChange={(event) => onAmountChange(event.target.value)}
-            inputMode="numeric"
-            placeholder="0"
+            inputMode="decimal"
+            placeholder="0.00"
           />
         </label>
 
