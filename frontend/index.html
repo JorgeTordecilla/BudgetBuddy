@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-title" content="BudgetBuddy" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#ffffff" />
+    <meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' %VITE_API_BASE_URL%; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; worker-src 'self'; base-uri 'self'; form-action 'self';">
     <title>BudgetBuddy</title>
   </head>
   <body>
