@@ -247,12 +247,18 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
 
     token_hash = hash_refresh_token(refresh_token)
+    # Optimistic pre-check before acquiring the per-user lock.
+    # Most refresh requests are valid and uncontended, so this fast path avoids
+    # lock overhead when the token is already missing or invalid.
     refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
     if not refresh_row:
         raise unauthorized_error("Refresh token is invalid or expired")
 
     user_id = refresh_row.user_id
     with _user_lock(user_id):
+        # Re-fetch under lock to guard against refresh-token races.
+        # Another request may rotate or revoke this token between pre-check and
+        # lock acquisition, so we validate current DB state again.
         refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
         if not refresh_row:
             raise unauthorized_error("Refresh token is invalid or expired")
