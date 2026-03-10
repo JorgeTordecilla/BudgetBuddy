@@ -477,9 +477,10 @@ def _archive_transaction_and_assert(client: TestClient, user_access: str, transa
     assert archive.status_code == 204
 
 
-def _make_access_token(sub) -> str:
+def _make_access_token(sub, *, nbf_offset_seconds: int = 0) -> str:
+    now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
-    payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
+    payload = {"sub": sub, "exp": now + 3600, "iat": now, "nbf": now + nbf_offset_seconds}
     header_part = base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
     payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
     secret = os.environ["JWT_SECRET"].encode("utf-8")
@@ -729,6 +730,16 @@ def test_error_response_includes_request_id_header():
 def test_access_token_with_non_string_subject_returns_401():
     with TestClient(app) as client:
         token = _make_access_token({"x": 1})
+        response = client.get(
+            "/api/accounts",
+            headers={"accept": VENDOR, "authorization": f"Bearer {token}"},
+        )
+        _assert_unauthorized_problem(response)
+
+
+def test_access_token_with_future_nbf_returns_401():
+    with TestClient(app) as client:
+        token = _make_access_token("user-with-future-nbf", nbf_offset_seconds=3600)
         response = client.get(
             "/api/accounts",
             headers={"accept": VENDOR, "authorization": f"Bearer {token}"},

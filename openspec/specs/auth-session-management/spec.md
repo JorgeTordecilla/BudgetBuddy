@@ -156,9 +156,10 @@ Access tokens issued by auth session endpoints MUST be RFC 7519-compatible JWTs.
 - **WHEN** `POST /auth/register`, `POST /auth/login`, or `POST /auth/refresh` succeeds
 - **THEN** `access_token` SHALL be a signed JWT in `header.payload.signature` format
 
-#### Scenario: JWT claims are minimally enforced
+#### Scenario: JWT claims are minimally enforced with not-before support
 - **WHEN** bearer access tokens are validated
-- **THEN** validation SHALL require at least `sub`, `exp`, and `iat` claims and reject missing/invalid claims with canonical `401`
+- **THEN** validation SHALL require at least `sub`, `exp`, `iat`, and `nbf` claims and reject missing/invalid claims with canonical `401`
+- **AND** tokens whose `nbf` is in the future SHALL be rejected with canonical `401`
 
 ### Requirement: Legacy non-JWT access tokens are rejected
 Access-token validation MUST reject legacy non-JWT bearer tokens.
@@ -186,4 +187,3 @@ When refresh cookies are used in cross-site browser contexts, `POST /auth/refres
 #### Scenario: Existing invalid-cookie behavior remains unchanged
 - **WHEN** refresh cookie is missing, malformed, unknown, or expired
 - **THEN** the API SHALL continue returning canonical `401` ProblemDetails
-

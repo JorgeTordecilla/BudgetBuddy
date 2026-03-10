@@ -5,6 +5,7 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+import jwt
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -129,6 +130,8 @@ def test_password_and_token_security_paths(monkeypatch):
     token = create_access_token("user-1")
     payload = decode_access_token(token)
     assert payload["sub"] == "user-1"
+    assert isinstance(payload["nbf"], int)
+    assert payload["nbf"] == payload["iat"]
 
     with pytest.raises(ValueError):
         decode_access_token("invalid-token-format")
@@ -147,6 +150,20 @@ def test_password_and_token_security_paths(monkeypatch):
     expired = create_access_token("user-2")
     with pytest.raises(ValueError):
         decode_access_token(expired)
+
+    # Not-before failure path.
+    future_not_before = jwt.encode(
+        {
+            "sub": "user-3",
+            "exp": int(time.time()) + 3600,
+            "iat": int(time.time()),
+            "nbf": int(time.time()) + 3600,
+        },
+        security.settings.jwt_secret,
+        algorithm="HS256",
+    )
+    with pytest.raises(ValueError):
+        decode_access_token(future_not_before)
 
 
 def _make_legacy_access_token(sub: str, *, exp_offset: int = 3600) -> str:
