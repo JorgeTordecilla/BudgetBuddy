@@ -22,7 +22,7 @@ from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
-from app.core.utils import utcnow
+from app.core.utils import as_utc, utcnow
 from app.models import MonthlyRollover, RefreshToken, Transaction, User
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
@@ -1120,12 +1120,34 @@ def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
 
     db = SessionLocal()
     try:
+        parent_row = (
+            db.query(RefreshToken)
+            .filter(RefreshToken.token_hash == refresh_hash)
+            .one()
+        )
         child_rows = (
             db.query(RefreshToken)
             .filter(RefreshToken.parent_hash == refresh_hash)
             .all()
         )
         assert len(child_rows) == 1
+        child_row = child_rows[0]
+
+        # Child lineage must remain tied to the same token family and parent.
+        assert child_row.family_id == parent_row.family_id
+        assert child_row.parent_hash == parent_row.token_hash
+
+        # Parent rotation timestamps are deterministic under fixed clock.
+        assert parent_row.rotated_at is not None
+        assert parent_row.grace_until is not None
+        assert as_utc(parent_row.rotated_at) == fixed_now
+        assert as_utc(parent_row.grace_until) == fixed_now + timedelta(seconds=auth_router.settings.refresh_grace_period_seconds)
+
+        # Child token should be active and unrotated immediately after issuance.
+        assert child_row.rotated_at is None
+        assert child_row.grace_until is None
+        # Keep backend-tolerant datetime comparison by normalizing timezone materialization.
+        assert as_utc(child_row.expires_at) == fixed_now + timedelta(seconds=auth_router.settings.refresh_token_ttl_seconds)
     finally:
         db.close()
 
