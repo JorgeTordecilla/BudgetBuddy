@@ -77,26 +77,22 @@ def analytics_by_month(
 
     monthly_rows = list(db.execute(monthly_stmt))
     budget_by_month = {row.month: int(row.budget_limit_cents) for row in db.execute(budget_stmt)}
+    active_sources = _active_income_sources_for_user(db, current_user.id)
+    expected_totals_by_month = _expected_income_totals_by_month(
+        [row.month for row in monthly_rows if from_month <= row.month <= to_month],
+        active_sources,
+    )
     net_by_month = {
         row.month: max(0, int(row.income_total_cents) - int(row.expense_total_cents))
         for row in monthly_rows
     }
-    expected_income_total = int(
-        db.scalar(
-            select(func.coalesce(func.sum(IncomeSource.expected_amount_cents), 0))
-            .where(IncomeSource.user_id == current_user.id)
-            .where(IncomeSource.archived_at.is_(None))
-            .where(IncomeSource.is_active.is_(True))
-        )
-        or 0
-    )
 
     items = [
         {
             "month": row.month,
             "income_total_cents": int(row.income_total_cents),
             "expense_total_cents": int(row.expense_total_cents),
-            "expected_income_cents": expected_income_total,
+            "expected_income_cents": int(expected_totals_by_month.get(row.month, 0)),
             "actual_income_cents": int(row.income_total_cents),
             "rollover_in_cents": int(net_by_month.get(_previous_month(row.month), 0)),
             "budget_spent_cents": int(row.expense_total_cents),
@@ -196,6 +192,23 @@ def _iter_months(from_: date, to: date) -> list[str]:
     return months
 
 
+def _active_income_sources_for_user(db: Session, user_id: str) -> list[IncomeSource]:
+    return list(
+        db.scalars(
+            select(IncomeSource)
+            .where(IncomeSource.user_id == user_id)
+            .where(IncomeSource.archived_at.is_(None))
+            .where(IncomeSource.is_active.is_(True))
+            .order_by(IncomeSource.name.asc())
+        )
+    )
+
+
+def _expected_income_totals_by_month(months: list[str], active_sources: list[IncomeSource]) -> dict[str, int]:
+    expected_total = sum(int(source.expected_amount_cents) for source in active_sources)
+    return {month: expected_total for month in months}
+
+
 @router.get("/income")
 def analytics_income(
     from_: date = Query(alias="from"),
@@ -208,16 +221,9 @@ def analytics_income(
     validate_user_currency_for_money(current_user.currency_code)
 
     months = _iter_months(from_, to)
-    active_sources = list(
-        db.scalars(
-            select(IncomeSource)
-            .where(IncomeSource.user_id == current_user.id)
-            .where(IncomeSource.archived_at.is_(None))
-            .where(IncomeSource.is_active.is_(True))
-            .order_by(IncomeSource.name.asc())
-        )
-    )
+    active_sources = _active_income_sources_for_user(db, current_user.id)
     active_source_ids = {source.id for source in active_sources}
+    expected_totals_by_month = _expected_income_totals_by_month(months, active_sources)
 
     month_expr = _month_expr(db)
     actual_stmt = (
@@ -241,13 +247,12 @@ def analytics_income(
     items: list[dict] = []
     for month in months:
         rows: list[dict] = []
-        expected_total = 0
+        expected_total = expected_totals_by_month.get(month, 0)
         actual_total = 0
 
         for source in active_sources:
             expected = int(source.expected_amount_cents)
             actual = actual_by_month_source.get((month, source.id), 0)
-            expected_total += expected
             actual_total += actual
             rows.append(
                 {

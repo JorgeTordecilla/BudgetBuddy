@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
 import app.routers.auth as auth_router
+import app.routers.analytics as analytics_router
 import app.routers.savings as savings_router
 import app.main as app_main
 import app.core.utils as core_utils
@@ -2601,6 +2602,105 @@ def test_analytics_totals_are_integer_cents_and_enforce_currency_context():
             MONEY_CURRENCY_MISMATCH_TYPE,
             MONEY_CURRENCY_MISMATCH_TITLE,
         )
+
+
+def test_expected_income_totals_by_month_is_month_keyed_and_integer_cents():
+    class _Source:
+        def __init__(self, expected_amount_cents: int):
+            self.expected_amount_cents = expected_amount_cents
+
+    months = ["2026-01", "2026-02", "2026-03"]
+    active_sources = [_Source(150000), _Source(25000)]
+    totals = analytics_router._expected_income_totals_by_month(months, active_sources)
+
+    assert totals == {"2026-01": 175000, "2026-02": 175000, "2026-03": 175000}
+    for month in months:
+        assert isinstance(totals[month], int)
+
+
+def test_analytics_by_month_expected_income_is_sourced_from_month_map(monkeypatch):
+    def fake_expected_income_totals_by_month(months, active_sources):
+        return {month: {"2026-01": 1111, "2026-02": 2222}.get(month, 0) for month in months}
+
+    monkeypatch.setattr(analytics_router, "_expected_income_totals_by_month", fake_expected_income_totals_by_month)
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "expected-month-map-account")
+        income_category_id = _create_category(client, headers, "expected-month-map-income", "income")
+
+        for payload in (
+            {"amount_cents": 10000, "date": "2026-01-12"},
+            {"amount_cents": 12000, "date": "2026-02-12"},
+        ):
+            response = client.post(
+                "/api/transactions",
+                json={
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": income_category_id,
+                    "amount_cents": payload["amount_cents"],
+                    "date": payload["date"],
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+        by_month = client.get("/api/analytics/by-month?from=2026-01-01&to=2026-02-28", headers=headers)
+        assert by_month.status_code == 200
+        assert by_month.headers["content-type"].startswith(VENDOR)
+        rows = {item["month"]: item for item in by_month.json()["items"]}
+        assert rows["2026-01"]["expected_income_cents"] == 1111
+        assert rows["2026-02"]["expected_income_cents"] == 2222
+        assert rows["2026-01"]["expected_income_cents"] != rows["2026-02"]["expected_income_cents"]
+
+
+def test_analytics_by_month_expected_income_aligns_with_income_analytics():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "by-month-income-alignment-account")
+        income_category_id = _create_category(client, headers, "by-month-income-alignment-income", "income")
+        source_status, source_body = _create_income_source(
+            client,
+            headers,
+            name="Alignment Source",
+            expected_amount_cents=300000,
+        )
+        assert source_status == 201
+
+        for payload in (
+            {"amount_cents": 250000, "date": "2026-01-12"},
+            {"amount_cents": 260000, "date": "2026-02-12"},
+        ):
+            response = client.post(
+                "/api/transactions",
+                json={
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": income_category_id,
+                    "income_source_id": source_body["id"],
+                    "amount_cents": payload["amount_cents"],
+                    "date": payload["date"],
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+        by_month = client.get("/api/analytics/by-month?from=2026-01-01&to=2026-02-28", headers=headers)
+        assert by_month.status_code == 200
+        assert by_month.headers["content-type"].startswith(VENDOR)
+        by_month_rows = {item["month"]: item for item in by_month.json()["items"]}
+
+        income_analytics = client.get("/api/analytics/income?from=2026-01-01&to=2026-02-28", headers=headers)
+        assert income_analytics.status_code == 200
+        assert income_analytics.headers["content-type"].startswith(VENDOR)
+        income_rows = {item["month"]: item for item in income_analytics.json()["items"]}
+
+        for month, row in by_month_rows.items():
+            assert row["expected_income_cents"] == income_rows[month]["expected_income_cents"]
+            assert isinstance(row["expected_income_cents"], int)
 
 
 def test_income_analytics_breakdown_includes_unassigned_income_rows():

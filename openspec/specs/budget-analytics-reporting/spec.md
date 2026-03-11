@@ -39,6 +39,16 @@ The backend MUST implement `GET /analytics/by-month` with required `from` and `t
 #### Scenario: Expected income in monthly response is source-derived
 - **WHEN** `expected_income_cents` is computed for a month
 - **THEN** value SHALL be derived from active income sources according to the documented frequency policy
+- **AND** `expected_income_cents` SHALL be computed per returned month
+- **AND** the implementation SHALL NOT reuse one static scalar for all months in range.
+
+#### Scenario: By-month and income endpoints remain semantically aligned
+- **WHEN** `/analytics/by-month` and `/analytics/income` are queried for the same user and date window
+- **THEN** monthly `expected_income_cents` values SHALL follow the same source-selection and frequency policy.
+
+#### Scenario: Expected income remains integer and deterministic
+- **WHEN** monthly expected income is computed
+- **THEN** values SHALL be integer cents and deterministic for identical inputs.
 
 #### Scenario: Monthly budget limit excludes income-category budgets
 - **WHEN** `budget_limit_cents` is computed for `GET /analytics/by-month`
