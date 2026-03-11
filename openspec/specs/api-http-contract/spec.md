@@ -2,7 +2,7 @@
 Define the canonical HTTP/API contract for BudgetBuddy, including media types, error semantics, and endpoint behavior guarantees.
 ## Requirements
 ### Requirement: Vendor media type for successful payloads
-The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`, including new income-source and income-analytics endpoints.
+The backend MUST return response bodies for successful non-204 operations using `application/vnd.budgetbuddy.v1+json`, including endpoints whose request and response models are reorganized into backend domain schema modules.
 
 #### Scenario: Successful endpoint response uses vendor media type
 - **WHEN** a client calls a successful endpoint that returns a JSON body
@@ -24,8 +24,13 @@ The backend MUST return response bodies for successful non-204 operations using 
 - **WHEN** `GET /analytics/income` succeeds
 - **THEN** the response SHALL use `Content-Type: application/vnd.budgetbuddy.v1+json`
 
+#### Scenario: Schema module reorganization preserves success payload behavior
+- **WHEN** backend Pydantic schemas are reorganized into `app/schemas/*` modules
+- **THEN** existing endpoints SHALL preserve their success payload shapes
+- **AND** vendor media type behavior SHALL remain unchanged
+
 ### Requirement: ProblemDetails for error payloads
-The backend MUST return all error payloads as `application/problem+json` for income-source and income-analytics endpoints, aligned with canonical API behavior.
+The backend MUST return all error payloads as `application/problem+json` for income-source and income-analytics endpoints, aligned with canonical API behavior, even when backend schema modules are reorganized.
 
 #### Scenario: Validation error is returned as ProblemDetails
 - **WHEN** request data violates schema constraints
@@ -102,6 +107,11 @@ The backend MUST return all error payloads as `application/problem+json` for inc
 #### Scenario: Income analytics request failures use ProblemDetails
 - **WHEN** `GET /analytics/income` fails due to validation/auth/media negotiation
 - **THEN** the API SHALL return `application/problem+json` containing required `ProblemDetails` fields
+
+#### Scenario: Schema module reorganization preserves validation and error semantics
+- **WHEN** backend Pydantic schemas are reorganized into `app/schemas/*` modules
+- **THEN** existing routes SHALL preserve their request validation semantics
+- **AND** canonical ProblemDetails behavior SHALL remain unchanged
 
 ### Requirement: Cross-user ownership policy
 The backend MUST enforce a single deterministic ownership policy for scoped domain resources.

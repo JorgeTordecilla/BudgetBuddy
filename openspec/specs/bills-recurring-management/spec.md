@@ -35,7 +35,7 @@ The system MUST provide `/bills` CRUD endpoints for authenticated users with str
 - **THEN** bill `archived_at` SHALL be populated and endpoint SHALL return `204`.
 
 ### Requirement: Monthly status provides operational state for active non-archived bills
-The system MUST expose `GET /bills/monthly-status?month=YYYY-MM` returning per-bill status and month summary for active operational bills only.
+The system MUST expose `GET /bills/monthly-status?month=YYYY-MM` returning per-bill status and month summary for active operational bills only, using the current UTC-derived date for overdue evaluation.
 
 #### Scenario: Due date uses month-end clamping for long due_day
 - **WHEN** a bill has `due_day` greater than the selected month's last day
@@ -54,16 +54,16 @@ The system MUST expose `GET /bills/monthly-status?month=YYYY-MM` returning per-b
 - **WHEN** a `BillPayment` exists for `(bill_id, month)`
 - **THEN** item status SHALL be `paid` with `actual_cents`, `transaction_id`, and `diff_cents=actual_cents-budget_cents`.
 
-#### Scenario: Overdue is only emitted for current server month
-- **WHEN** no payment exists and requested `month` equals server current month and `due_date < server today`
+#### Scenario: Overdue is only emitted for current UTC-derived month
+- **WHEN** no payment exists and requested `month` equals the current UTC-derived month and `due_date < current UTC-derived date`
 - **THEN** item status SHALL be `overdue`.
 
 #### Scenario: Non-current month without payment remains pending
-- **WHEN** no payment exists and requested month is past or future relative to server current month
+- **WHEN** no payment exists and requested month is past or future relative to the current UTC-derived month
 - **THEN** item status SHALL be `pending` and SHALL NOT be marked overdue.
 
 ### Requirement: Bill payment lifecycle owns linked transaction lifecycle
-The system MUST model bill payments as the owner of their generated transaction lifecycle.
+The system MUST model bill payments as the owner of their generated transaction lifecycle using the current UTC-derived date for the generated transaction.
 
 #### Scenario: Mark as paid creates payment and linked transaction atomically
 - **WHEN** `POST /bills/{bill_id}/payments` is called for an eligible bill and month
@@ -89,10 +89,14 @@ The system MUST model bill payments as the owner of their generated transaction 
 - **WHEN** a bill is archived
 - **THEN** existing `BillPayment` rows and their transactions SHALL remain persisted for historical reporting.
 
+#### Scenario: Bill payment generated transaction uses UTC current date
+- **WHEN** `POST /bills/{bill_id}/payments` creates the linked transaction
+- **THEN** the transaction date SHALL use the current UTC-derived date
+- **AND** server-local timezone differences SHALL NOT shift the payment into a different calendar day.
+
 ### Requirement: Bills endpoints require authentication
 All bills endpoints MUST enforce the same auth contract as other protected budget resources.
 
 #### Scenario: Unauthenticated request is rejected
 - **WHEN** any `/bills` endpoint is called without valid auth
 - **THEN** the API SHALL return canonical `401` ProblemDetails.
-
