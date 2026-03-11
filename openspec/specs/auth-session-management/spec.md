@@ -82,6 +82,11 @@ The backend MUST implement `POST /auth/refresh` with cookie-based refresh-token 
 - **THEN** refresh behavior SHALL follow one documented comparison policy consistently across router and repository checks
 - **AND** tests SHALL verify boundary-equality outcomes deterministically.
 
+#### Scenario: Concurrency verification enforces lineage and fixed-clock invariants
+- **WHEN** concurrent refresh rotation is validated under fixed-clock test execution
+- **THEN** verification SHALL assert that the single child token preserves correct `family_id` and `parent_hash` lineage
+- **AND** verification SHALL assert deterministic rotated parent timing fields (`rotated_at`, `grace_until`) using normalized UTC comparisons.
+
 ### Requirement: Refresh token lineage metadata is persisted
 Refresh session state MUST persist lineage metadata needed for token-family replay protection.
 
