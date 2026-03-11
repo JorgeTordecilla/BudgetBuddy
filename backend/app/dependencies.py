@@ -1,19 +1,15 @@
-from datetime import UTC, datetime
 from typing import Iterator
 
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
-from app.core.constants import API_PREFIX, CSV_TEXT, PROBLEM_JSON, VENDOR_JSON
+from app.core.constants import API_PREFIX, BODY_METHODS, CSV_TEXT, PROBLEM_JSON, VENDOR_JSON
 from app.core.errors import APIError
 from app.core.security import decode_access_token
 from app.db import get_db
 from app.errors import not_acceptable_error, unauthorized_error
 from app.models import User
 from app.repositories import SQLAlchemyUserRepository
-
-
-_BODY_METHODS = {"POST", "PATCH", "PUT"}
 
 
 def _parse_media_type(value: str) -> str:
@@ -81,7 +77,7 @@ def enforce_accept_header(request: Request) -> None:
 
 
 def enforce_content_type(request: Request) -> None:
-    if request.method not in _BODY_METHODS:
+    if request.method not in BODY_METHODS:
         return
     if request.url.path in {
         f"{API_PREFIX}/health",
@@ -122,7 +118,3 @@ def get_current_user(
         raise unauthorized_error("Access token is invalid or expired")
     request.state.user_id = user.id
     return user
-
-
-def utcnow() -> datetime:
-    return datetime.now(tz=UTC)

@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
+from threading import Lock
 
 import yaml
 from fastapi import APIRouter, FastAPI, Request
@@ -65,13 +66,25 @@ app.add_middleware(
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "openapi.yaml"
 REQUEST_ID_HEADER = "X-Request-Id"
+_OPENAPI_SPEC_CACHE: dict | None = None
+_OPENAPI_SPEC_LOCK = Lock()
 
 
 def load_spec():
     return yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 
 
-API_VERSION = str(load_spec().get("info", {}).get("version", "unknown"))
+def get_openapi_spec_cached() -> dict:
+    global _OPENAPI_SPEC_CACHE
+    if _OPENAPI_SPEC_CACHE is not None:
+        return _OPENAPI_SPEC_CACHE
+    with _OPENAPI_SPEC_LOCK:
+        if _OPENAPI_SPEC_CACHE is None:
+            _OPENAPI_SPEC_CACHE = load_spec()
+    return _OPENAPI_SPEC_CACHE
+
+
+API_VERSION = str(get_openapi_spec_cached().get("info", {}).get("version", "unknown"))
 
 
 @app.middleware("http")
@@ -197,4 +210,4 @@ def readyz():
 
 @app.get(f"{API_PREFIX}/openapi.json", include_in_schema=False)
 def openapi_json():
-    return JSONResponse(load_spec())
+    return JSONResponse(get_openapi_spec_cached())

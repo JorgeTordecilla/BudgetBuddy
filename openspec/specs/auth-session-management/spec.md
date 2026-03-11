@@ -156,9 +156,10 @@ Access tokens issued by auth session endpoints MUST be RFC 7519-compatible JWTs.
 - **WHEN** `POST /auth/register`, `POST /auth/login`, or `POST /auth/refresh` succeeds
 - **THEN** `access_token` SHALL be a signed JWT in `header.payload.signature` format
 
-#### Scenario: JWT claims are minimally enforced
+#### Scenario: JWT claims are minimally enforced with not-before support
 - **WHEN** bearer access tokens are validated
-- **THEN** validation SHALL require at least `sub`, `exp`, and `iat` claims and reject missing/invalid claims with canonical `401`
+- **THEN** validation SHALL require at least `sub`, `exp`, `iat`, and `nbf` claims and reject missing/invalid claims with canonical `401`
+- **AND** tokens whose `nbf` is in the future SHALL be rejected with canonical `401`
 
 ### Requirement: Legacy non-JWT access tokens are rejected
 Access-token validation MUST reject legacy non-JWT bearer tokens.
@@ -187,3 +188,15 @@ When refresh cookies are used in cross-site browser contexts, `POST /auth/refres
 - **WHEN** refresh cookie is missing, malformed, unknown, or expired
 - **THEN** the API SHALL continue returning canonical `401` ProblemDetails
 
+### Requirement: Expired or invalid auth artifacts are unauthorized
+The backend MUST treat expired or invalid session artifacts as unauthorized rather than as internal server errors.
+
+#### Scenario: Expired refresh token returns canonical unauthorized response
+- **WHEN** an expired refresh token is presented to the refresh flow
+- **THEN** the API SHALL return canonical `401` `application/problem+json`
+- **AND** the request SHALL NOT fail with `500`
+
+#### Scenario: Expired bearer access token returns canonical unauthorized response
+- **WHEN** an expired bearer access token is presented to a protected endpoint such as `GET /me`
+- **THEN** the API SHALL return canonical `401` `application/problem+json`
+- **AND** the request SHALL NOT fail with `500`

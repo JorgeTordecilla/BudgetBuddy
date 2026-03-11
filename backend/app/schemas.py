@@ -4,6 +4,15 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StrictInt, WithJsonSchema
 
+from app.models.enums import (
+    AccountType,
+    CategoryType,
+    IncomeFrequency,
+    SavingsGoalStatus,
+    TransactionMood,
+    TransactionType,
+)
+
 PASSWORD_POLICY_PATTERN = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$"
 PASSWORD_POLICY_MESSAGE = (
     "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
@@ -63,7 +72,7 @@ class AuthSessionResponse(BaseModel):
 
 class AccountBase(BaseModel):
     name: str = Field(min_length=1)
-    type: Literal["cash", "debit", "credit", "bank"]
+    type: AccountType
     initial_balance_cents: int
     note: str | None = None
 
@@ -74,7 +83,7 @@ class AccountCreate(AccountBase):
 
 class AccountUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
-    type: Literal["cash", "debit", "credit", "bank"] | None = None
+    type: AccountType | None = None
     initial_balance_cents: int | None = None
     note: str | None = None
     archived_at: datetime | None = None
@@ -89,7 +98,7 @@ class AccountOut(AccountBase):
 
 class CategoryBase(BaseModel):
     name: str = Field(min_length=1)
-    type: Literal["income", "expense"]
+    type: CategoryType
     note: str | None = None
 
 
@@ -111,7 +120,7 @@ class CategoryOut(CategoryBase):
 
 
 class TransactionBase(BaseModel):
-    type: Literal["income", "expense"]
+    type: TransactionType
     account_id: str
     category_id: str
     income_source_id: str | None = None
@@ -119,7 +128,7 @@ class TransactionBase(BaseModel):
     date: DateType
     merchant: str | None = None
     note: str | None = None
-    mood: str | None = None
+    mood: TransactionMood | None = None
     is_impulse: bool | None = None
 
 
@@ -128,7 +137,7 @@ class TransactionCreate(TransactionBase):
 
 
 class TransactionUpdate(BaseModel):
-    type: Literal["income", "expense"] | None = None
+    type: TransactionType | None = None
     account_id: str | None = None
     category_id: str | None = None
     income_source_id: str | None = None
@@ -136,7 +145,7 @@ class TransactionUpdate(BaseModel):
     date: DateType | None = None
     merchant: str | None = None
     note: str | None = None
-    mood: str | None = None
+    mood: TransactionMood | None = None
     is_impulse: bool | None = None
     archived_at: datetime | None = None
 
@@ -168,7 +177,7 @@ class AnalyticsByMonthResponse(BaseModel):
 class AnalyticsByCategoryItem(BaseModel):
     category_id: str
     category_name: str
-    category_type: Literal["income", "expense"]
+    category_type: CategoryType
     income_total_cents: int
     expense_total_cents: int
     budget_spent_cents: int | None = None
@@ -195,7 +204,7 @@ class ImpulseSummaryOut(BaseModel):
 class IncomeSourceBase(BaseModel):
     name: str = Field(min_length=1)
     expected_amount_cents: StrictInt
-    frequency: Literal["monthly"] = "monthly"
+    frequency: IncomeFrequency = IncomeFrequency.MONTHLY
     is_active: bool = True
     note: str | None = None
 
@@ -207,7 +216,7 @@ class IncomeSourceCreate(IncomeSourceBase):
 class IncomeSourceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     expected_amount_cents: StrictInt | None = None
-    frequency: Literal["monthly"] | None = None
+    frequency: IncomeFrequency | None = None
     is_active: bool | None = None
     note: str | None = None
     archived_at: datetime | None = None
@@ -252,7 +261,7 @@ class RolloverPreviewOut(BaseModel):
 
 
 class RolloverApplyRequest(BaseModel):
-    source_month: str = Field(pattern=r"^\d{4}-\d{2}$")
+    source_month: str
     account_id: str
     category_id: str
 
@@ -417,7 +426,7 @@ class SavingsGoalOut(SavingsGoalBase, SavingsGoalComputed):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    status: Literal["active", "completed", "cancelled"]
+    status: SavingsGoalStatus
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime

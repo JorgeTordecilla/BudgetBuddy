@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Protocol
 
+from app.models.enums import CategoryType, TransactionType
 from app.models import Account, AuditEvent, Budget, Category, IncomeSource, RefreshToken, Transaction, User
 
 
@@ -25,7 +26,7 @@ class AccountRepository(Protocol):
 
 class CategoryRepository(Protocol):
     def get_owned(self, user_id: str, category_id: str) -> Category | None: ...
-    def list_for_user(self, user_id: str, include_archived: bool, category_type: str | None) -> list[Category]: ...
+    def list_for_user(self, user_id: str, include_archived: bool, category_type: CategoryType | None) -> list[Category]: ...
     def add(self, category: Category) -> None: ...
 
 
@@ -35,7 +36,7 @@ class TransactionRepository(Protocol):
         self,
         user_id: str,
         include_archived: bool,
-        tx_type: str | None,
+        tx_type: TransactionType | None,
         account_id: str | None,
         category_id: str | None,
         from_date: date | None,

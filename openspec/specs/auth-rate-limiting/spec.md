@@ -10,6 +10,7 @@ The backend MUST enforce deterministic rate limits for `POST /auth/login` and `P
 #### Scenario: Login requests are throttled at configured threshold
 - **WHEN** a client exceeds the configured login threshold within the active rate-limit window
 - **THEN** the API SHALL reject further login attempts with canonical `429` ProblemDetails until the window allows retry
+- **AND** automated backend regression coverage SHALL verify that blocking begins immediately after the configured Nth failed attempt sequence used by the limiter policy
 
 #### Scenario: Refresh requests are throttled at configured threshold
 - **WHEN** a client exceeds the configured refresh threshold within the active rate-limit window
@@ -56,4 +57,3 @@ The backend MUST apply an explicit trusted-proxy policy before using forwarded c
 #### Scenario: Missing trusted proxy configuration uses safe default
 - **WHEN** no trusted proxy is configured
 - **THEN** auth limiter identity SHALL default to direct peer connection identity.
-

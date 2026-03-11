@@ -1,6 +1,8 @@
 import os
 import ipaddress
 
+_DEFAULT_BOOTSTRAP_DEMO_PASSWORD = "demo-password-123"
+
 
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -144,10 +146,10 @@ class Settings:
         if self.auth_refresh_missing_origin_mode not in {"deny", "allow_trusted"}:
             raise ValueError("AUTH_REFRESH_MISSING_ORIGIN_MODE must be one of: deny, allow_trusted")
         self.bootstrap_allow_prod = _env_bool("BOOTSTRAP_ALLOW_PROD", False)
-        self.bootstrap_create_demo_user = _env_bool("BOOTSTRAP_CREATE_DEMO_USER", True)
+        self.bootstrap_create_demo_user = _env_bool("BOOTSTRAP_CREATE_DEMO_USER", False)
         self.bootstrap_seed_minimal_data = _env_bool("BOOTSTRAP_SEED_MINIMAL_DATA", True)
         self.bootstrap_demo_username = os.getenv("BOOTSTRAP_DEMO_USERNAME", "demo_user").strip() or "demo_user"
-        self.bootstrap_demo_password = os.getenv("BOOTSTRAP_DEMO_PASSWORD", "demo-password-123").strip()
+        self.bootstrap_demo_password = os.getenv("BOOTSTRAP_DEMO_PASSWORD", _DEFAULT_BOOTSTRAP_DEMO_PASSWORD).strip()
         self.bootstrap_demo_currency_code = os.getenv("BOOTSTRAP_DEMO_CURRENCY_CODE", "USD").strip().upper() or "USD"
         if self.bootstrap_create_demo_user and not self.bootstrap_demo_password:
             raise ValueError("BOOTSTRAP_DEMO_PASSWORD must be configured when BOOTSTRAP_CREATE_DEMO_USER is true")
@@ -179,6 +181,11 @@ class Settings:
             for var in ("REFRESH_COOKIE_NAME", "REFRESH_COOKIE_PATH", "REFRESH_COOKIE_SAMESITE", "REFRESH_COOKIE_SECURE"):
                 if os.getenv(var) is None:
                     raise ValueError(f"{var} must be explicitly configured in production")
+            if self.bootstrap_create_demo_user and self.bootstrap_demo_password == _DEFAULT_BOOTSTRAP_DEMO_PASSWORD:
+                raise ValueError(
+                    "BOOTSTRAP_DEMO_PASSWORD must be changed from default when "
+                    "BOOTSTRAP_CREATE_DEMO_USER is true in production"
+                )
 
     def safe_log_fields(self) -> dict[str, object]:
         db_scheme = self.database_url.split("://", 1)[0] if "://" in self.database_url else "unknown"

@@ -1,4 +1,3 @@
-from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -10,9 +9,11 @@ from app.core.audit import emit_audit_event
 from app.core.errors import APIError
 from app.core.responses import vendor_response
 from app.db import get_db
-from app.dependencies import get_current_user, utcnow
+from app.core.utils import utcnow
+from app.dependencies import get_current_user
 from app.errors import forbidden_error
 from app.models import Category, User
+from app.models.enums import CategoryType
 from app.repositories import SQLAlchemyCategoryRepository
 from app.routers._crud_common import apply_created_cursor, build_created_cursor_page, commit_or_conflict
 from app.schemas import CategoryCreate, CategoryOut, CategoryUpdate
@@ -30,7 +31,7 @@ def _owned_category_or_403(db: Session, user_id: str, category_id: str) -> Categ
 @router.get("")
 def list_categories(
     include_archived: bool = Query(default=False),
-    type: Literal["income", "expense"] | None = Query(default=None),
+    type: CategoryType | None = Query(default=None),
     cursor: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),

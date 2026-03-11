@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.money import validate_limit_cents, validate_user_currency_for_money
 from app.core.responses import vendor_response
 from app.db import get_db
-from app.dependencies import get_current_user, utcnow
+from app.core.utils import utcnow
+from app.dependencies import get_current_user
 from app.errors import (
     budget_duplicate_error,
     budget_month_invalid_error,

@@ -28,6 +28,10 @@ In production, startup validation MUST reject insecure runtime combinations.
 - **WHEN** refresh cookie uses `SameSite=None` with `Secure=false`
 - **THEN** startup SHALL fail with a clear configuration error
 
+#### Scenario: Production rejects default demo password when demo user is enabled
+- **WHEN** environment is production, `BOOTSTRAP_CREATE_DEMO_USER=true`, and `BOOTSTRAP_DEMO_PASSWORD` remains `demo-password-123`
+- **THEN** startup SHALL fail with a descriptive configuration error
+
 ### Requirement: Startup configuration logging does not leak secrets
 Startup logs MUST confirm configuration load without printing secret values.
 
@@ -119,7 +123,11 @@ Runtime configuration MUST prevent bootstrap seeding in production unless explic
 - **THEN** runtime MAY allow bootstrap execution
 
 ### Requirement: Bootstrap behavior is configurable
-Runtime configuration MUST control optional demo-user and minimal-data seed behavior.
+Runtime configuration MUST control optional demo-user and minimal-data seed behavior with secure defaults.
+
+#### Scenario: Demo user creation default is disabled
+- **WHEN** `BOOTSTRAP_CREATE_DEMO_USER` is not explicitly configured
+- **THEN** runtime SHALL default demo user creation to `false`
 
 #### Scenario: Demo user creation is flag-controlled
 - **WHEN** bootstrap is executed with demo-user flag enabled
@@ -136,4 +144,3 @@ The service MUST validate DB pool resilience runtime configuration at startup an
 - **WHEN** `DB_POOL_PRE_PING` and `DB_POOL_RECYCLE_SECONDS` are configured
 - **THEN** startup SHALL validate values
 - **AND** invalid recycle values SHALL fail startup with clear configuration errors
-

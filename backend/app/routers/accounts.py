@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.audit import emit_audit_event
 from app.core.responses import vendor_response
 from app.db import get_db
-from app.dependencies import get_current_user, utcnow
+from app.core.utils import utcnow
+from app.dependencies import get_current_user
 from app.core.errors import APIError
 from app.errors import forbidden_error
 from app.models import Account, User

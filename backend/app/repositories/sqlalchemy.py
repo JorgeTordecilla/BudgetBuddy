@@ -3,6 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.models.enums import CategoryType, TransactionType
 from app.models import Account, AuditEvent, Budget, Category, IncomeSource, RefreshToken, Transaction, User
 
 
@@ -63,7 +64,7 @@ class SQLAlchemyCategoryRepository:
     def get_owned(self, user_id: str, category_id: str) -> Category | None:
         return self.db.scalar(select(Category).where(and_(Category.id == category_id, Category.user_id == user_id)))
 
-    def list_for_user(self, user_id: str, include_archived: bool, category_type: str | None) -> list[Category]:
+    def list_for_user(self, user_id: str, include_archived: bool, category_type: CategoryType | None) -> list[Category]:
         stmt = select(Category).where(Category.user_id == user_id)
         if not include_archived:
             stmt = stmt.where(Category.archived_at.is_(None))
@@ -86,7 +87,7 @@ class SQLAlchemyTransactionRepository:
         self,
         user_id: str,
         include_archived: bool,
-        tx_type: str | None,
+        tx_type: TransactionType | None,
         account_id: str | None,
         category_id: str | None,
         from_date: date | None,

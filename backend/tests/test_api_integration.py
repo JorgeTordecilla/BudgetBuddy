@@ -20,7 +20,7 @@ from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
-from app.dependencies import utcnow
+from app.core.utils import utcnow
 from app.models import MonthlyRollover, RefreshToken, Transaction, User
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
@@ -477,9 +477,10 @@ def _archive_transaction_and_assert(client: TestClient, user_access: str, transa
     assert archive.status_code == 204
 
 
-def _make_access_token(sub) -> str:
+def _make_access_token(sub, *, nbf_offset_seconds: int = 0, exp_offset_seconds: int = 3600) -> str:
+    now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
-    payload = {"sub": sub, "exp": int(time.time()) + 3600, "iat": int(time.time())}
+    payload = {"sub": sub, "exp": now + exp_offset_seconds, "iat": now, "nbf": now + nbf_offset_seconds}
     header_part = base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
     payload_part = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("ascii").rstrip("=")
     secret = os.environ["JWT_SECRET"].encode("utf-8")
@@ -736,6 +737,16 @@ def test_access_token_with_non_string_subject_returns_401():
         _assert_unauthorized_problem(response)
 
 
+def test_access_token_with_future_nbf_returns_401():
+    with TestClient(app) as client:
+        token = _make_access_token("user-with-future-nbf", nbf_offset_seconds=3600)
+        response = client.get(
+            "/api/accounts",
+            headers={"accept": VENDOR, "authorization": f"Bearer {token}"},
+        )
+        _assert_unauthorized_problem(response)
+
+
 def test_problem_detail_sanitizes_token_like_content():
     with TestClient(app) as client:
         response = client.post(
@@ -852,6 +863,17 @@ def test_me_without_token_returns_canonical_401():
     with TestClient(app) as client:
         response = client.get("/api/me", headers={"accept": VENDOR})
         _assert_unauthorized_problem(response)
+
+
+def test_me_with_expired_access_token_returns_canonical_401():
+    with TestClient(app) as client:
+        expired_token = _make_access_token("expired-user", exp_offset_seconds=-60)
+        response = client.get(
+            "/api/me",
+            headers={"accept": VENDOR, "authorization": f"Bearer {expired_token}"},
+        )
+        _assert_unauthorized_problem(response)
+        _assert_request_id_header_present(response)
 
 
 def test_legacy_access_token_is_rejected():
@@ -3560,6 +3582,32 @@ def test_rollover_apply_requires_auth_and_income_category():
             headers=headers,
         )
         _assert_category_mismatch_problem(wrong_category)
+
+
+def test_rollover_invalid_month_values_return_canonical_400():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rollover-invalid-month-account")
+        income_category_id = _create_category(client, headers, "rollover-invalid-month-income", "income")
+
+        for invalid_month in ("2024-13", "marzo", ""):
+            preview = client.get(
+                f"/api/rollover/preview?month={invalid_month}",
+                headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+            )
+            _assert_invalid_date_range_problem(preview)
+
+            apply = client.post(
+                "/api/rollover/apply",
+                json={
+                    "source_month": invalid_month,
+                    "account_id": account_id,
+                    "category_id": income_category_id,
+                },
+                headers=headers,
+            )
+            _assert_invalid_date_range_problem(apply)
 
 
 def test_rollover_apply_concurrency_is_single_write_per_source_month():

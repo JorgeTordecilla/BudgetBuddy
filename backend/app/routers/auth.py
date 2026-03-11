@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 import logging
 from threading import Lock
 from weakref import WeakValueDictionary
@@ -15,6 +15,7 @@ from app.core.errors import APIError
 from app.core.network import resolve_rate_limit_client_ip
 from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limited
 from app.core.responses import vendor_response
+from app.core.utils import as_utc, utcnow
 from app.core.security import (
     clear_refresh_cookie,
     create_access_token,
@@ -24,7 +25,6 @@ from app.core.security import (
     set_refresh_cookie,
     verify_password,
 )
-from app.dependencies import utcnow
 from app.dependencies import get_current_user
 from app.db import get_db
 from app.errors import (
@@ -54,12 +54,6 @@ def _user_lock(user_id: str) -> Lock:
             lock = Lock()
             _USER_LOCKS[user_id] = lock
         return lock
-
-
-def _as_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
 
 
 def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
@@ -115,7 +109,7 @@ def _enforce_refresh_origin_policy(request: Request) -> None:
 
 
 def _is_expired(refresh_row: RefreshToken) -> bool:
-    return _as_utc(refresh_row.expires_at) < utcnow()
+    return as_utc(refresh_row.expires_at) < utcnow()
 
 
 def _raise_revoked_or_reuse(
@@ -247,12 +241,18 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
 
     token_hash = hash_refresh_token(refresh_token)
+    # Optimistic pre-check before acquiring the per-user lock.
+    # Most refresh requests are valid and uncontended, so this fast path avoids
+    # lock overhead when the token is already missing or invalid.
     refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
     if not refresh_row:
         raise unauthorized_error("Refresh token is invalid or expired")
 
     user_id = refresh_row.user_id
     with _user_lock(user_id):
+        # Re-fetch under lock to guard against refresh-token races.
+        # Another request may rotate or revoke this token between pre-check and
+        # lock acquisition, so we validate current DB state again.
         refresh_row = _refresh_read_or_503(db, lambda: refresh_repo.get_by_hash(token_hash), request=request)
         if not refresh_row:
             raise unauthorized_error("Refresh token is invalid or expired")

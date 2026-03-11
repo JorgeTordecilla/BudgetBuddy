@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import re
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, select
@@ -8,12 +9,14 @@ from sqlalchemy.orm import Session
 from app.core.errors import APIError
 from app.core.responses import vendor_response
 from app.db import get_db
-from app.dependencies import get_current_user, utcnow
+from app.core.utils import utcnow
+from app.dependencies import get_current_user
 from app.errors import category_type_mismatch_error, invalid_date_range_error, rollover_already_applied_error, rollover_no_surplus_error
 from app.models import Account, Category, IncomeSource, MonthlyRollover, Transaction, User
 from app.schemas import RolloverApplyOut, RolloverApplyRequest, RolloverPreviewOut
 
 router = APIRouter(prefix="/rollover", tags=["rollover"])
+_MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
 
 def _normalize_rollover_source(source: IncomeSource) -> IncomeSource:
@@ -25,9 +28,17 @@ def _normalize_rollover_source(source: IncomeSource) -> IncomeSource:
     return source
 
 
+def _normalize_month_value(month: str, *, field_name: str = "month") -> str:
+    value = month.strip()
+    if not _MONTH_RE.fullmatch(value):
+        raise invalid_date_range_error(f"{field_name} must be a valid YYYY-MM value")
+    return value
+
+
 def _month_bounds(month: str) -> tuple[date, date]:
-    year = int(month[:4])
-    month_num = int(month[5:7])
+    normalized = _normalize_month_value(month)
+    year = int(normalized[:4])
+    month_num = int(normalized[5:7])
     if month_num < 1 or month_num > 12:
         raise invalid_date_range_error("month must be a valid YYYY-MM value")
     start = date(year, month_num, 1)
@@ -39,8 +50,9 @@ def _month_bounds(month: str) -> tuple[date, date]:
 
 
 def _next_month_start(month: str) -> date:
-    year = int(month[:4])
-    month_num = int(month[5:7])
+    normalized = _normalize_month_value(month, field_name="source_month")
+    year = int(normalized[:4])
+    month_num = int(normalized[5:7])
     month_num += 1
     if month_num > 12:
         month_num = 1
@@ -123,10 +135,11 @@ def _get_or_create_rollover_income_source(db: Session, current_user: User) -> In
 
 @router.get("/preview")
 def rollover_preview(
-    month: str = Query(pattern=r"^\d{4}-\d{2}$"),
+    month: str = Query(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    month = _normalize_month_value(month)
     surplus = _compute_surplus_cents(db, current_user.id, month)
     applied = db.scalar(
         select(MonthlyRollover)
@@ -151,7 +164,7 @@ def rollover_apply(
     _owned_active_account_or_conflict(db, current_user.id, payload.account_id)
     _owned_active_income_category_or_conflict(db, current_user.id, payload.category_id)
 
-    source_month = payload.source_month
+    source_month = _normalize_month_value(payload.source_month, field_name="source_month")
     surplus = _compute_surplus_cents(db, current_user.id, source_month)
     if surplus <= 0:
         raise rollover_no_surplus_error("No positive surplus is available for source month")

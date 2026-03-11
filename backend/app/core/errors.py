@@ -70,6 +70,14 @@ def _is_amount_cents_validation_error(exc: RequestValidationError) -> bool:
     return False
 
 
+def _is_transaction_mood_validation_error(exc: RequestValidationError) -> bool:
+    for item in exc.errors():
+        loc = item.get("loc")
+        if isinstance(loc, (list, tuple)) and "mood" in loc:
+            return True
+    return False
+
+
 def _problem_response(
     status: int,
     title: str,
@@ -116,6 +124,19 @@ def register_exception_handlers(app) -> None:
             )
 
             return _problem_response(400, MONEY_AMOUNT_NOT_INTEGER_TITLE, "amount_cents must be an integer", request, MONEY_AMOUNT_NOT_INTEGER_TYPE)
+        if _is_transaction_mood_validation_error(exc):
+            from app.errors import (
+                TRANSACTION_MOOD_INVALID_TITLE,
+                TRANSACTION_MOOD_INVALID_TYPE,
+            )
+
+            return _problem_response(
+                422,
+                TRANSACTION_MOOD_INVALID_TITLE,
+                "mood must be one of: happy, neutral, sad, anxious, bored",
+                request,
+                TRANSACTION_MOOD_INVALID_TYPE,
+            )
         return _problem_response(400, "Invalid request", str(exc), request)
 
     @app.exception_handler(Exception)

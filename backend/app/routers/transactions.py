@@ -25,7 +25,8 @@ from app.core.rate_limit import InMemoryRateLimiter, RateLimiter, log_rate_limit
 from app.core.pagination import decode_cursor, encode_cursor, parse_date, parse_datetime
 from app.core.responses import vendor_response
 from app.db import SessionLocal, get_db
-from app.dependencies import get_current_user, utcnow
+from app.core.utils import utcnow
+from app.dependencies import get_current_user
 from app.errors import (
     account_archived_error,
     category_archived_error,
@@ -38,6 +39,7 @@ from app.errors import (
     transaction_mood_invalid_error,
 )
 from app.models import Account, Category, Transaction, User
+from app.models.enums import TransactionMood, TransactionType
 from app.repositories import (
     SQLAlchemyAccountRepository,
     SQLAlchemyCategoryRepository,
@@ -58,7 +60,7 @@ from app.schemas import (
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 _TRANSACTION_RATE_LIMITER: RateLimiter = InMemoryRateLimiter()
-_VALID_TRANSACTION_MOODS = {"happy", "neutral", "sad", "anxious", "bored"}
+_VALID_TRANSACTION_MOODS = {mood.value for mood in TransactionMood}
 _IMPORT_LOGGER = logging.getLogger("app.import_jobs")
 
 
@@ -124,7 +126,7 @@ def _validate_transaction_mood(payload: dict) -> None:
         raise transaction_mood_invalid_error("mood must be one of: happy, neutral, sad, anxious, bored")
 
 
-def _validate_money_rules(user: User, tx_type: Literal["income", "expense"], amount_cents: object) -> int:
+def _validate_money_rules(user: User, tx_type: TransactionType, amount_cents: object) -> int:
     validate_user_currency_for_money(user.currency_code)
     return validate_amount_cents(amount_cents, tx_type)
 
@@ -473,7 +475,7 @@ def _apply_list_filters(
     stmt,
     *,
     include_archived: bool,
-    type: Literal["income", "expense"] | None,
+    type: TransactionType | None,
     account_id: UUID | None,
     category_id: UUID | None,
     from_: date | None,
@@ -538,7 +540,7 @@ def _build_page(rows: list[Transaction], limit: int) -> tuple[list[Transaction],
 @router.get("")
 def list_transactions(
     include_archived: bool = Query(default=False),
-    type: Literal["income", "expense"] | None = Query(default=None),
+    type: TransactionType | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     category_id: UUID | None = Query(default=None),
     from_: date | None = Query(default=None, alias="from"),
@@ -669,7 +671,7 @@ def get_import_job_status(
 @router.get("/export")
 def export_transactions(
     request: Request,
-    type: Literal["income", "expense"] | None = Query(default=None),
+    type: TransactionType | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     category_id: UUID | None = Query(default=None),
     from_: date | None = Query(default=None, alias="from"),
@@ -728,7 +730,7 @@ def patch_transaction(
     previous_archived_at = row.archived_at
     data = payload.model_dump(exclude_unset=True)
     _validate_transaction_mood(data)
-    merged_type: Literal["income", "expense"] = data.get("type", row.type)
+    merged_type: TransactionType = data.get("type", row.type)
     merged_amount = data.get("amount_cents", row.amount_cents)
     _validate_money_rules(current_user, merged_type, merged_amount)
 
