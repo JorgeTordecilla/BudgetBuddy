@@ -17,6 +17,7 @@ from sqlalchemy.exc import OperationalError
 import app.routers.auth as auth_router
 import app.routers.savings as savings_router
 import app.main as app_main
+import app.core.utils as core_utils
 from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
 from app.core.security import hash_refresh_token
@@ -1072,6 +1073,13 @@ def test_refresh_without_origin_allowed_when_mode_is_allow_trusted(monkeypatch):
 
 def test_refresh_token_rotation_is_atomic_under_concurrency(monkeypatch):
     user_refresh: str = ""
+    fixed_now = utcnow().replace(microsecond=0)
+
+    class _FixedClock:
+        def now(self):
+            return fixed_now
+
+    monkeypatch.setattr(core_utils, "UTC_CLOCK", _FixedClock())
 
     with TestClient(app) as client:
         user = _register_user(client)
@@ -1168,12 +1176,13 @@ def test_refresh_returns_401_if_token_expires_during_rotation(monkeypatch):
         times = [base_now, base_now + timedelta(days=2), base_now + timedelta(days=2)]
         call_index = {"value": 0}
 
-        def fake_utcnow():
-            idx = call_index["value"]
-            call_index["value"] += 1
-            return times[idx] if idx < len(times) else times[-1]
+        class _Clock:
+            def now(self):
+                idx = call_index["value"]
+                call_index["value"] += 1
+                return times[idx] if idx < len(times) else times[-1]
 
-        monkeypatch.setattr(auth_router, "utcnow", fake_utcnow)
+        monkeypatch.setattr(core_utils, "UTC_CLOCK", _Clock())
 
         response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
         assert response.status_code == 401
@@ -1182,6 +1191,129 @@ def test_refresh_returns_401_if_token_expires_during_rotation(monkeypatch):
         assert body["type"] == UNAUTHORIZED_TYPE
         assert body["title"] == UNAUTHORIZED_TITLE
         assert body["status"] == 401
+
+
+def test_refresh_returns_401_when_expires_at_equals_request_snapshot(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        refresh_hash = hash_refresh_token(user["refresh"])
+        fixed_now = utcnow().replace(microsecond=0)
+
+        db = SessionLocal()
+        try:
+            row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+            row.expires_at = fixed_now
+            db.commit()
+        finally:
+            db.close()
+
+        class _FixedClock:
+            def now(self):
+                return fixed_now
+
+        monkeypatch.setattr(core_utils, "UTC_CLOCK", _FixedClock())
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        assert response.status_code == 401
+        _assert_unauthorized_problem(response)
+
+
+def test_refresh_reuse_uses_request_snapshot_even_if_repo_clock_jumps(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        assert first_refresh.status_code == 200
+        child_refresh = _refresh_cookie_from_response(first_refresh)
+
+        base_now = utcnow()
+        db = SessionLocal()
+        try:
+            parent_row = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_refresh_token(user["refresh"])).one()
+            parent_row.grace_until = base_now + timedelta(seconds=15)
+            db.commit()
+        finally:
+            db.close()
+
+        times = [base_now, base_now + timedelta(days=365)]
+        call_index = {"value": 0}
+
+        class _Clock:
+            def now(self):
+                idx = call_index["value"]
+                call_index["value"] += 1
+                return times[idx] if idx < len(times) else times[-1]
+
+        monkeypatch.setattr(core_utils, "UTC_CLOCK", _Clock())
+
+        second_refresh_same_token = client.post(
+            "/api/auth/refresh",
+            headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN),
+        )
+        assert second_refresh_same_token.status_code == 200
+        assert _refresh_cookie_from_response(second_refresh_same_token) == child_refresh
+
+
+def test_refresh_replay_at_grace_boundary_revokes_family(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        first_refresh = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        assert first_refresh.status_code == 200
+        parent_row = _refresh_row_by_plaintext_token(user["refresh"])
+        family_id = parent_row.family_id
+        assert family_id is not None
+
+        fixed_now = utcnow().replace(microsecond=0)
+        db = SessionLocal()
+        try:
+            row = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_refresh_token(user["refresh"])).one()
+            row.grace_until = fixed_now
+            db.commit()
+        finally:
+            db.close()
+
+        class _FixedClock:
+            def now(self):
+                return fixed_now
+
+        monkeypatch.setattr(core_utils, "UTC_CLOCK", _FixedClock())
+        replay = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"], origin=CORS_DEV_ORIGIN))
+        _assert_unauthorized_problem(replay)
+
+        db = SessionLocal()
+        try:
+            family_rows = db.query(RefreshToken).filter(RefreshToken.family_id == family_id).all()
+            assert family_rows
+            assert all(row.revoked_at is not None for row in family_rows)
+        finally:
+            db.close()
+
+
+def test_refresh_returns_401_if_token_expires_during_rotation_shared_clock(monkeypatch):
+    with TestClient(app) as client:
+        user = _register_user(client)
+        refresh_hash = hash_refresh_token(user["refresh"])
+
+        db = SessionLocal()
+        try:
+            row = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash).one()
+            row.expires_at = utcnow() + timedelta(minutes=5)
+            db.commit()
+        finally:
+            db.close()
+
+        base_now = utcnow()
+        times = [base_now + timedelta(days=2), base_now, base_now]
+        call_index = {"value": 0}
+
+        class _Clock:
+            def now(self):
+                idx = call_index["value"]
+                call_index["value"] += 1
+                return times[idx] if idx < len(times) else times[-1]
+
+        monkeypatch.setattr(core_utils, "UTC_CLOCK", _Clock())
+        response = client.post("/api/auth/refresh", headers=_refresh_headers(user["refresh"]))
+        assert response.status_code == 401
+        _assert_unauthorized_problem(response)
 
 
 def test_logout_revokes_active_refresh_tokens():

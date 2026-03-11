@@ -46,7 +46,7 @@ The backend MUST implement `POST /auth/login` validating credentials, returning 
 - **AND** credential verification against stored hash SHALL NOT execute.
 
 ### Requirement: Refresh token flow
-The backend MUST implement `POST /auth/refresh` with cookie-based refresh-token verification, token-family lineage checks, atomic rotation, grace-window replay handling, and deterministic compromise response behavior.
+The backend MUST implement `POST /auth/refresh` with cookie-based refresh-token verification, token-family lineage checks, atomic rotation, grace-window replay handling, deterministic compromise response behavior, and deterministic request-time evaluation.
 
 #### Scenario: Refresh success rotates parent token atomically
 - **WHEN** a valid active refresh token is provided via `bb_refresh` cookie and has not been rotated yet
@@ -71,6 +71,16 @@ The backend MUST implement `POST /auth/refresh` with cookie-based refresh-token 
 #### Scenario: Legacy row without family metadata uses fallback revocation
 - **WHEN** replay compromise is detected for a token whose `family_id` is null
 - **THEN** the system SHALL revoke all active refresh tokens for that token's `user_id` as legacy fallback behavior.
+
+#### Scenario: Refresh expiration and grace evaluation use one request-time snapshot
+- **WHEN** `POST /auth/refresh` evaluates token expiration and grace-window conditions for a request
+- **THEN** the flow SHALL use one request-time snapshot value for all temporal branch checks in that request
+- **AND** repeated unsynchronized time reads SHALL NOT change branch outcomes inside the same request.
+
+#### Scenario: Expiration and grace boundary behavior is deterministic
+- **WHEN** token timestamps are exactly at expiration or grace boundaries
+- **THEN** refresh behavior SHALL follow one documented comparison policy consistently across router and repository checks
+- **AND** tests SHALL verify boundary-equality outcomes deterministically.
 
 ### Requirement: Refresh token lineage metadata is persisted
 Refresh session state MUST persist lineage metadata needed for token-family replay protection.

@@ -1,10 +1,11 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session
 
 from app.models.enums import CategoryType, TransactionType
 from app.models import Account, AuditEvent, Budget, Category, IncomeSource, RefreshToken, Transaction, User
+from app.core.utils import utcnow
 
 
 class SQLAlchemyUserRepository:
@@ -32,7 +33,7 @@ class SQLAlchemyRefreshTokenRepository:
         self.db.add(refresh_token)
 
     def rotate_atomically(self, token_hash: str, grace_seconds: int) -> RefreshToken | None:
-        now = datetime.now(tz=UTC)
+        now = utcnow()
         stmt = (
             update(RefreshToken)
             .where(
@@ -60,7 +61,7 @@ class SQLAlchemyRefreshTokenRepository:
         return self.db.scalar(stmt)
 
     def revoke_family(self, family_id: str | None, *, user_id: str | None = None) -> int:
-        now = datetime.now(tz=UTC)
+        now = utcnow()
         if family_id:
             stmt = (
                 update(RefreshToken)

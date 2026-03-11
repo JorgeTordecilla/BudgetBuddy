@@ -15,6 +15,7 @@ from starlette.requests import Request
 
 import app.core.audit as audit_core
 import app.core.network as network_core
+import app.core.utils as core_utils
 import app.routers.auth as auth_router
 from app.core.config import Settings
 from app.core.errors import APIError, register_exception_handlers
@@ -211,6 +212,17 @@ def _make_legacy_access_token(sub: str, *, exp_offset: int = 3600) -> str:
 def test_legacy_access_token_is_rejected():
     with pytest.raises(ValueError):
         decode_access_token(_make_legacy_access_token("legacy-user"))
+
+
+def test_utcnow_uses_shared_clock_contract(monkeypatch):
+    fixed_now = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
+
+    class _FixedClock:
+        def now(self) -> datetime:
+            return fixed_now
+
+    monkeypatch.setattr(core_utils, "UTC_CLOCK", _FixedClock())
+    assert core_utils.utcnow() == fixed_now
 
 
 def test_dependency_guards_and_current_user_paths(monkeypatch):
@@ -1125,6 +1137,53 @@ def test_refresh_repository_rotate_atomically_is_idempotent_under_concurrency():
         assert row is not None
         assert row.rotated_at is not None
         assert row.grace_until is not None
+    finally:
+        verification_db.close()
+
+
+def test_refresh_repository_rotate_atomically_uses_shared_utc_clock(monkeypatch):
+    fixed_now = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+
+    class _FixedClock:
+        def now(self) -> datetime:
+            return fixed_now
+
+    monkeypatch.setattr(core_utils, "UTC_CLOCK", _FixedClock())
+
+    db = SessionLocal()
+    try:
+        user = User(username="refresh_repo_clock_user", password_hash="hash", currency_code="USD")
+        db.add(user)
+        db.flush()
+        refresh = RefreshToken(
+            user_id=user.id,
+            token_hash="rotate-clock",
+            family_id="family-clock",
+            parent_hash=None,
+            expires_at=fixed_now + timedelta(days=1),
+        )
+        db.add(refresh)
+        db.commit()
+    finally:
+        db.close()
+
+    local_db = SessionLocal()
+    try:
+        repo = SQLAlchemyRefreshTokenRepository(local_db)
+        rotated = repo.rotate_atomically("rotate-clock", 30)
+        local_db.commit()
+        assert rotated is not None
+    finally:
+        local_db.close()
+
+    verification_db = SessionLocal()
+    try:
+        row = verification_db.scalar(select(RefreshToken).where(RefreshToken.token_hash == "rotate-clock"))
+        assert row is not None
+        assert row.rotated_at is not None
+        assert row.grace_until is not None
+        assert core_utils.as_utc(row.rotated_at) == fixed_now
+        assert core_utils.as_utc(row.grace_until) == fixed_now + timedelta(seconds=30)
     finally:
         verification_db.close()
 

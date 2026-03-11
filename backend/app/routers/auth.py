@@ -98,8 +98,9 @@ def _enforce_refresh_origin_policy(request: Request) -> None:
     raise origin_not_allowed_error("Origin header is required for refresh in current mode")
 
 
-def _is_expired(refresh_row: RefreshToken) -> bool:
-    return as_utc(refresh_row.expires_at) < utcnow()
+def _is_expired(refresh_row: RefreshToken, *, now: datetime | None = None) -> bool:
+    now_utc = now or utcnow()
+    return as_utc(refresh_row.expires_at) <= now_utc
 
 
 def _derive_child_refresh_token(parent_token: str, parent_row: RefreshToken) -> str:
@@ -154,7 +155,8 @@ def _revoke_compromised_family(
 def _active_refresh_token_or_401(db: Session, refresh_token: str) -> RefreshToken:
     token_hash = hash_refresh_token(refresh_token)
     refresh_row = SQLAlchemyRefreshTokenRepository(db).get_by_hash(token_hash)
-    if not refresh_row or _is_expired(refresh_row):
+    now = utcnow()
+    if not refresh_row or _is_expired(refresh_row, now=now):
         raise unauthorized_error("Refresh token is invalid or expired")
     return refresh_row
 
@@ -213,12 +215,12 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
 
     token_hash = hash_refresh_token(refresh_token)
-    request_started_at = utcnow()
+    request_now = utcnow()
 
     try:
         rotated_parent = refresh_repo.rotate_atomically(token_hash, settings.refresh_grace_period_seconds)
         if rotated_parent is not None:
-            if as_utc(rotated_parent.expires_at) <= request_started_at or _is_expired(rotated_parent):
+            if _is_expired(rotated_parent, now=request_now):
                 db.rollback()
                 raise unauthorized_error("Refresh token is invalid or expired")
             user = user_repo.get_by_id(rotated_parent.user_id)
@@ -235,7 +237,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
                     parent_hash=rotated_parent.token_hash,
                     rotated_at=None,
                     grace_until=None,
-                    expires_at=utcnow() + timedelta(seconds=settings.refresh_token_ttl_seconds),
+                    expires_at=request_now + timedelta(seconds=settings.refresh_token_ttl_seconds),
                 )
             )
             db.commit()
@@ -244,18 +246,17 @@ def refresh(request: Request, db: Session = Depends(get_db)):
             return response
 
         current_row = refresh_repo.get_by_hash(token_hash)
-        if not current_row or _is_expired(current_row):
+        if not current_row or _is_expired(current_row, now=request_now):
             raise unauthorized_error("Refresh token is invalid or expired")
 
-        now = utcnow()
         within_grace = (
             current_row.rotated_at is not None
             and current_row.grace_until is not None
-            and as_utc(current_row.grace_until) > now
+            and as_utc(current_row.grace_until) > request_now
         )
         if within_grace:
             child = refresh_repo.get_child_of(token_hash)
-            if child and child.revoked_at is None and not _is_expired(child):
+            if child and child.revoked_at is None and not _is_expired(child, now=request_now):
                 user = user_repo.get_by_id(child.user_id)
                 if not user:
                     db.rollback()
