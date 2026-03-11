@@ -392,8 +392,8 @@ def test_in_memory_rate_limiter_passive_cleanup_evicts_expired_unlocked_buckets(
     clock = {"now": 0.0}
     limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
     limiter._checks = limiter._PURGE_EVERY - 1
-    limiter._buckets["expired"] = _BucketState(window_start=-120.0, count=1, lock_until=None)
-    limiter._buckets["active"] = _BucketState(window_start=0.0, count=1, lock_until=None)
+    limiter._buckets["expired"] = _BucketState(window_start=-120.0, window_seconds=60, count=1, lock_until=None)
+    limiter._buckets["active"] = _BucketState(window_start=0.0, window_seconds=60, count=1, lock_until=None)
 
     allowed, retry_after = limiter.check("current", limit=5, window_seconds=60)
 
@@ -407,13 +407,66 @@ def test_in_memory_rate_limiter_passive_cleanup_keeps_locked_buckets_until_expir
     clock = {"now": 30.0}
     limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
     limiter._checks = limiter._PURGE_EVERY - 1
-    limiter._buckets["locked"] = _BucketState(window_start=-120.0, count=2, lock_until=120.0)
+    limiter._buckets["locked"] = _BucketState(window_start=-120.0, window_seconds=60, count=2, lock_until=120.0)
 
     allowed, retry_after = limiter.check("current", limit=5, window_seconds=60)
 
     assert allowed is True
     assert retry_after is None
     assert "locked" in limiter._buckets
+
+
+def test_in_memory_rate_limiter_passive_cleanup_respects_bucket_window_seconds():
+    clock = {"now": 120.0}
+    limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
+    limiter._checks = limiter._PURGE_EVERY - 1
+    limiter._buckets["short-window"] = _BucketState(window_start=0.0, window_seconds=60, count=1, lock_until=None)
+    limiter._buckets["long-window"] = _BucketState(window_start=0.0, window_seconds=300, count=1, lock_until=None)
+
+    allowed, retry_after = limiter.check("trigger", limit=5, window_seconds=60)
+
+    assert allowed is True
+    assert retry_after is None
+    assert "short-window" not in limiter._buckets
+    assert "long-window" in limiter._buckets
+
+
+def test_in_memory_rate_limiter_active_bucket_keeps_stored_window_until_rollover():
+    clock = {"now": 0.0}
+    limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
+
+    allowed, retry_after = limiter.check("user", limit=1, window_seconds=60)
+
+    assert allowed is True
+    assert retry_after is None
+    assert limiter._buckets["user"].window_seconds == 60
+
+    clock["now"] = 30.0
+    allowed, retry_after = limiter.check("user", limit=1, window_seconds=300)
+
+    assert allowed is False
+    assert retry_after == 30
+    assert limiter._buckets["user"].window_seconds == 60
+
+
+def test_in_memory_rate_limiter_expired_bucket_adopts_new_window_on_reset():
+    clock = {"now": 0.0}
+    limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
+
+    allowed, retry_after = limiter.check("user", limit=1, window_seconds=60)
+
+    assert allowed is True
+    assert retry_after is None
+
+    clock["now"] = 61.0
+    allowed, retry_after = limiter.check("user", limit=2, window_seconds=300)
+
+    assert allowed is True
+    assert retry_after is None
+    state = limiter._buckets["user"]
+    assert state.window_start == 61.0
+    assert state.window_seconds == 300
+    assert state.count == 1
 
 
 def test_settings_rejects_invalid_db_pool_recycle_seconds(monkeypatch):

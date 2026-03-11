@@ -14,6 +14,7 @@ _LOGGER = logging.getLogger("app.rate_limit")
 @dataclass
 class _BucketState:
     window_start: float
+    window_seconds: int
     count: int
     lock_until: float | None = None
 
@@ -38,15 +39,16 @@ class InMemoryRateLimiter(RateLimiter):
         self._buckets: dict[str, _BucketState] = {}
         self._checks = 0
 
-    def _is_bucket_inactive(self, state: _BucketState, now: float, *, window_seconds: int) -> bool:
-        window_expired = now >= state.window_start + window_seconds
+    def _window_end(self, state: _BucketState) -> float:
+        return state.window_start + state.window_seconds
+
+    def _is_bucket_inactive(self, state: _BucketState, now: float) -> bool:
+        window_expired = now >= self._window_end(state)
         lock_inactive = state.lock_until is None or now >= state.lock_until
         return window_expired and lock_inactive
 
-    def _purge_inactive_buckets(self, now: float, *, window_seconds: int) -> None:
-        inactive_keys = [
-            key for key, state in self._buckets.items() if self._is_bucket_inactive(state, now, window_seconds=window_seconds)
-        ]
+    def _purge_inactive_buckets(self, now: float) -> None:
+        inactive_keys = [key for key, state in self._buckets.items() if self._is_bucket_inactive(state, now)]
         for key in inactive_keys:
             self._buckets.pop(key, None)
 
@@ -62,23 +64,24 @@ class InMemoryRateLimiter(RateLimiter):
         with self._lock:
             self._checks += 1
             if self._checks % self._PURGE_EVERY == 0:
-                self._purge_inactive_buckets(now, window_seconds=window_seconds)
+                self._purge_inactive_buckets(now)
 
             state = self._buckets.get(key)
             if state is None:
-                state = _BucketState(window_start=now, count=0)
+                state = _BucketState(window_start=now, window_seconds=window_seconds, count=0)
                 self._buckets[key] = state
 
             if state.lock_until is not None and now < state.lock_until:
                 return False, max(1, math.ceil(state.lock_until - now))
 
-            window_end = state.window_start + window_seconds
+            window_end = self._window_end(state)
             if now >= window_end:
                 state.window_start = now
+                state.window_seconds = window_seconds
                 state.count = 0
                 if state.lock_until is not None and now >= state.lock_until:
                     state.lock_until = None
-                window_end = state.window_start + window_seconds
+                window_end = self._window_end(state)
 
             if state.count >= limit:
                 if lock_seconds > 0:
