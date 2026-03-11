@@ -3691,6 +3691,7 @@ def test_analytics_by_month_includes_rollover_in_from_prior_month():
             headers=headers,
         )
         assert by_month.status_code == 200
+        assert by_month.headers["content-type"].startswith(VENDOR)
         rows = {item["month"]: item for item in by_month.json()["items"]}
         assert rows["2026-02"]["rollover_in_cents"] == 6000
         assert rows["2026-03"]["rollover_in_cents"] == 0
@@ -3700,9 +3701,52 @@ def test_analytics_by_month_includes_rollover_in_from_prior_month():
             headers=headers,
         )
         assert january_only.status_code == 200
+        assert january_only.headers["content-type"].startswith(VENDOR)
         january_item = january_only.json()["items"][0]
         assert january_item["rollover_in_cents"] == 0
         assert isinstance(january_item["rollover_in_cents"], int)
+
+
+def test_analytics_by_month_rollover_uses_immediate_prior_calendar_month_when_sparse():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "rollover-sparse-account")
+        income_category_id = _create_category(client, headers, "rollover-sparse-income", "income")
+        expense_category_id = _create_category(client, headers, "rollover-sparse-expense", "expense")
+
+        for payload in (
+            {"type": "income", "category_id": income_category_id, "amount_cents": 9000, "date": "2026-01-10"},
+            {"type": "expense", "category_id": expense_category_id, "amount_cents": 2000, "date": "2026-01-11"},
+            {"type": "income", "category_id": income_category_id, "amount_cents": 5000, "date": "2026-03-10"},
+            {"type": "expense", "category_id": expense_category_id, "amount_cents": 1000, "date": "2026-03-11"},
+        ):
+            response = client.post(
+                "/api/transactions",
+                json={
+                    "type": payload["type"],
+                    "account_id": account_id,
+                    "category_id": payload["category_id"],
+                    "amount_cents": payload["amount_cents"],
+                    "date": payload["date"],
+                    "merchant": "Acme",
+                    "note": "rollover-sparse",
+                },
+                headers=headers,
+            )
+            assert response.status_code == 201
+
+        march_only = client.get(
+            "/api/analytics/by-month?from=2026-03-01&to=2026-03-31",
+            headers=headers,
+        )
+        assert march_only.status_code == 200
+        assert march_only.headers["content-type"].startswith(VENDOR)
+        item = march_only.json()["items"][0]
+        # February has no transactions, so the immediate previous calendar month net is zero.
+        assert item["month"] == "2026-03"
+        assert item["rollover_in_cents"] == 0
+        assert isinstance(item["rollover_in_cents"], int)
 
 
 def test_rollover_preview_and_apply_flow_with_idempotency():

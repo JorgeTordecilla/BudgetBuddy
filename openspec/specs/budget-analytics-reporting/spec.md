@@ -2,7 +2,7 @@
 Define analytics and reporting contract expectations, including deterministic aggregation and archive-policy behavior.
 ## Requirements
 ### Requirement: Monthly analytics aggregation
-The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return deterministic totals grouped by `YYYY-MM`, including additive expected-vs-actual income fields.
+The backend MUST implement `GET /analytics/by-month` with required `from` and `to` parameters and return deterministic totals grouped by `YYYY-MM`, including additive expected-vs-actual income fields, while deriving monthly and rollover values from one extended-range monthly aggregation source.
 
 #### Scenario: Monthly analytics success
 - **WHEN** a valid authenticated request includes valid `from` and `to` dates
@@ -44,6 +44,19 @@ The backend MUST implement `GET /analytics/by-month` with required `from` and `t
 - **WHEN** `budget_limit_cents` is computed for `GET /analytics/by-month`
 - **THEN** the total SHALL include only budget limits linked to categories of type `expense`
 - **AND** budget limits linked to categories of type `income` SHALL be excluded.
+
+#### Scenario: Monthly analytics uses one extended-range transaction aggregation source
+- **WHEN** `GET /analytics/by-month` computes both monthly totals and rollover context
+- **THEN** the system SHALL derive both outputs from one monthly aggregate source over `prior_month_start..to`
+- **AND** the implementation SHALL NOT require a second independent transaction aggregation over the same extended range.
+
+#### Scenario: First returned month rollover remains derived from immediate prior calendar month
+- **WHEN** the first returned month has no prior month inside the selected response range
+- **THEN** `rollover_in_cents` SHALL still be computed from the immediate previous calendar month outside the displayed range.
+
+#### Scenario: Sparse month histories preserve rollover semantics
+- **WHEN** one or more intermediate calendar months have no transaction rows
+- **THEN** rollover derivation SHALL remain deterministic and SHALL use the immediate previous calendar month semantics defined by contract.
 
 ### Requirement: Category analytics aggregation
 The backend MUST implement `GET /analytics/by-category` with required `from` and `to` parameters and return totals grouped by category, computed deterministically using integer cents only, with budget comparison fields when matching monthly category budgets exist in range.

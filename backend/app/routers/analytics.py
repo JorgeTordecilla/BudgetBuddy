@@ -47,8 +47,8 @@ def analytics_by_month(
     expense_expr = func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount_cents), else_=0)), 0)
     from_month = f"{from_.year:04d}-{from_.month:02d}"
     to_month = f"{to.year:04d}-{to.month:02d}"
-
-    tx_stmt = (
+    prior_month_start = date(from_.year - 1, 12, 1) if from_.month == 1 else date(from_.year, from_.month - 1, 1)
+    monthly_stmt = (
         select(
             month_expr.label("month"),
             income_expr.label("income_total_cents"),
@@ -56,11 +56,10 @@ def analytics_by_month(
         )
         .where(Transaction.user_id == current_user.id)
         .where(Transaction.archived_at.is_(None))
-        .where(Transaction.date >= from_)
+        .where(Transaction.date >= prior_month_start)
         .where(Transaction.date <= to)
         .group_by(month_expr)
     )
-    tx_subq = tx_stmt.subquery()
 
     budget_stmt = (
         select(
@@ -75,35 +74,12 @@ def analytics_by_month(
         .where(Budget.month <= to_month)
         .group_by(Budget.month)
     )
-    budget_subq = budget_stmt.subquery()
 
-    stmt = (
-        select(
-            tx_subq.c.month,
-            tx_subq.c.income_total_cents,
-            tx_subq.c.expense_total_cents,
-            func.coalesce(budget_subq.c.budget_limit_cents, 0).label("budget_limit_cents"),
-        )
-        .select_from(tx_subq)
-        .outerjoin(budget_subq, budget_subq.c.month == tx_subq.c.month)
-        .order_by(tx_subq.c.month)
-    )
-    prior_month_start = date(from_.year - 1, 12, 1) if from_.month == 1 else date(from_.year, from_.month - 1, 1)
-    net_stmt = (
-        select(
-            month_expr.label("month"),
-            income_expr.label("income_total_cents"),
-            expense_expr.label("expense_total_cents"),
-        )
-        .where(Transaction.user_id == current_user.id)
-        .where(Transaction.archived_at.is_(None))
-        .where(Transaction.date >= prior_month_start)
-        .where(Transaction.date <= to)
-        .group_by(month_expr)
-    )
+    monthly_rows = list(db.execute(monthly_stmt))
+    budget_by_month = {row.month: int(row.budget_limit_cents) for row in db.execute(budget_stmt)}
     net_by_month = {
         row.month: max(0, int(row.income_total_cents) - int(row.expense_total_cents))
-        for row in db.execute(net_stmt)
+        for row in monthly_rows
     }
     expected_income_total = int(
         db.scalar(
@@ -124,9 +100,10 @@ def analytics_by_month(
             "actual_income_cents": int(row.income_total_cents),
             "rollover_in_cents": int(net_by_month.get(_previous_month(row.month), 0)),
             "budget_spent_cents": int(row.expense_total_cents),
-            "budget_limit_cents": int(row.budget_limit_cents),
+            "budget_limit_cents": int(budget_by_month.get(row.month, 0)),
         }
-        for row in db.execute(stmt)
+        for row in sorted(monthly_rows, key=lambda current: current.month)
+        if from_month <= row.month <= to_month
     ]
     return vendor_response({"items": items})
 
