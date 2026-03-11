@@ -5,9 +5,9 @@ import csv
 import io
 from collections import deque
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from threading import Condition, Lock, Thread
-from typing import Iterator, Literal
+from typing import Callable, Iterator, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
@@ -231,17 +231,39 @@ class _ImportJobRecord:
     error_message: str | None = None
 
 
+@dataclass
+class _IdempotencyRecord:
+    digest: str
+    job_id: str
+    created_at: datetime
+
+
 class _ImportJobManager:
-    def __init__(self, *, per_user_limit: int, queue_limit: int, worker_count: int) -> None:
+    def __init__(
+        self,
+        *,
+        per_user_limit: int,
+        queue_limit: int,
+        worker_count: int,
+        terminal_ttl_seconds: int,
+        idempotency_ttl_seconds: int,
+        retained_terminal_cap: int,
+        now_fn: Callable[[], datetime] = utcnow,
+    ) -> None:
         self._per_user_limit = max(1, per_user_limit)
         self._queue_limit = max(1, queue_limit)
         self._worker_count = max(0, worker_count)
+        self._terminal_ttl_seconds = max(1, terminal_ttl_seconds)
+        self._idempotency_ttl_seconds = max(1, idempotency_ttl_seconds)
+        self._retained_terminal_cap = max(1, retained_terminal_cap)
+        self._now = now_fn
         self._lock = Lock()
         self._condition = Condition(self._lock)
         self._jobs: dict[str, _ImportJobRecord] = {}
         self._queue: deque[str] = deque()
         self._active_per_user: dict[str, int] = {}
-        self._idempotency: dict[tuple[str, str], tuple[str, str]] = {}
+        self._idempotency: dict[tuple[str, str], _IdempotencyRecord] = {}
+        self._idempotency_by_job: dict[str, set[tuple[str, str]]] = {}
         self._running = 0
         self._workers_started = False
 
@@ -258,6 +280,95 @@ class _ImportJobManager:
         raw = json.dumps(payload.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+    def _is_terminal(self, job: _ImportJobRecord) -> bool:
+        return job.status in {"completed", "failed"} and job.completed_at is not None
+
+    def _remove_idempotency_ref_locked(self, key: tuple[str, str]) -> bool:
+        ref = self._idempotency.pop(key, None)
+        if ref is None:
+            return False
+        refs = self._idempotency_by_job.get(ref.job_id)
+        if refs is not None:
+            refs.discard(key)
+            if not refs:
+                self._idempotency_by_job.pop(ref.job_id, None)
+        return True
+
+    def _remove_job_locked(self, job_id: str) -> tuple[bool, int]:
+        removed_job = self._jobs.pop(job_id, None)
+        if removed_job is None:
+            return False, 0
+        idempotency_keys = self._idempotency_by_job.pop(job_id, set())
+        removed_idempotency = 0
+        for key in idempotency_keys:
+            if key in self._idempotency:
+                self._idempotency.pop(key, None)
+                removed_idempotency += 1
+        return True, removed_idempotency
+
+    def _cleanup_locked(self, *, now: datetime | None = None) -> None:
+        current = now or self._now()
+        terminal_cutoff = current - timedelta(seconds=self._terminal_ttl_seconds)
+        idempotency_cutoff = current - timedelta(seconds=self._idempotency_ttl_seconds)
+
+        # Drop stale queue entries (removed, running, or terminal jobs should never remain queued).
+        if self._queue:
+            self._queue = deque(
+                job_id
+                for job_id in self._queue
+                if (job := self._jobs.get(job_id)) is not None and job.status == "queued"
+            )
+
+        jobs_evicted = 0
+        idempotency_evicted = 0
+
+        expired_job_ids = [
+            job_id
+            for job_id, job in self._jobs.items()
+            if self._is_terminal(job) and job.completed_at is not None and job.completed_at <= terminal_cutoff
+        ]
+        for job_id in expired_job_ids:
+            removed, removed_refs = self._remove_job_locked(job_id)
+            if removed:
+                jobs_evicted += 1
+            idempotency_evicted += removed_refs
+
+        terminal_jobs = [job for job in self._jobs.values() if self._is_terminal(job)]
+        overflow = len(terminal_jobs) - self._retained_terminal_cap
+        if overflow > 0:
+            terminal_jobs.sort(
+                key=lambda job: (
+                    job.completed_at or job.created_at,
+                    job.created_at,
+                    job.job_id,
+                )
+            )
+            for job in terminal_jobs[:overflow]:
+                removed, removed_refs = self._remove_job_locked(job.job_id)
+                if removed:
+                    jobs_evicted += 1
+                idempotency_evicted += removed_refs
+
+        stale_idempotency_keys = [
+            key
+            for key, ref in self._idempotency.items()
+            if ref.created_at <= idempotency_cutoff or ref.job_id not in self._jobs
+        ]
+        for key in stale_idempotency_keys:
+            if self._remove_idempotency_ref_locked(key):
+                idempotency_evicted += 1
+
+        if jobs_evicted or idempotency_evicted:
+            _IMPORT_LOGGER.info(
+                "event=import_job_cleanup jobs_evicted=%s idempotency_evicted=%s retained_jobs=%s retained_idempotency=%s queue_depth=%s running=%s",
+                jobs_evicted,
+                idempotency_evicted,
+                len(self._jobs),
+                len(self._idempotency),
+                len(self._queue),
+                self._running,
+            )
+
     def submit(
         self,
         *,
@@ -270,19 +381,22 @@ class _ImportJobManager:
         payload_digest = self._payload_digest(payload_copy)
 
         with self._condition:
+            now = self._now()
+            self._cleanup_locked(now=now)
             if normalized_key:
-                idempotency_ref = self._idempotency.get((user_id, normalized_key))
+                lookup_key = (user_id, normalized_key)
+                idempotency_ref = self._idempotency.get(lookup_key)
                 if idempotency_ref:
-                    known_digest, known_job_id = idempotency_ref
-                    if known_digest != payload_digest:
+                    if idempotency_ref.digest != payload_digest:
                         raise APIError(
                             status=409,
                             title="Conflict",
                             detail="Idempotency-Key was reused with a different payload",
                         )
-                    existing = self._jobs.get(known_job_id)
+                    existing = self._jobs.get(idempotency_ref.job_id)
                     if existing is not None:
                         return existing, True
+                    self._remove_idempotency_ref_locked(lookup_key)
 
             if self._active_per_user.get(user_id, 0) >= self._per_user_limit:
                 _IMPORT_LOGGER.warning(
@@ -307,13 +421,19 @@ class _ImportJobManager:
                 user_id=user_id,
                 payload=payload_copy,
                 status="queued",
-                created_at=utcnow(),
+                created_at=now,
             )
             self._jobs[job.job_id] = job
             self._queue.append(job.job_id)
             self._active_per_user[user_id] = self._active_per_user.get(user_id, 0) + 1
             if normalized_key:
-                self._idempotency[(user_id, normalized_key)] = (payload_digest, job.job_id)
+                idempotency_key_ref = (user_id, normalized_key)
+                self._idempotency[idempotency_key_ref] = _IdempotencyRecord(
+                    digest=payload_digest,
+                    job_id=job.job_id,
+                    created_at=now,
+                )
+                self._idempotency_by_job.setdefault(job.job_id, set()).add(idempotency_key_ref)
             self._condition.notify()
 
             _IMPORT_LOGGER.info(
@@ -328,6 +448,7 @@ class _ImportJobManager:
 
     def get_for_user(self, *, user_id: str, job_id: str) -> _ImportJobRecord | None:
         with self._condition:
+            self._cleanup_locked()
             job = self._jobs.get(job_id)
             if job is None or job.user_id != user_id:
                 return None
@@ -336,14 +457,16 @@ class _ImportJobManager:
     def _worker_loop(self) -> None:
         while True:
             with self._condition:
+                self._cleanup_locked()
                 while not self._queue:
                     self._condition.wait()
+                    self._cleanup_locked()
                 job_id = self._queue.popleft()
                 job = self._jobs.get(job_id)
                 if job is None:
                     continue
                 job.status = "running"
-                job.started_at = utcnow()
+                job.started_at = self._now()
                 self._running += 1
             self._process_job(job_id)
 
@@ -366,7 +489,7 @@ class _ImportJobManager:
                 current = self._jobs.get(job_id)
                 if current is not None:
                     current.status = "completed"
-                    current.completed_at = utcnow()
+                    current.completed_at = self._now()
                     current.result = result
                     current.error_message = None
         except Exception as exc:
@@ -378,7 +501,7 @@ class _ImportJobManager:
                 current = self._jobs.get(job_id)
                 if current is not None:
                     current.status = "failed"
-                    current.completed_at = utcnow()
+                    current.completed_at = self._now()
                     current.error_message = message
         finally:
             with self._condition:
@@ -398,6 +521,7 @@ class _ImportJobManager:
                         max(0, self._running - 1),
                     )
                 self._running = max(0, self._running - 1)
+                self._cleanup_locked()
                 self._condition.notify_all()
 
 
@@ -405,6 +529,9 @@ _IMPORT_JOB_MANAGER = _ImportJobManager(
     per_user_limit=settings.transactions_import_async_per_user_limit,
     queue_limit=settings.transactions_import_async_queue_limit,
     worker_count=settings.transactions_import_async_worker_count,
+    terminal_ttl_seconds=settings.transactions_import_async_terminal_ttl_seconds,
+    idempotency_ttl_seconds=settings.transactions_import_async_idempotency_ttl_seconds,
+    retained_terminal_cap=settings.transactions_import_async_retained_terminal_cap,
 )
 
 

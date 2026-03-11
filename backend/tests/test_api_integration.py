@@ -7,7 +7,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
@@ -1514,6 +1514,10 @@ def _configure_async_import_jobs_for_test(
     per_user_limit: int,
     queue_limit: int,
     worker_count: int,
+    terminal_ttl_seconds: int = 3600,
+    idempotency_ttl_seconds: int = 3600,
+    retained_terminal_cap: int = 5000,
+    now_fn=None,
 ):
     import app.routers.transactions as transactions_router
 
@@ -1521,6 +1525,10 @@ def _configure_async_import_jobs_for_test(
         per_user_limit=per_user_limit,
         queue_limit=queue_limit,
         worker_count=worker_count,
+        terminal_ttl_seconds=terminal_ttl_seconds,
+        idempotency_ttl_seconds=idempotency_ttl_seconds,
+        retained_terminal_cap=retained_terminal_cap,
+        now_fn=now_fn or utcnow,
     )
     monkeypatch.setattr(transactions_router, "_IMPORT_JOB_MANAGER", manager)
 
@@ -4379,6 +4387,234 @@ def test_transactions_import_jobs_emit_rejection_logs(monkeypatch, caplog):
 
     messages = [record.getMessage() for record in caplog.records if record.name == "app.import_jobs"]
     assert any("event=import_job_rejected" in message for message in messages)
+
+
+def test_transactions_import_jobs_terminal_records_are_evicted_after_ttl(monkeypatch):
+    import app.routers.transactions as transactions_router
+
+    class _MutableClock:
+        def __init__(self):
+            self.current = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
+
+        def now(self):
+            return self.current
+
+        def advance(self, *, seconds: int):
+            self.current += timedelta(seconds=seconds)
+
+    clock = _MutableClock()
+    _configure_async_import_jobs_for_test(
+        monkeypatch,
+        per_user_limit=4,
+        queue_limit=10,
+        worker_count=0,
+        terminal_ttl_seconds=2,
+        idempotency_ttl_seconds=2,
+        retained_terminal_cap=10,
+        now_fn=clock.now,
+    )
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "job-ttl-account")
+        category_id = _create_category(client, headers, "job-ttl-income", "income")
+
+        submit = client.post(
+            "/api/transactions/import/jobs",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": category_id,
+                        "amount_cents": 5000,
+                        "date": "2026-11-07",
+                    }
+                ],
+            },
+            headers=headers,
+        )
+        assert submit.status_code == 202
+        assert submit.headers["content-type"].startswith(VENDOR)
+        job_id = submit.json()["job_id"]
+
+        transactions_router._IMPORT_JOB_MANAGER._process_job(job_id)
+        retained = client.get(
+            f"/api/transactions/import/jobs/{job_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert retained.status_code == 200
+        assert retained.headers["content-type"].startswith(VENDOR)
+        assert retained.json()["status"] == "completed"
+
+        clock.advance(seconds=3)
+        evicted = client.get(
+            f"/api/transactions/import/jobs/{job_id}",
+            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+        )
+        assert evicted.status_code == 403
+        assert evicted.headers["content-type"].startswith(PROBLEM)
+        body = evicted.json()
+        assert body["type"] == FORBIDDEN_TYPE
+        assert body["title"] == FORBIDDEN_TITLE
+
+        manager = transactions_router._IMPORT_JOB_MANAGER
+        assert job_id not in manager._jobs
+
+
+def test_transactions_import_jobs_idempotency_ttl_boundaries(monkeypatch):
+    import app.routers.transactions as transactions_router
+
+    class _MutableClock:
+        def __init__(self):
+            self.current = datetime(2026, 11, 1, 13, 0, tzinfo=timezone.utc)
+
+        def now(self):
+            return self.current
+
+        def advance(self, *, seconds: int):
+            self.current += timedelta(seconds=seconds)
+
+    clock = _MutableClock()
+    _configure_async_import_jobs_for_test(
+        monkeypatch,
+        per_user_limit=10,
+        queue_limit=20,
+        worker_count=0,
+        terminal_ttl_seconds=120,
+        idempotency_ttl_seconds=10,
+        retained_terminal_cap=20,
+        now_fn=clock.now,
+    )
+
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "job-idem-ttl-account")
+        category_id = _create_category(client, headers, "job-idem-ttl-income", "income")
+
+        payload = {
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "income",
+                    "account_id": account_id,
+                    "category_id": category_id,
+                    "amount_cents": 5000,
+                    "date": "2026-11-08",
+                }
+            ],
+        }
+        headers_with_idem = {**headers, "Idempotency-Key": "idem-ttl"}
+
+        first = client.post("/api/transactions/import/jobs", json=payload, headers=headers_with_idem)
+        second = client.post("/api/transactions/import/jobs", json=payload, headers=headers_with_idem)
+        assert first.status_code == 202
+        assert second.status_code == 202
+        assert first.headers["content-type"].startswith(VENDOR)
+        assert second.headers["content-type"].startswith(VENDOR)
+        first_body = first.json()
+        second_body = second.json()
+        assert first_body["idempotency_reused"] is False
+        assert second_body["idempotency_reused"] is True
+        assert first_body["job_id"] == second_body["job_id"]
+
+        mismatch = client.post(
+            "/api/transactions/import/jobs",
+            json={
+                "mode": "partial",
+                "items": [
+                    {
+                        "type": "income",
+                        "account_id": account_id,
+                        "category_id": category_id,
+                        "amount_cents": 9999,
+                        "date": "2026-11-08",
+                    }
+                ],
+            },
+            headers=headers_with_idem,
+        )
+        assert mismatch.status_code == 409
+        assert mismatch.headers["content-type"].startswith(PROBLEM)
+
+        clock.advance(seconds=11)
+
+        fresh = client.post("/api/transactions/import/jobs", json=payload, headers=headers_with_idem)
+        assert fresh.status_code == 202
+        assert fresh.headers["content-type"].startswith(VENDOR)
+        assert fresh.json()["idempotency_reused"] is False
+        assert fresh.json()["job_id"] != first_body["job_id"]
+
+        manager = transactions_router._IMPORT_JOB_MANAGER
+        assert len(manager._idempotency) <= 1
+
+
+def test_transactions_import_jobs_retention_cap_bounds_memory_under_burst(monkeypatch, caplog):
+    import app.routers.transactions as transactions_router
+
+    class _MutableClock:
+        def __init__(self):
+            self.current = datetime(2026, 11, 1, 14, 0, tzinfo=timezone.utc)
+
+        def now(self):
+            return self.current
+
+        def advance(self, *, seconds: int):
+            self.current += timedelta(seconds=seconds)
+
+    clock = _MutableClock()
+    _configure_async_import_jobs_for_test(
+        monkeypatch,
+        per_user_limit=20,
+        queue_limit=100,
+        worker_count=0,
+        terminal_ttl_seconds=300,
+        idempotency_ttl_seconds=300,
+        retained_terminal_cap=2,
+        now_fn=clock.now,
+    )
+
+    with TestClient(app) as client, caplog.at_level(logging.INFO, logger="app.import_jobs"):
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+        account_id = _create_account(client, headers, "job-cap-account")
+        category_id = _create_category(client, headers, "job-cap-income", "income")
+
+        job_ids: list[str] = []
+        for day in range(9, 15):
+            submitted = client.post(
+                "/api/transactions/import/jobs",
+                json={
+                    "mode": "partial",
+                    "items": [
+                        {
+                            "type": "income",
+                            "account_id": account_id,
+                            "category_id": category_id,
+                            "amount_cents": 5000 + day,
+                            "date": f"2026-11-{day:02d}",
+                        }
+                    ],
+                },
+                headers=headers,
+            )
+            assert submitted.status_code == 202
+            assert submitted.headers["content-type"].startswith(VENDOR)
+            job_id = submitted.json()["job_id"]
+            job_ids.append(job_id)
+            transactions_router._IMPORT_JOB_MANAGER._process_job(job_id)
+            clock.advance(seconds=1)
+
+        manager = transactions_router._IMPORT_JOB_MANAGER
+        retained_terminal = [job for job in manager._jobs.values() if job.status in {"completed", "failed"}]
+        assert len(retained_terminal) <= 2
+        assert len(manager._jobs) <= 2
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "app.import_jobs"]
+    assert any("event=import_job_cleanup" in message for message in messages)
 
 
 def test_transactions_export_returns_csv_headers_and_row_count():

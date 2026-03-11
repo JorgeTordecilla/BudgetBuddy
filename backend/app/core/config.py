@@ -65,6 +65,9 @@ class Settings:
     transactions_import_async_per_user_limit: int
     transactions_import_async_queue_limit: int
     transactions_import_async_worker_count: int
+    transactions_import_async_terminal_ttl_seconds: int
+    transactions_import_async_idempotency_ttl_seconds: int
+    transactions_import_async_retained_terminal_cap: int
     auth_rate_limit_window_seconds: int
     auth_rate_limit_lock_enabled: bool
     auth_rate_limit_lock_seconds: int
@@ -136,6 +139,18 @@ class Settings:
         self.transactions_import_async_worker_count = _env_positive_int(
             "TRANSACTIONS_IMPORT_ASYNC_WORKER_COUNT",
             "2",
+        )
+        self.transactions_import_async_terminal_ttl_seconds = _env_positive_int(
+            "TRANSACTIONS_IMPORT_ASYNC_TERMINAL_TTL_SECONDS",
+            "3600",
+        )
+        self.transactions_import_async_idempotency_ttl_seconds = _env_positive_int(
+            "TRANSACTIONS_IMPORT_ASYNC_IDEMPOTENCY_TTL_SECONDS",
+            "3600",
+        )
+        self.transactions_import_async_retained_terminal_cap = _env_positive_int(
+            "TRANSACTIONS_IMPORT_ASYNC_RETAINED_TERMINAL_CAP",
+            "5000",
         )
         self.auth_rate_limit_window_seconds = _env_positive_int("AUTH_RATE_LIMIT_WINDOW_SECONDS", "60")
         self.auth_rate_limit_lock_enabled = _env_bool("AUTH_RATE_LIMIT_LOCK_ENABLED", False)
@@ -225,6 +240,9 @@ class Settings:
             "bootstrap_seed_minimal_data": self.bootstrap_seed_minimal_data,
             "db_pool_pre_ping": self.db_pool_pre_ping,
             "db_pool_recycle_seconds": self.db_pool_recycle_seconds,
+            "transactions_import_async_terminal_ttl_seconds": self.transactions_import_async_terminal_ttl_seconds,
+            "transactions_import_async_idempotency_ttl_seconds": self.transactions_import_async_idempotency_ttl_seconds,
+            "transactions_import_async_retained_terminal_cap": self.transactions_import_async_retained_terminal_cap,
             "vapid_configured": bool(self.vapid_private_key and self.vapid_public_key and self.vapid_contact),
             "push_test_token_configured": bool(self.push_test_token),
         }
