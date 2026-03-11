@@ -117,6 +117,7 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 #### Scenario: amount_cents is rejected when zero or sign-invalid
 - **WHEN** a transaction write provides `amount_cents=0` or a sign that violates the domain sign rule for the effective transaction type
 - **THEN** the API SHALL reject with canonical validation `400` ProblemDetails
+- **AND** automated backend regression coverage SHALL include transaction creation with negative `amount_cents` enforced through money-invariant domain validation
 
 #### Scenario: amount_cents is rejected when out of safe bounds
 - **WHEN** a transaction write provides `amount_cents` beyond configured safe limits

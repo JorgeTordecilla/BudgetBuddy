@@ -19,6 +19,10 @@ The backend MUST provide `GET /rollover/preview?month=YYYY-MM` as a read-only en
 - **WHEN** `monthly_rollover` exists for the user and source month
 - **THEN** API SHALL return `200` with `already_applied = true` and `applied_transaction_id` referencing the stored transaction.
 
+#### Scenario: Preview rejects invalid month value
+- **WHEN** preview receives an invalid `month` value
+- **THEN** API SHALL return canonical `400` ProblemDetails with invalid-date-range semantics
+
 ### Requirement: Rollover apply endpoint materializes exactly one next-month income transaction
 The backend MUST provide `POST /rollover/apply` that creates one income transaction on next-month day 1 using computed source-month surplus.
 
@@ -37,6 +41,10 @@ The backend MUST provide `POST /rollover/apply` that creates one income transact
 #### Scenario: Apply requires authentication
 - **WHEN** apply is requested without valid authentication
 - **THEN** API SHALL return `401` as ProblemDetails.
+
+#### Scenario: Apply rejects invalid source month value
+- **WHEN** apply receives an invalid `source_month` value
+- **THEN** API SHALL return canonical `400` ProblemDetails with invalid-date-range semantics
 
 ### Requirement: Applied rollover persistence guarantees uniqueness and traceability
 The backend MUST persist applied rollover operations in `monthly_rollover` with user-scoped uniqueness by source month.

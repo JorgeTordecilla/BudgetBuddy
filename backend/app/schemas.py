@@ -261,7 +261,7 @@ class RolloverPreviewOut(BaseModel):
 
 
 class RolloverApplyRequest(BaseModel):
-    source_month: str = Field(pattern=r"^\d{4}-\d{2}$")
+    source_month: str
     account_id: str
     category_id: str
 
