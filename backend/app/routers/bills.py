@@ -128,7 +128,7 @@ def get_monthly_status(
     db: Session = Depends(get_db),
 ):
     month = _validate_month_or_422(month)
-    today = date.today()
+    today = utcnow().date()
     current_month = today.strftime("%Y-%m")
 
     bills = list(
@@ -276,7 +276,7 @@ def mark_bill_paid(
     if existing:
         raise bill_already_paid_error()
 
-    payment_date = date.today()
+    payment_date = utcnow().date()
     transaction = Transaction(
         user_id=current_user.id,
         type="expense",

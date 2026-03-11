@@ -4620,166 +4620,183 @@ def test_impulse_summary_counts_top_categories_zero_state_and_auth():
 
 
 def test_bills_crud_and_payment_lifecycle_contracts():
+    fixed_now = utcnow().replace(year=2026, month=2, day=14, hour=0, minute=30, second=0, microsecond=0)
+
+    import app.routers.bills as bills_router
+
+    def fake_utcnow():
+        return fixed_now
+
     with TestClient(app) as client:
-        user = _register_user(client)
-        headers = _auth_headers(user["access"])
+        bills_utcnow = bills_router.utcnow
+        bills_router.utcnow = fake_utcnow
+        try:
+            user = _register_user(client)
+            headers = _auth_headers(user["access"])
 
-        account_id = _create_account(client, headers, "Bills Wallet")
-        expense_category_id = _create_category(client, headers, "Utilities", "expense")
-        income_category_id = _create_category(client, headers, "Salary", "income")
+            account_id = _create_account(client, headers, "Bills Wallet")
+            expense_category_id = _create_category(client, headers, "Utilities", "expense")
+            income_category_id = _create_category(client, headers, "Salary", "income")
 
-        # BL-B-01 create valid bill
-        status, created = _create_bill(
-            client,
-            headers,
-            name="Electricity",
-            due_day=28,
-            budget_cents=200000,
-            category_id=expense_category_id,
-            account_id=account_id,
-            is_active=True,
-        )
-        assert status == 201
-        bill_id = created["id"]
-        assert created["is_active"] is True
-        assert created["archived_at"] is None
+            # BL-B-01 create valid bill
+            status, created = _create_bill(
+                client,
+                headers,
+                name="Electricity",
+                due_day=28,
+                budget_cents=200000,
+                category_id=expense_category_id,
+                account_id=account_id,
+                is_active=True,
+            )
+            assert status == 201
+            bill_id = created["id"]
+            assert created["is_active"] is True
+            assert created["archived_at"] is None
 
-        # BL-B-02 income category rejected
-        bad_category = client.post(
-            "/api/bills",
-            json={
-                "name": "Wrong Category",
-                "due_day": 10,
-                "budget_cents": 1000,
-                "category_id": income_category_id,
-                "account_id": account_id,
-                "is_active": True,
-            },
-            headers=headers,
-        )
-        _assert_bill_problem(
-            bad_category,
-            status=409,
-            problem_type=BILL_CATEGORY_TYPE_MISMATCH_TYPE,
-            title=BILL_CATEGORY_TYPE_MISMATCH_TITLE,
-        )
+            # BL-B-02 income category rejected
+            bad_category = client.post(
+                "/api/bills",
+                json={
+                    "name": "Wrong Category",
+                    "due_day": 10,
+                    "budget_cents": 1000,
+                    "category_id": income_category_id,
+                    "account_id": account_id,
+                    "is_active": True,
+                },
+                headers=headers,
+            )
+            _assert_bill_problem(
+                bad_category,
+                status=409,
+                problem_type=BILL_CATEGORY_TYPE_MISMATCH_TYPE,
+                title=BILL_CATEGORY_TYPE_MISMATCH_TITLE,
+            )
 
-        # BL-B-03 due_day invalid
-        invalid_due_day = client.post(
-            "/api/bills",
-            json={
-                "name": "Bad Due Day",
-                "due_day": 32,
-                "budget_cents": 1000,
-                "category_id": expense_category_id,
-                "account_id": account_id,
-                "is_active": True,
-            },
-            headers=headers,
-        )
-        _assert_bill_problem(
-            invalid_due_day,
-            status=422,
-            problem_type=BILL_DUE_DAY_INVALID_TYPE,
-            title=BILL_DUE_DAY_INVALID_TITLE,
-        )
+            # BL-B-03 due_day invalid
+            invalid_due_day = client.post(
+                "/api/bills",
+                json={
+                    "name": "Bad Due Day",
+                    "due_day": 32,
+                    "budget_cents": 1000,
+                    "category_id": expense_category_id,
+                    "account_id": account_id,
+                    "is_active": True,
+                },
+                headers=headers,
+            )
+            _assert_bill_problem(
+                invalid_due_day,
+                status=422,
+                problem_type=BILL_DUE_DAY_INVALID_TYPE,
+                title=BILL_DUE_DAY_INVALID_TITLE,
+            )
 
-        # BL-B-05 list excludes archived, includes inactive
-        status, inactive = _create_bill(
-            client,
-            headers,
-            name="Netflix",
-            due_day=25,
-            budget_cents=29100,
-            category_id=expense_category_id,
-            account_id=account_id,
-            is_active=False,
-        )
-        assert status == 201
+            # BL-B-05 list excludes archived, includes inactive
+            status, inactive = _create_bill(
+                client,
+                headers,
+                name="Netflix",
+                due_day=25,
+                budget_cents=29100,
+                category_id=expense_category_id,
+                account_id=account_id,
+                is_active=False,
+            )
+            assert status == 201
 
-        list_response = client.get("/api/bills", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
-        assert list_response.status_code == 200
-        list_items = list_response.json()["items"]
-        assert [item["due_day"] for item in list_items] == sorted(item["due_day"] for item in list_items)
-        assert any(item["id"] == inactive["id"] and item["is_active"] is False for item in list_items)
+            list_response = client.get("/api/bills", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+            assert list_response.status_code == 200
+            list_items = list_response.json()["items"]
+            assert [item["due_day"] for item in list_items] == sorted(item["due_day"] for item in list_items)
+            assert any(item["id"] == inactive["id"] and item["is_active"] is False for item in list_items)
 
-        # BL-B-07 patch partial including name
-        patched = client.patch(
-            f"/api/bills/{bill_id}",
-            json={"budget_cents": 210000, "note": "updated", "name": "Electricity Home"},
-            headers=headers,
-        )
-        assert patched.status_code == 200
-        patched_body = patched.json()
-        assert patched_body["budget_cents"] == 210000
-        assert patched_body["note"] == "updated"
-        assert patched_body["name"] == "Electricity Home"
+            # BL-B-07 patch partial including name
+            patched = client.patch(
+                f"/api/bills/{bill_id}",
+                json={"budget_cents": 210000, "note": "updated", "name": "Electricity Home"},
+                headers=headers,
+            )
+            assert patched.status_code == 200
+            patched_body = patched.json()
+            assert patched_body["budget_cents"] == 210000
+            assert patched_body["note"] == "updated"
+            assert patched_body["name"] == "Electricity Home"
 
-        # BL-B-14 omitted actual_cents defaults to budget
-        paid_default_amount = client.post(
-            f"/api/bills/{bill_id}/payments",
-            json={"month": "2026-02"},
-            headers=headers,
-        )
-        assert paid_default_amount.status_code == 201
-        paid_body = paid_default_amount.json()
-        assert paid_body["actual_cents"] == 210000
-        assert isinstance(paid_body["transaction_id"], str)
+            # BL-B-14 omitted actual_cents defaults to budget
+            paid_default_amount = client.post(
+                f"/api/bills/{bill_id}/payments",
+                json={"month": "2026-02"},
+                headers=headers,
+            )
+            assert paid_default_amount.status_code == 201
+            paid_body = paid_default_amount.json()
+            assert paid_body["actual_cents"] == 210000
+            assert isinstance(paid_body["transaction_id"], str)
 
-        # BL-B-15 duplicate payment rejected
-        duplicate = client.post(
-            f"/api/bills/{bill_id}/payments",
-            json={"month": "2026-02", "actual_cents": 87570},
-            headers=headers,
-        )
-        _assert_bill_problem(
-            duplicate,
-            status=409,
-            problem_type=BILL_ALREADY_PAID_TYPE,
-            title=BILL_ALREADY_PAID_TITLE,
-        )
+            with SessionLocal() as db:
+                transaction = db.get(Transaction, paid_body["transaction_id"])
+                assert transaction is not None
+                assert transaction.date == fixed_now.date()
 
-        # BL-B-10 monthly status paid/pending summary
-        monthly = client.get(
-            "/api/bills/monthly-status?month=2026-02",
-            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
-        )
-        assert monthly.status_code == 200
-        monthly_body = monthly.json()
-        assert monthly_body["month"] == "2026-02"
-        assert monthly_body["summary"]["paid_count"] == 1
-        assert monthly_body["summary"]["pending_count"] >= 0
-        paid_item = next(item for item in monthly_body["items"] if item["bill_id"] == bill_id)
-        assert paid_item["status"] == "paid"
-        assert paid_item["diff_cents"] == 0
+            # BL-B-15 duplicate payment rejected
+            duplicate = client.post(
+                f"/api/bills/{bill_id}/payments",
+                json={"month": "2026-02", "actual_cents": 87570},
+                headers=headers,
+            )
+            _assert_bill_problem(
+                duplicate,
+                status=409,
+                problem_type=BILL_ALREADY_PAID_TYPE,
+                title=BILL_ALREADY_PAID_TITLE,
+            )
 
-        # BL-B-16 unmark removes payment and linked transaction
-        tx_id = paid_body["transaction_id"]
-        unmark = client.delete(f"/api/bills/{bill_id}/payments/2026-02", headers=headers)
-        assert unmark.status_code == 204
+            # BL-B-10 monthly status paid/pending summary
+            monthly = client.get(
+                "/api/bills/monthly-status?month=2026-02",
+                headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+            )
+            assert monthly.status_code == 200
+            monthly_body = monthly.json()
+            assert monthly_body["month"] == "2026-02"
+            assert monthly_body["summary"]["paid_count"] == 1
+            assert monthly_body["summary"]["pending_count"] >= 0
+            paid_item = next(item for item in monthly_body["items"] if item["bill_id"] == bill_id)
+            assert paid_item["status"] == "paid"
+            assert paid_item["diff_cents"] == 0
 
-        with SessionLocal() as db:
-            assert db.get(Transaction, tx_id) is None
+            # BL-B-16 unmark removes payment and linked transaction
+            tx_id = paid_body["transaction_id"]
+            unmark = client.delete(f"/api/bills/{bill_id}/payments/2026-02", headers=headers)
+            assert unmark.status_code == 204
 
-        monthly_after_unmark = client.get(
-            "/api/bills/monthly-status?month=2026-02",
-            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
-        )
-        item_after_unmark = next(item for item in monthly_after_unmark.json()["items"] if item["bill_id"] == bill_id)
-        assert item_after_unmark["status"] in {"pending", "overdue"}
+            with SessionLocal() as db:
+                assert db.get(Transaction, tx_id) is None
 
-        # BL-B-08 archive soft delete + BL-B-06 include_archived
-        archive = client.delete(f"/api/bills/{bill_id}", headers=headers)
-        assert archive.status_code == 204
+            monthly_after_unmark = client.get(
+                "/api/bills/monthly-status?month=2026-02",
+                headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+            )
+            item_after_unmark = next(item for item in monthly_after_unmark.json()["items"] if item["bill_id"] == bill_id)
+            assert item_after_unmark["status"] in {"pending", "overdue"}
 
-        list_default = client.get("/api/bills", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
-        assert all(item["id"] != bill_id for item in list_default.json()["items"])
+            # BL-B-08 archive soft delete + BL-B-06 include_archived
+            archive = client.delete(f"/api/bills/{bill_id}", headers=headers)
+            assert archive.status_code == 204
 
-        list_archived = client.get(
-            "/api/bills?include_archived=true",
-            headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
-        )
-        assert any(item["id"] == bill_id for item in list_archived.json()["items"])
+            list_default = client.get("/api/bills", headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"})
+            assert all(item["id"] != bill_id for item in list_default.json()["items"])
+
+            list_archived = client.get(
+                "/api/bills?include_archived=true",
+                headers={"accept": VENDOR, "authorization": f"Bearer {user['access']}"},
+            )
+            assert any(item["id"] == bill_id for item in list_archived.json()["items"])
+        finally:
+            bills_router.utcnow = bills_utcnow
 
 
 def test_bills_auth_and_ownership_and_inactive_rules():
@@ -4854,14 +4871,10 @@ def test_bills_auth_and_ownership_and_inactive_rules():
 
 
 def test_bills_monthly_status_overdue_semantics_only_current_month(monkeypatch):
-    class _FakeDate(date):
-        @classmethod
-        def today(cls):
-            return cls(2026, 3, 20)
-
     import app.routers.bills as bills_router
 
-    monkeypatch.setattr(bills_router, "date", _FakeDate)
+    fixed_now = utcnow().replace(year=2026, month=3, day=20, hour=0, minute=30, second=0, microsecond=0)
+    monkeypatch.setattr(bills_router, "utcnow", lambda: fixed_now)
 
     with TestClient(app) as client:
         user = _register_user(client)
