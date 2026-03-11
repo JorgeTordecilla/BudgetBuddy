@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
 import app.routers.auth as auth_router
+import app.routers.savings as savings_router
 import app.main as app_main
 from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
@@ -3609,10 +3610,14 @@ def test_rollover_preview_and_apply_flow_with_idempotency():
 def test_rollover_apply_requires_auth_and_income_category():
     with TestClient(app) as client:
         user = _register_user(client)
+        other = _register_user(client)
         headers = _auth_headers(user["access"])
+        other_headers = _auth_headers(other["access"])
         account_id = _create_account(client, headers, "rollover-auth-account")
         income_category_id = _create_category(client, headers, "rollover-auth-income", "income")
         expense_category_id = _create_category(client, headers, "rollover-auth-expense", "expense")
+        foreign_account_id = _create_account(client, other_headers, "rollover-foreign-account")
+        foreign_income_category_id = _create_category(client, other_headers, "rollover-foreign-income", "income")
 
         income_tx = client.post(
             "/api/transactions",
@@ -3642,6 +3647,41 @@ def test_rollover_apply_requires_auth_and_income_category():
             headers=headers,
         )
         _assert_category_mismatch_problem(wrong_category)
+
+        foreign_account = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": foreign_account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        _assert_forbidden_problem(foreign_account)
+
+        foreign_category = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": account_id, "category_id": foreign_income_category_id},
+            headers=headers,
+        )
+        _assert_forbidden_problem(foreign_category)
+
+        _archive_account_and_assert(client, user["access"], account_id)
+        archived_account = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        assert archived_account.status_code == 409
+        assert archived_account.headers["content-type"].startswith(PROBLEM)
+        assert archived_account.json()["title"] == "Conflict"
+
+        replacement_account_id = _create_account(client, headers, "rollover-auth-account-replacement")
+        _archive_category_and_assert(client, user["access"], income_category_id)
+        archived_category = client.post(
+            "/api/rollover/apply",
+            json={"source_month": "2026-04", "account_id": replacement_account_id, "category_id": income_category_id},
+            headers=headers,
+        )
+        assert archived_category.status_code == 409
+        assert archived_category.headers["content-type"].startswith(PROBLEM)
+        assert archived_category.json()["title"] == "Conflict"
 
 
 def test_rollover_invalid_month_values_return_canonical_400():
@@ -4921,7 +4961,10 @@ def test_bills_archived_and_inactive_excluded_from_monthly_status_but_history_pe
             assert db.get(Transaction, tx_id) is not None
 
 
-def test_savings_goals_crud_and_contributions_lifecycle():
+def test_savings_goals_crud_and_contributions_lifecycle(monkeypatch):
+    fixed_now = utcnow().replace(year=2026, month=6, day=15, hour=12, minute=0, second=0, microsecond=0)
+    monkeypatch.setattr(savings_router, "utcnow", lambda: fixed_now)
+
     with TestClient(app) as client:
         user = _register_user(client)
         headers = _auth_headers(user["access"])
@@ -4986,7 +5029,7 @@ def test_savings_goals_crud_and_contributions_lifecycle():
                 "target_cents": 1000,
                 "account_id": account_id,
                 "category_id": expense_category_id,
-                "deadline": "2020-01-01",
+                "deadline": "2026-06-14",
             },
             headers=headers,
         )
@@ -5028,6 +5071,7 @@ def test_savings_goals_crud_and_contributions_lifecycle():
             assert tx.type == "expense"
             assert tx.account_id == account_id
             assert tx.category_id == expense_category_id
+            assert tx.date == fixed_now.date()
             assert tx.merchant == "Emergency Fund"
             assert tx.note == "Savings contribution - Emergency Fund"
 

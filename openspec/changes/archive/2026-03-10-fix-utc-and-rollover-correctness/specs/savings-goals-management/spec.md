@@ -1,8 +1,4 @@
-## Purpose
-
-Define backend savings-goals behavior, lifecycle transitions, and contribution transaction ownership semantics.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Savings goals support authenticated CRUD with derived progress fields
 The system MUST expose `/savings-goals` CRUD for authenticated users with ownership checks, computed progress metrics, and UTC-aligned deadline validation semantics.
@@ -32,29 +28,6 @@ The system MUST expose `/savings-goals` CRUD for authenticated users with owners
 #### Scenario: Goal detail includes computed fields and recent contributions
 - **WHEN** `GET /savings-goals/{goal_id}` succeeds
 - **THEN** it returns computed `saved_cents`, `remaining_cents`, `progress_pct` and last 10 contributions ordered by `contributed_at DESC`.
-
-### Requirement: Savings goal status transitions are explicit and idempotent
-Status changes MUST follow deterministic transition rules.
-
-#### Scenario: Complete endpoint is idempotent
-- **WHEN** `POST /savings-goals/{goal_id}/complete` is called on an already completed goal
-- **THEN** API returns `200` with no state change.
-
-#### Scenario: Complete on cancelled goal is rejected
-- **WHEN** complete endpoint is called on `cancelled`
-- **THEN** API returns `409` canonical `savings-goal-not-active`.
-
-#### Scenario: Cancel endpoint is idempotent
-- **WHEN** `POST /savings-goals/{goal_id}/cancel` is called on an already cancelled goal
-- **THEN** API returns `200` with no state change.
-
-#### Scenario: Cancel on completed goal is rejected
-- **WHEN** cancel endpoint is called on `completed`
-- **THEN** API returns `409` canonical `savings-goal-already-completed`.
-
-#### Scenario: Target reduction can auto-complete
-- **WHEN** `PATCH /savings-goals/{goal_id}` sets `target_cents >= 1` and `saved_cents >= target_cents`
-- **THEN** goal is updated and status becomes `completed` automatically.
 
 ### Requirement: Contributions own linked transaction lifecycle
 Each contribution MUST create and own a linked generated transaction using UTC-aligned current date semantics.
@@ -88,21 +61,3 @@ Each contribution MUST create and own a linked generated transaction using UTC-a
 - **WHEN** a savings contribution creates its linked transaction
 - **THEN** the transaction date SHALL use the current UTC-derived date
 - **AND** server-local timezone differences SHALL NOT shift the contribution into a different calendar day.
-
-### Requirement: Savings endpoints enforce auth and ownership
-All savings-goal endpoints MUST enforce the same auth and ownership contract used by protected resources.
-
-#### Scenario: Unauthenticated request fails
-- **WHEN** any `/savings-goals` endpoint is called without valid auth
-- **THEN** API returns canonical `401`.
-
-#### Scenario: Cross-user access fails
-- **WHEN** user attempts operations on another user's goal/contribution/account/category
-- **THEN** API returns canonical `403`.
-
-### Requirement: Savings summary aggregates non-archived goals
-The system MUST provide `/savings-goals/summary` with deterministic aggregate metrics for non-archived goals.
-
-#### Scenario: Summary response includes canonical aggregates
-- **WHEN** `GET /savings-goals/summary` succeeds
-- **THEN** response includes `active_count`, `completed_count`, `total_target_cents`, `total_saved_cents`, `total_remaining_cents`, `overall_progress_pct`.

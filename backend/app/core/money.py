@@ -9,6 +9,8 @@ from app.models.enums import TransactionType
 # Conservative product-level bound to avoid absurd values while staying far from DB limits.
 MAX_ABSOLUTE_AMOUNT_CENTS = 9_999_999_999_99
 SUPPORTED_CURRENCIES = {"USD", "COP", "EUR", "MXN"}
+
+
 def validate_user_currency_for_money(currency_code: str) -> None:
     if currency_code not in SUPPORTED_CURRENCIES:
         raise money_currency_mismatch_error("User currency is not supported for money operations")

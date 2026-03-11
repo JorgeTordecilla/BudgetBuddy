@@ -11,7 +11,13 @@ from app.core.responses import vendor_response
 from app.db import get_db
 from app.core.utils import utcnow
 from app.dependencies import get_current_user
-from app.errors import category_type_mismatch_error, invalid_date_range_error, rollover_already_applied_error, rollover_no_surplus_error
+from app.errors import (
+    category_type_mismatch_error,
+    forbidden_error,
+    invalid_date_range_error,
+    rollover_already_applied_error,
+    rollover_no_surplus_error,
+)
 from app.models import Account, Category, IncomeSource, MonthlyRollover, Transaction, User
 from app.schemas import RolloverApplyOut, RolloverApplyRequest, RolloverPreviewOut
 
@@ -20,6 +26,7 @@ _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
 
 def _normalize_rollover_source(source: IncomeSource) -> IncomeSource:
+    """Normalize the session-bound rollover source in place; caller must commit."""
     source.archived_at = None
     source.is_active = False
     source.expected_amount_cents = 0
@@ -80,7 +87,9 @@ def _owned_active_account_or_conflict(db: Session, user_id: str, account_id: str
         .where(Account.id == account_id)
         .where(Account.user_id == user_id)
     )
-    if not account or account.archived_at is not None:
+    if not account:
+        raise forbidden_error("Not allowed")
+    if account.archived_at is not None:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
     return account
 
@@ -91,7 +100,9 @@ def _owned_active_income_category_or_conflict(db: Session, user_id: str, categor
         .where(Category.id == category_id)
         .where(Category.user_id == user_id)
     )
-    if not category or category.archived_at is not None:
+    if not category:
+        raise forbidden_error("Not allowed")
+    if category.archived_at is not None:
         raise APIError(status=409, title="Conflict", detail="Business rule conflict")
     if category.type != "income":
         raise category_type_mismatch_error()

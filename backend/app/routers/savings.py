@@ -49,7 +49,7 @@ def _validate_amount_or_422(amount_cents: int) -> int:
 
 
 def _validate_deadline_or_422(deadline: date | None) -> date | None:
-    if deadline is not None and deadline < date.today():
+    if deadline is not None and deadline < utcnow().date():
         raise savings_goal_deadline_past_error()
     return deadline
 
@@ -296,7 +296,7 @@ def create_savings_contribution(
         account_id=goal.account_id,
         category_id=goal.category_id,
         amount_cents=amount_cents,
-        date=date.today(),
+        date=utcnow().date(),
         merchant=goal.name,
         note=f"Savings contribution - {goal.name}",
     )
