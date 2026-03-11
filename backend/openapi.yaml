@@ -141,6 +141,20 @@ paths:
               examples:
                 canonical:
                   $ref: '#/components/examples/Problem409Conflict'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                canonical:
+                  $ref: '#/components/examples/Problem429'
         '406':
           description: Not Acceptable
           headers:
@@ -5642,4 +5656,3 @@ components:
         title: Service Unavailable
         status: 503
         detail: Service temporarily unavailable, please retry.
-

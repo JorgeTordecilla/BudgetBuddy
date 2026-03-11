@@ -30,10 +30,25 @@ class RateLimiter(Protocol):
 
 
 class InMemoryRateLimiter(RateLimiter):
+    _PURGE_EVERY = 1000
+
     def __init__(self, now_fn=None):
         self._now = now_fn or time.time
         self._lock = Lock()
         self._buckets: dict[str, _BucketState] = {}
+        self._checks = 0
+
+    def _is_bucket_inactive(self, state: _BucketState, now: float, *, window_seconds: int) -> bool:
+        window_expired = now >= state.window_start + window_seconds
+        lock_inactive = state.lock_until is None or now >= state.lock_until
+        return window_expired and lock_inactive
+
+    def _purge_inactive_buckets(self, now: float, *, window_seconds: int) -> None:
+        inactive_keys = [
+            key for key, state in self._buckets.items() if self._is_bucket_inactive(state, now, window_seconds=window_seconds)
+        ]
+        for key in inactive_keys:
+            self._buckets.pop(key, None)
 
     def check(
         self,
@@ -45,6 +60,10 @@ class InMemoryRateLimiter(RateLimiter):
     ) -> tuple[bool, int | None]:
         now = self._now()
         with self._lock:
+            self._checks += 1
+            if self._checks % self._PURGE_EVERY == 0:
+                self._purge_inactive_buckets(now, window_seconds=window_seconds)
+
             state = self._buckets.get(key)
             if state is None:
                 state = _BucketState(window_start=now, count=0)

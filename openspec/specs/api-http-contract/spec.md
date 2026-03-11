@@ -179,6 +179,12 @@ The backend MUST return empty bodies for `204 No Content` responses while allowi
 ### Requirement: Auth cookie transport is explicit in OpenAPI
 The OpenAPI contract MUST explicitly document refresh-cookie transport and response headers for auth endpoints.
 
+#### Scenario: Register documents throttle response headers and body
+- **WHEN** `POST /auth/register` is reviewed in `backend/openapi.yaml`
+- **THEN** the operation SHALL define `429` with `application/problem+json`
+- **AND** it SHALL document `X-Request-Id`
+- **AND** it SHALL document `Retry-After`
+
 #### Scenario: Login and refresh document Set-Cookie header
 - **WHEN** `POST /auth/login` and `POST /auth/refresh` are reviewed in `backend/openapi.yaml`
 - **THEN** each operation SHALL define a `Set-Cookie` response header describing `bb_refresh` attributes (`HttpOnly`, `Secure`, `SameSite=None`, `Path=/api/auth`, `Max-Age=<refresh_ttl_seconds>`)
@@ -193,6 +199,11 @@ The OpenAPI contract MUST explicitly document refresh-cookie transport and respo
 
 ### Requirement: Auth success payload excludes refresh token
 Auth success payloads for login and refresh MUST exclude `refresh_token` from response JSON.
+
+#### Scenario: Register success contract remains unchanged under throttling expansion
+- **WHEN** `POST /auth/register` success responses are reviewed after throttling support is added
+- **THEN** the operation SHALL still document vendor success JSON for `201`
+- **AND** throttling support SHALL be additive through `429` response mappings only
 
 #### Scenario: Login success schema excludes refresh token
 - **WHEN** `POST /auth/login` returns `200`

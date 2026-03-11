@@ -1248,6 +1248,7 @@ def test_logout_blocks_refresh_in_flight_with_same_token(monkeypatch):
 def _configure_auth_rate_limit_for_test(
     monkeypatch,
     *,
+    register_limit: int = 5,
     login_limit: int,
     refresh_limit: int,
     window_seconds: int,
@@ -1256,6 +1257,7 @@ def _configure_auth_rate_limit_for_test(
     trusted_proxies: list[str] | None = None,
     now_fn=None,
 ):
+    monkeypatch.setattr(auth_router.settings, "auth_register_rate_limit_per_minute", register_limit)
     monkeypatch.setattr(auth_router.settings, "auth_login_rate_limit_per_minute", login_limit)
     monkeypatch.setattr(auth_router.settings, "auth_refresh_rate_limit_per_minute", refresh_limit)
     monkeypatch.setattr(auth_router.settings, "auth_rate_limit_window_seconds", window_seconds)
@@ -1332,6 +1334,64 @@ def test_auth_refresh_rate_limit_exceeded_returns_canonical_429(monkeypatch):
         second = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token"))
         _assert_rate_limited_problem(second)
         assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_register_rate_limit_exceeded_returns_canonical_429(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, register_limit=1, login_limit=10, refresh_limit=30, window_seconds=60)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/auth/register",
+            json={
+                "username": f"u_{uuid.uuid4().hex[:8]}",
+                "password": "StrongPwd123!",
+                "currency_code": "USD",
+            },
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        assert first.status_code == 201
+
+        second = client.post(
+            "/api/auth/register",
+            json={
+                "username": f"u_{uuid.uuid4().hex[:8]}",
+                "password": "StrongPwd123!",
+                "currency_code": "USD",
+            },
+            headers={"accept": VENDOR, "content-type": VENDOR},
+        )
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_refresh_rate_limit_cannot_be_bypassed_by_rotating_invalid_tokens(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=10, refresh_limit=1, window_seconds=60)
+
+    with TestClient(app) as client:
+        first = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token-a"))
+        assert first.status_code == 401
+
+        second = client.post("/api/auth/refresh", headers=_refresh_headers("invalid-refresh-token-b"))
+        _assert_rate_limited_problem(second)
+        assert int(second.headers["retry-after"]) >= 1
+
+
+def test_auth_refresh_rate_limit_uses_distinct_client_identities(monkeypatch):
+    _configure_auth_rate_limit_for_test(monkeypatch, login_limit=10, refresh_limit=1, window_seconds=60)
+    monkeypatch.setattr(auth_router, "resolve_rate_limit_client_ip", lambda request: request.headers["x-test-client-ip"])
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/auth/refresh",
+            headers=_refresh_headers("invalid-refresh-token-a") | {"x-test-client-ip": "203.0.113.10"},
+        )
+        assert first.status_code == 401
+
+        second = client.post(
+            "/api/auth/refresh",
+            headers=_refresh_headers("invalid-refresh-token-b") | {"x-test-client-ip": "198.51.100.44"},
+        )
+        assert second.status_code == 401
 
 
 def test_auth_login_rate_limit_untrusted_forwarded_headers_cannot_bypass(monkeypatch):

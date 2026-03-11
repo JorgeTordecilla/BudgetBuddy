@@ -45,6 +45,7 @@ class Settings:
     refresh_cookie_samesite: str
     refresh_cookie_domain: str | None
     transaction_import_max_items: int
+    auth_register_rate_limit_per_minute: int
     auth_login_rate_limit_per_minute: int
     auth_refresh_rate_limit_per_minute: int
     transactions_import_rate_limit_per_minute: int
@@ -100,6 +101,7 @@ class Settings:
         domain_raw = os.getenv("REFRESH_COOKIE_DOMAIN", "").strip()
         self.refresh_cookie_domain = domain_raw or None
         self.transaction_import_max_items = _env_positive_int("TRANSACTION_IMPORT_MAX_ITEMS", "500")
+        self.auth_register_rate_limit_per_minute = _env_positive_int("AUTH_REGISTER_RATE_LIMIT_PER_MINUTE", "5")
         self.auth_login_rate_limit_per_minute = _env_positive_int("AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", "10")
         self.auth_refresh_rate_limit_per_minute = _env_positive_int("AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", "30")
         self.transactions_import_rate_limit_per_minute = _env_positive_int(
@@ -124,6 +126,7 @@ class Settings:
         )
         self.auth_rate_limit_window_seconds = _env_positive_int("AUTH_RATE_LIMIT_WINDOW_SECONDS", "60")
         self.auth_rate_limit_lock_enabled = _env_bool("AUTH_RATE_LIMIT_LOCK_ENABLED", False)
+        # Zero is meaningful here: it disables the temporary lock interval while keeping throttling enabled.
         self.auth_rate_limit_lock_seconds = _env_positive_int("AUTH_RATE_LIMIT_LOCK_SECONDS", "300", minimum=0)
         migrations_strict_raw = os.getenv("MIGRATIONS_STRICT")
         if migrations_strict_raw is None:
@@ -197,6 +200,7 @@ class Settings:
             "refresh_cookie_secure": self.refresh_cookie_secure,
             "refresh_cookie_samesite": self.refresh_cookie_samesite,
             "refresh_cookie_domain_configured": self.refresh_cookie_domain is not None,
+            "auth_register_rate_limit_per_minute": self.auth_register_rate_limit_per_minute,
             "migrations_strict": self.migrations_strict,
             "log_level": self.log_level,
             "auth_refresh_allowed_origins_count": len(self.auth_refresh_allowed_origins),

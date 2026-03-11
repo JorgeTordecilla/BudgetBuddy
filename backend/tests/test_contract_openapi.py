@@ -375,13 +375,17 @@ def test_openapi_route_coverage():
 
 
 def test_auth_rate_limit_contract_mappings_exist():
+    register_responses = SPEC["paths"]["/auth/register"]["post"]["responses"]
     login_responses = SPEC["paths"]["/auth/login"]["post"]["responses"]
     refresh_responses = SPEC["paths"]["/auth/refresh"]["post"]["responses"]
 
+    assert "429" in register_responses
     assert "429" in login_responses
     assert "429" in refresh_responses
+    assert "application/problem+json" in register_responses["429"]["content"]
     assert "application/problem+json" in login_responses["429"]["content"]
     assert "application/problem+json" in refresh_responses["429"]["content"]
+    assert "Retry-After" in register_responses["429"].get("headers", {})
     assert "Retry-After" in login_responses["429"].get("headers", {})
     assert "Retry-After" in refresh_responses["429"].get("headers", {})
 
@@ -429,6 +433,7 @@ def test_auth_cookie_transport_contract_mappings_exist():
     assert "requestBody" not in logout_post
 
     assert "Set-Cookie" in register_post["responses"]["201"].get("headers", {})
+    assert "X-Request-Id" in register_post["responses"]["429"].get("headers", {})
     assert "Set-Cookie" in login_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in refresh_post["responses"]["200"].get("headers", {})
     assert "Set-Cookie" in logout_post["responses"]["204"].get("headers", {})

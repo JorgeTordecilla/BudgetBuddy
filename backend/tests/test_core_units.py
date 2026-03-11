@@ -15,6 +15,7 @@ from starlette.requests import Request
 from app.core.config import Settings
 from app.core.errors import APIError, register_exception_handlers
 from app.core.network import resolve_rate_limit_client_ip
+from app.core.rate_limit import InMemoryRateLimiter, _BucketState
 from app.core.pagination import decode_cursor, encode_cursor, parse_datetime
 from app.core.security import (
     create_access_token,
@@ -385,6 +386,34 @@ def test_resolve_rate_limit_client_ip_uses_forwarded_header_for_trusted_proxy(mo
     )
     monkeypatch.setattr("app.core.network.settings.rate_limit_trusted_proxies", ["10.0.0.0/24"])
     assert resolve_rate_limit_client_ip(request) == "203.0.113.10"
+
+
+def test_in_memory_rate_limiter_passive_cleanup_evicts_expired_unlocked_buckets():
+    clock = {"now": 0.0}
+    limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
+    limiter._checks = limiter._PURGE_EVERY - 1
+    limiter._buckets["expired"] = _BucketState(window_start=-120.0, count=1, lock_until=None)
+    limiter._buckets["active"] = _BucketState(window_start=0.0, count=1, lock_until=None)
+
+    allowed, retry_after = limiter.check("current", limit=5, window_seconds=60)
+
+    assert allowed is True
+    assert retry_after is None
+    assert "expired" not in limiter._buckets
+    assert "active" in limiter._buckets
+
+
+def test_in_memory_rate_limiter_passive_cleanup_keeps_locked_buckets_until_expiry():
+    clock = {"now": 30.0}
+    limiter = InMemoryRateLimiter(now_fn=lambda: clock["now"])
+    limiter._checks = limiter._PURGE_EVERY - 1
+    limiter._buckets["locked"] = _BucketState(window_start=-120.0, count=2, lock_until=120.0)
+
+    allowed, retry_after = limiter.check("current", limit=5, window_seconds=60)
+
+    assert allowed is True
+    assert retry_after is None
+    assert "locked" in limiter._buckets
 
 
 def test_settings_rejects_invalid_db_pool_recycle_seconds(monkeypatch):

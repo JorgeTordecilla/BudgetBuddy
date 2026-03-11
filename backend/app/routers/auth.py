@@ -58,7 +58,9 @@ def _user_lock(user_id: str) -> Lock:
 
 def _auth_rate_limit_or_429(request: Request, *, endpoint: str, identity: str) -> None:
     window_seconds = max(1, settings.auth_rate_limit_window_seconds)
-    if endpoint == "login":
+    if endpoint == "register":
+        limit = max(1, settings.auth_register_rate_limit_per_minute)
+    elif endpoint == "login":
         limit = max(1, settings.auth_login_rate_limit_per_minute)
     else:
         limit = max(1, settings.auth_refresh_rate_limit_per_minute)
@@ -179,7 +181,9 @@ def _refresh_read_or_503(db: Session, read_fn, *, request: Request):
 
 
 @router.post("/register")
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    _auth_rate_limit_or_429(request, endpoint="register", identity=resolve_rate_limit_client_ip(request))
+
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)
     user = User(username=payload.username, password_hash=hash_password(payload.password), currency_code=payload.currency_code)
@@ -234,8 +238,7 @@ def refresh(request: Request, db: Session = Depends(get_db)):
     if not refresh_token:
         raise unauthorized_error("Refresh token is invalid or expired")
 
-    token_key = hash_refresh_token(refresh_token)
-    _auth_rate_limit_or_429(request, endpoint="refresh", identity=f"{token_key}:{resolve_rate_limit_client_ip(request)}")
+    _auth_rate_limit_or_429(request, endpoint="refresh", identity=resolve_rate_limit_client_ip(request))
 
     user_repo = SQLAlchemyUserRepository(db)
     refresh_repo = SQLAlchemyRefreshTokenRepository(db)

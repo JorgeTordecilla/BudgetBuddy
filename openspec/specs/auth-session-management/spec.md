@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: User registration
-The backend MUST implement `POST /auth/register` with schema validation for `RegisterRequest`, user creation, and auth-session response semantics.
+The backend MUST implement `POST /auth/register` with schema validation for `RegisterRequest`, user creation, auth-session response semantics, and throttling behavior consistent with auth abuse protection policy.
 
 #### Scenario: Register success
 - **WHEN** a valid unique username, password, and currency_code are submitted
@@ -15,6 +15,12 @@ The backend MUST implement `POST /auth/register` with schema validation for `Reg
 - **WHEN** a register request includes a password that does not meet policy (min 8, uppercase, lowercase, number, special)
 - **THEN** the API SHALL return `400` as `ProblemDetails`
 - **AND** user creation SHALL NOT occur.
+
+#### Scenario: Register over threshold returns canonical throttle response
+- **WHEN** a client exceeds configured register limits within the active rate-limit window
+- **THEN** `POST /auth/register` SHALL return canonical `429` ProblemDetails
+- **AND** the response SHALL include `Retry-After`
+- **AND** normal registration persistence SHALL NOT execute
 
 ### Requirement: Registration emits refresh cookie and session payload
 Auth session management MUST treat registration as a session bootstrap flow equivalent to login.
@@ -89,7 +95,7 @@ The login flow MUST preserve existing credential validation semantics under thre
 - **THEN** `POST /auth/login` SHALL return canonical `429` ProblemDetails and SHALL NOT execute normal credential processing path
 
 ### Requirement: Refresh flow behavior under throttling
-The refresh flow MUST preserve token-rotation semantics under threshold and deterministic throttling over threshold.
+The refresh flow MUST preserve replay-protection semantics under threshold and deterministic throttling over threshold.
 
 #### Scenario: Refresh under threshold preserves rotation behavior
 - **WHEN** a valid refresh token request is within configured limits
@@ -98,6 +104,11 @@ The refresh flow MUST preserve token-rotation semantics under threshold and dete
 #### Scenario: Refresh over threshold is throttled before refresh logic
 - **WHEN** a client exceeds configured refresh limits within the active window
 - **THEN** `POST /auth/refresh` SHALL return canonical `429` ProblemDetails and SHALL NOT advance refresh-token state
+
+#### Scenario: Refresh throttling cannot be bypassed by token variation
+- **WHEN** a client submits repeated refresh requests from the same effective client IP using different arbitrary refresh token values
+- **THEN** throttling enforcement SHALL still apply to that client identity
+- **AND** arbitrary token variation SHALL NOT create independent limiter buckets
 
 ### Requirement: Rate limiting is deterministic for testability
 Auth throttling behavior MUST support deterministic verification in integration tests.
@@ -143,7 +154,7 @@ Adding `GET /me` MUST NOT change existing auth session endpoint semantics.
 - **THEN** statuses, payload shapes, and cookie/session behaviors for those endpoints SHALL remain unchanged
 
 ### Requirement: Registration change is additive to existing auth behavior
-Changing register payload shape MUST NOT alter login/refresh/logout runtime semantics.
+Adding throttling to register MUST NOT alter login, refresh, or logout runtime semantics.
 
 #### Scenario: Existing auth lifecycle remains behaviorally unchanged
 - **WHEN** login/refresh/logout flows execute after register-shape alignment
