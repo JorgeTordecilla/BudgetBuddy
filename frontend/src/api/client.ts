@@ -310,8 +310,6 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       } catch (error) {
         await publishAuthProblem(error, "Logout failed");
         throw error;
-      } finally {
-        bindings.clearSession();
       }
     }
   };

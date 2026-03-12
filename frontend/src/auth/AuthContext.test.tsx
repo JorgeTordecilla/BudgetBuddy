@@ -51,7 +51,6 @@ vi.mock("@/api/client", () => ({
     me: vi.fn(async () => mockMe()),
     logout: vi.fn(async () => {
       await mockLogout();
-      bindings.clearSession();
     })
   }))
 }));

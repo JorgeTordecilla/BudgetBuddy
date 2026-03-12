@@ -649,7 +649,7 @@ describe("api client refresh behavior", () => {
     expect(window.location.pathname).toBe("/login");
   });
 
-  it("clears session on logout", async () => {
+  it("does not clear session on logout", async () => {
     const clearSession = vi.fn();
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("ok", { status: 200 }));
     const client = createApiClient(
@@ -663,10 +663,10 @@ describe("api client refresh behavior", () => {
 
     await client.logout();
 
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
   });
 
-  it("clears session on logout even when request fails", async () => {
+  it("does not clear session on logout when request fails", async () => {
     const clearSession = vi.fn();
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("network down"));
     const client = createApiClient(
@@ -679,7 +679,7 @@ describe("api client refresh behavior", () => {
     );
 
     await expect(client.logout()).rejects.toThrow("network down");
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
   });
 
   it("blocks non-GET requests when browser is offline", async () => {
@@ -736,7 +736,7 @@ describe("api client refresh behavior", () => {
     );
 
     await expect(client.logout()).resolves.toBeUndefined();
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
     expect(publishProblemToast).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: "req-logout-500",

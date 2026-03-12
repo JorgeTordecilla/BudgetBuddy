@@ -36,6 +36,7 @@ const EMPTY_FORM: BudgetFormState = {
   categoryId: "",
   limit: ""
 };
+const EMPTY_CATEGORIES: Category[] = [];
 
 function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
   if (!problem) {
@@ -54,19 +55,22 @@ export default function BudgetsPage() {
   const { apiClient, user } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const fromParam = searchParams.get("from");
+  const toParam = searchParams.get("to");
+  const monthParam = searchParams.get("month");
   const initialRange = useMemo(() => {
-    const from = normalizeMonthParam(searchParams.get("from"));
-    const to = normalizeMonthParam(searchParams.get("to"));
+    const from = normalizeMonthParam(fromParam);
+    const to = normalizeMonthParam(toParam);
     if (from && to && isValidMonthRange(from, to)) {
       return { from, to };
     }
-    const month = normalizeMonthParam(searchParams.get("month"));
+    const month = normalizeMonthParam(monthParam);
     if (month && isValidMonth(month)) {
       return { from: month, to: month };
     }
     const current = currentIsoMonth();
     return { from: current, to: current };
-  }, [searchParams]);
+  }, [fromParam, monthParam, toParam]);
   const [draftFrom, setDraftFrom] = useState(initialRange.from);
   const [draftTo, setDraftTo] = useState(initialRange.to);
   const [appliedRange, setAppliedRange] = useState(initialRange);
@@ -321,12 +325,13 @@ export default function BudgetsPage() {
     }
   }
 
-  const categories = categoriesQuery.data?.items ?? [];
+  const categoriesItems = categoriesQuery.data?.items;
+  const categories = categoriesItems ?? EMPTY_CATEGORIES;
   const categoriesById = useMemo(() => {
     const map = new Map<string, Category>();
-    categories.forEach((category) => map.set(category.id, category));
+    (categoriesItems ?? EMPTY_CATEGORIES).forEach((category) => map.set(category.id, category));
     return map;
-  }, [categories]);
+  }, [categoriesItems]);
 
   const currencyCode = user?.currency_code ?? "USD";
   const moneyFormatter = useMemo(
