@@ -2,6 +2,19 @@
 
 Define and enforce runtime configuration safety rules so the service fails fast on invalid or insecure startup configuration.
 ## Requirements
+### Requirement: Runtime settings loading is declarative and typed
+Backend runtime configuration MUST be loaded through a typed declarative settings model (`pydantic-settings`) instead of ad-hoc manual environment parsing logic.
+
+#### Scenario: Environment values are parsed through typed fields and validators
+- **WHEN** runtime settings are initialized from environment variables
+- **THEN** coercion and validation SHALL be enforced through typed settings fields and model validators
+- **AND** invalid values SHALL fail startup with explicit configuration errors.
+
+#### Scenario: Existing env-variable contract remains stable
+- **WHEN** operators provide existing environment variable names used by the service
+- **THEN** runtime settings resolution SHALL preserve current variable names and equivalent defaults
+- **AND** startup behavior SHALL remain contract-compatible for valid and invalid configuration inputs.
+
 ### Requirement: Critical runtime configuration is fail-fast
 The service MUST validate critical configuration at startup and refuse to start when required values are missing or invalid.
 
