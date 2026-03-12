@@ -376,7 +376,7 @@ describe("AnalyticsPage", () => {
     });
 
     renderPage(["/app/analytics"], "COP");
-    expect((await screen.findAllByText(/4,000,000\.00/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/400,000,000/)).length).toBeGreaterThan(0);
   });
 
   it("shows rollover KPI and allows apply action from monthly rollover section", async () => {

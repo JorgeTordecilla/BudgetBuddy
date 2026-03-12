@@ -401,7 +401,7 @@ describe("TransactionsPage", () => {
     fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "1.999" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
-    expect(await screen.findByText("Amount must be a positive money value with up to two decimals.")).toBeInTheDocument();
+    expect(await screen.findByText("Amount must be a positive money value for the selected currency.")).toBeInTheDocument();
     expect(createTransaction).not.toHaveBeenCalled();
   });
 

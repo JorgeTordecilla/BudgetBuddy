@@ -19,7 +19,7 @@ import {
 import { detectSpendingSpikes } from "@/features/dashboard/spikes";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { budgetUsagePercent, formatCents } from "@/utils/money";
+import { budgetUsagePercent, formatCents, toMajorUnits } from "@/utils/money";
 
 type OverBudgetItem = {
   categoryId: string;
@@ -78,7 +78,7 @@ function toMoneyDisplayParts(currencyCode: string, cents: number): MoneyDisplayP
   const parts = new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: currencyCode
-  }).formatToParts(cents / 100);
+  }).formatToParts(toMajorUnits(currencyCode, cents));
   const currency = parts
     .filter((part) => part.type === "currency")
     .map((part) => part.value)

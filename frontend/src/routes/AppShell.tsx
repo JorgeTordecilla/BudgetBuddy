@@ -181,7 +181,7 @@ export default function AppShell() {
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "Amount must be a positive money value with up to two decimals."
+        detail: "Amount must be a positive money value for the selected currency."
       }));
       return null;
     }

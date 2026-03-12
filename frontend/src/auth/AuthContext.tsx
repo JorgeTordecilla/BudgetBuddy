@@ -246,7 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     providerBootstrapTriggeredRef.current = true;
-    void bootstrapSession();
+    void bootstrapSession().catch(() => undefined);
   }, [bootstrapSession]);
 
   useEffect(() => {

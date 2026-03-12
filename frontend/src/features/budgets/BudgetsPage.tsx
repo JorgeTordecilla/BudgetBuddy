@@ -15,12 +15,13 @@ import PageHeader from "@/components/PageHeader";
 import { useBudgetsList, invalidateBudgetCaches } from "@/features/budgets/budgetsQueries";
 import BudgetFormModal, { type BudgetFormState } from "@/features/budgets/components/BudgetFormModal";
 import BudgetsTable from "@/features/budgets/components/BudgetsTable";
-import { centsToDecimalInput, isValidMonth, isValidMonthRange, parseLimitInputToCents } from "@/lib/budgets";
+import { isValidMonth, isValidMonthRange } from "@/lib/budgets";
 import { toLocalProblem } from "@/lib/problemDetails";
 import { normalizeMonthParam } from "@/lib/queryState";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 import { currentIsoMonth } from "@/utils/dates";
+import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
 
 const BUDGET_MONTH_INVALID_TYPE = "https://api.budgetbuddy.dev/problems/budget-month-invalid";
 const MONEY_AMOUNT_PREFIX = "https://api.budgetbuddy.dev/problems/money-amount-";
@@ -46,7 +47,7 @@ function mapFieldErrors(problem: ProblemDetails | null): BudgetFieldErrors {
     return { month: problem.detail ?? "Month must use YYYY-MM format." };
   }
   if (problem.type.startsWith(MONEY_AMOUNT_PREFIX)) {
-    return { limit: problem.detail ?? "Limit must be a positive amount with up to two decimals." };
+    return { limit: problem.detail ?? "Limit must be a positive amount for the selected currency." };
   }
   return {};
 }
@@ -173,7 +174,7 @@ export default function BudgetsPage() {
     setFormState({
       month: budget.month,
       categoryId: budget.category_id,
-      limit: centsToDecimalInput(budget.limit_cents)
+      limit: centsToInputValue(currencyCode, budget.limit_cents)
     });
     setFormOpen(true);
   }
@@ -228,9 +229,9 @@ export default function BudgetsPage() {
       nextErrors.categoryId = "Select a category.";
     }
 
-    const limitCents = parseLimitInputToCents(formState.limit);
+    const limitCents = parseMoneyInputToCents(currencyCode, formState.limit);
     if (limitCents === null) {
-      nextErrors.limit = "Limit must be a positive amount with up to two decimals.";
+      nextErrors.limit = "Limit must be a positive amount for the selected currency.";
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -272,15 +273,15 @@ export default function BudgetsPage() {
       }
       payload.category_id = formState.categoryId;
     }
-    const parsedLimit = parseLimitInputToCents(formState.limit);
+    const parsedLimit = parseMoneyInputToCents(currencyCode, formState.limit);
     if (parsedLimit === null) {
       setFormProblem(toLocalProblem({
         type: `${MONEY_AMOUNT_PREFIX}invalid`,
         title: "Invalid limit",
         status: 400,
-        detail: "Limit must be a positive amount with up to two decimals."
+        detail: "Limit must be a positive amount for the selected currency."
       }));
-      setFormFieldErrors((previous) => ({ ...previous, limit: "Limit must be a positive amount with up to two decimals." }));
+      setFormFieldErrors((previous) => ({ ...previous, limit: "Limit must be a positive amount for the selected currency." }));
       return null;
     }
     if (parsedLimit !== editing.limit_cents) {
@@ -334,15 +335,6 @@ export default function BudgetsPage() {
   }, [categoriesItems]);
 
   const currencyCode = user?.currency_code ?? "USD";
-  const moneyFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: currencyCode
-      }),
-    [currencyCode]
-  );
-
   const items = budgetsQuery.data?.items ?? [];
 
   return (
@@ -390,7 +382,7 @@ export default function BudgetsPage() {
             <BudgetsTable
               items={items}
               categoriesById={categoriesById}
-              formatMoney={(amountCents) => moneyFormatter.format(amountCents / 100)}
+              formatMoney={(amountCents) => formatCents(currencyCode, amountCents)}
               onEdit={openEditModal}
               onArchive={setArchiveTarget}
             />
@@ -406,6 +398,7 @@ export default function BudgetsPage() {
         categories={categories}
         problem={formProblem}
         fieldErrors={formFieldErrors}
+        currencyCode={currencyCode}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         onFieldChange={setFormField}

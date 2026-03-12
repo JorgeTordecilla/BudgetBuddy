@@ -6,6 +6,7 @@ import ModalForm from "@/components/ModalForm";
 import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import SelectField from "@/components/SelectField";
 import { Input } from "@/ui/input";
+import { centsToInputValue } from "@/utils/money";
 
 export type BudgetFormState = {
   month: string;
@@ -27,6 +28,7 @@ type Props = {
   categories: Category[];
   problem: unknown | null;
   fieldErrors: BudgetFieldErrors;
+  currencyCode: string;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldChange: (field: keyof BudgetFormState, value: string) => void;
@@ -44,15 +46,18 @@ export default function BudgetFormModal({
   categories,
   problem,
   fieldErrors,
+  currencyCode,
   onClose,
   onSubmit,
   onFieldChange
 }: Props) {
+  const amountPlaceholder = centsToInputValue(currencyCode, 0);
+
   return (
     <ModalForm
       open={open}
       title={editing ? "Edit budget" : "Create budget"}
-      description="Budget limits are sent as integer cents."
+      description={`Enter limit in ${currencyCode} major units.`}
       submitLabel={editing ? "Save changes" : "Create budget"}
       submitting={submitting}
       onClose={onClose}
@@ -90,7 +95,7 @@ export default function BudgetFormModal({
             className={`field-input ${fieldErrors.limit ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
             value={state.limit}
             onChange={(event) => onFieldChange("limit", event.target.value)}
-            placeholder="0.00"
+            placeholder={amountPlaceholder}
             inputMode="decimal"
             aria-invalid={Boolean(fieldErrors.limit)}
           />

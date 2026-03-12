@@ -287,7 +287,7 @@ describe("BudgetsPage", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
     await waitFor(() => {
-      expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Limit must be a positive amount for the selected currency.").length).toBeGreaterThan(0);
     });
   });
 
@@ -316,7 +316,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "1.999" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
-    expect(screen.getAllByText("Limit must be a positive amount with up to two decimals.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Limit must be a positive amount for the selected currency.").length).toBeGreaterThan(0);
     expect(createBudget).not.toHaveBeenCalled();
   });
 
@@ -329,7 +329,7 @@ describe("BudgetsPage", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Create budget" }));
 
     expect(await screen.findByText("Select a category.")).toBeInTheDocument();
-    expect(screen.getByText("Limit must be a positive amount with up to two decimals.")).toBeInTheDocument();
+    expect(screen.getByText("Limit must be a positive amount for the selected currency.")).toBeInTheDocument();
     expect(screen.queryByText("Unexpected error. Please retry.")).not.toBeInTheDocument();
     expect(createBudget).not.toHaveBeenCalled();
   });
@@ -357,7 +357,7 @@ describe("BudgetsPage", () => {
     fireEvent.change(within(dialog).getByLabelText("Limit"), { target: { value: "0" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
-    expect((await screen.findAllByText("Limit must be a positive amount with up to two decimals.")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Limit must be a positive amount for the selected currency.")).length).toBeGreaterThan(0);
     expect(updateBudget).not.toHaveBeenCalled();
   });
 
