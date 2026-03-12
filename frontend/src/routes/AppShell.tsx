@@ -77,7 +77,7 @@ export default function AppShell() {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [formProblem, setFormProblem] = useState<unknown | null>(null);
+  const [formProblem, setFormProblem] = useState<unknown>(null);
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const isDesktop = useIsDesktop();
   const isTransactionsContext = useMemo(
