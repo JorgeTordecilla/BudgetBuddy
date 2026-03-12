@@ -24,6 +24,11 @@ The backend MUST accept import requests without tying up API request threads for
 - **THEN** import workers SHALL be started and stopped through explicit lifecycle hooks
 - **AND** service termination SHALL NOT rely on daemon-thread implicit process kill behavior.
 
+#### Scenario: Import orchestration is isolated from HTTP transport concerns
+- **WHEN** maintainers evolve import queueing or worker logic
+- **THEN** those changes SHALL be implemented in dedicated import modules.
+- **AND** import endpoint handlers SHALL remain thin transport adapters that preserve existing request/response contract semantics.
+
 ### Requirement: Backend enforces backpressure under high concurrency
 Import traffic spikes MUST degrade gracefully and keep core API available.
 

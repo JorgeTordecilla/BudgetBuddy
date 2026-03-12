@@ -28,6 +28,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.errors import transaction_mood_invalid_error
 import app.db.session as db_session
 from app.dependencies import _accepts_vendor_or_problem, enforce_accept_header, enforce_content_type, get_current_user
 from app.db import SessionLocal, get_migration_revision_state
@@ -49,6 +50,11 @@ from app.repositories.interfaces import (
     UserRepository,
 )
 from app.cli import bootstrap as bootstrap_cli
+from app.schemas import TransactionImportRequest
+from app.transactions.csv_export import csv_stream
+import app.transactions.pagination as tx_pagination
+from app.transactions.import_jobs import _ImportJobManager
+from app.transactions.validation import validate_transaction_mood
 
 
 def _request(path: str, method: str = "GET", headers: dict[str, str] | None = None) -> Request:
@@ -1274,3 +1280,92 @@ def test_sqlalchemy_repositories_cover_list_filter_branches():
         _assert_budget_repo(budget_repo, user, budget_a, budget_b, budget_other)
     finally:
         db.close()
+
+
+def test_transactions_csv_stream_escapes_formula_cells_and_keeps_header():
+    class _Tx:
+        date = date(2026, 1, 2)
+        type = "expense"
+        amount_cents = -1234
+        merchant = "=SUM(1,2)"
+        note = "@danger"
+        mood = "happy"
+        is_impulse = True
+
+    lines = list(csv_stream([(_Tx(), "+acct", "-cat")]))
+    assert lines[0].strip() == "date,type,account,category,amount_cents,merchant,note,mood,is_impulse"
+    assert "'+acct" in lines[1]
+    assert "'-cat" in lines[1]
+    assert "'=SUM(1,2)" in lines[1]
+    assert "'@danger" in lines[1]
+    assert lines[1].strip().endswith(",happy,true")
+
+
+def test_transactions_pagination_build_page_and_invalid_cursor_shape(monkeypatch):
+    class _Tx:
+        def __init__(self, tx_id: str):
+            self.id = tx_id
+            self.date = date(2026, 1, 10)
+            self.created_at = datetime(2026, 1, 10, 12, 0, tzinfo=UTC)
+
+    rows = [_Tx("a"), _Tx("b"), _Tx("c")]
+    items, next_cursor = tx_pagination.build_page(rows, limit=2)
+    assert len(items) == 2
+    assert next_cursor is not None
+
+    stmt = select(Transaction)
+    monkeypatch.setattr(tx_pagination, "decode_cursor", lambda _cursor: {"date": 123, "id": []})
+    with pytest.raises(APIError):
+        tx_pagination.apply_cursor(stmt, "bad")
+
+
+def test_validate_transaction_mood_accepts_null_and_rejects_unknown():
+    validate_transaction_mood({"mood": None})
+    validate_transaction_mood({"mood": "happy"})
+    with pytest.raises(APIError) as exc:
+        validate_transaction_mood({"mood": "excited"})
+    assert exc.value.type_ == transaction_mood_invalid_error("x").type_
+
+
+def test_import_job_manager_idempotency_conflict_on_payload_mismatch():
+    manager = _ImportJobManager(
+        per_user_limit=3,
+        queue_limit=10,
+        worker_count=0,
+        terminal_ttl_seconds=3600,
+        idempotency_ttl_seconds=3600,
+        retained_terminal_cap=100,
+    )
+    first = TransactionImportRequest.model_validate(
+        {
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "expense",
+                    "account_id": "acc-1",
+                    "category_id": "cat-1",
+                    "amount_cents": -1000,
+                    "date": "2026-01-10",
+                }
+            ],
+        }
+    )
+    second = TransactionImportRequest.model_validate(
+        {
+            "mode": "partial",
+            "items": [
+                {
+                    "type": "expense",
+                    "account_id": "acc-1",
+                    "category_id": "cat-1",
+                    "amount_cents": -2000,
+                    "date": "2026-01-10",
+                }
+            ],
+        }
+    )
+
+    manager.submit(user_id="user-1", payload=first, idempotency_key="same")
+    with pytest.raises(APIError) as exc:
+        manager.submit(user_id="user-1", payload=second, idempotency_key="same")
+    assert exc.value.status == 409

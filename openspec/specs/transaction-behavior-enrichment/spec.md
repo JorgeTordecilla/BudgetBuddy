@@ -14,6 +14,11 @@ The system MUST support optional transaction enrichment fields `mood` and `is_im
 - **WHEN** a transaction includes a non-null mood value
 - **THEN** the value SHALL be one of `happy`, `neutral`, `sad`, `anxious`, or `bored`.
 
+#### Scenario: Enrichment validation behavior remains stable after module decomposition
+- **WHEN** enrichment payload validation logic is moved into dedicated transaction validation modules
+- **THEN** accepted and rejected input semantics for `mood` and `is_impulse` SHALL remain equivalent to the existing contract.
+- **AND** validation failures SHALL continue to surface canonical ProblemDetails responses.
+
 ### Requirement: Impulse behavior aggregates are deterministic by date range
 The system MUST provide deterministic date-range aggregation for impulse behavior counters and top impulse categories.
 
