@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { Textarea } from "@/ui/textarea";
-import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
+import { centsToInputValue, formatCents, parseMoneyInputToCents, resolveMinorUnits } from "@/utils/money";
 
 type IncomeSourceFormState = {
   name: string;
@@ -52,6 +52,8 @@ export default function IncomeSourcesPage() {
   const [pageProblem, setPageProblem] = useState<unknown | null>(null);
   const [formProblem, setFormProblem] = useState<unknown | null>(null);
   const currencyCode = user?.currency_code ?? "USD";
+  const amountExample = centsToInputValue(currencyCode, 4_000_000 * (10 ** resolveMinorUnits(currencyCode)));
+  const amountPlaceholder = centsToInputValue(currencyCode, 0);
 
   const query = useQuery({
     queryKey: ["income-sources", includeArchived] as const,
@@ -137,7 +139,7 @@ export default function IncomeSourcesPage() {
         type: "about:blank",
         title: "Invalid amount",
         status: 400,
-        detail: "Expected amount must be a positive money value with up to two decimals."
+        detail: "Expected amount must be a positive money value for the selected currency."
       });
       return null;
     }
@@ -324,7 +326,7 @@ export default function IncomeSourcesPage() {
       <ModalForm
         open={formOpen}
         title={editing ? "Edit income source" : "Create income source"}
-        description={`Enter expected amount in ${currencyCode} major units (for example 4000000.00).`}
+        description={`Enter expected amount in ${currencyCode} major units (for example ${amountExample}).`}
         submitLabel={editing ? "Save changes" : "Create income source"}
         submitting={saveMutation.isPending}
         onClose={() => setFormOpen(false)}
@@ -340,7 +342,7 @@ export default function IncomeSourcesPage() {
             <Input
               value={formState.expectedAmount}
               onChange={(event) => setFormState((prev) => ({ ...prev, expectedAmount: event.target.value }))}
-              placeholder="0.00"
+              placeholder={amountPlaceholder}
               required
             />
           </label>

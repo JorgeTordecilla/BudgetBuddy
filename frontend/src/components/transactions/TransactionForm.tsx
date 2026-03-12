@@ -7,6 +7,7 @@ import ProblemDetailsInline from "@/components/errors/ProblemDetailsInline";
 import ModalForm from "@/components/ModalForm";
 import { Input } from "@/ui/input";
 import { Textarea } from "@/ui/textarea";
+import { centsToInputValue, resolveMinorUnits } from "@/utils/money";
 
 export type TransactionFormState = {
   type: TransactionType;
@@ -55,12 +56,15 @@ export default function TransactionForm({
   isEdit = false
 }: TransactionFormProps) {
   const visibleCategories = categories.filter((category) => category.type === state.type);
+  const unitFactor = 10 ** resolveMinorUnits(currencyCode);
+  const amountExample = centsToInputValue(currencyCode, 4_000_000 * unitFactor);
+  const amountPlaceholder = centsToInputValue(currencyCode, 0);
 
   return (
     <ModalForm
       open={open}
       title={title}
-      description={`Enter amount in ${currencyCode} major units (for example 4000000.00) and date format YYYY-MM-DD.`}
+      description={`Enter amount in ${currencyCode} major units (for example ${amountExample}) and date format YYYY-MM-DD.`}
       submitLabel={submitLabel}
       submitting={submitting}
       onClose={onClose}
@@ -125,7 +129,7 @@ export default function TransactionForm({
             className="field-input"
             value={state.amount}
             onChange={(event) => onFieldChange("amount", event.target.value)}
-            placeholder="0.00"
+            placeholder={amountPlaceholder}
             required={!isEdit}
           />
         </label>

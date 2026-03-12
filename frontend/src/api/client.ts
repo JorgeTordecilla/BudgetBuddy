@@ -9,39 +9,71 @@ import { captureApiFailure } from "@/observability/runtime";
 export const VENDOR_MEDIA_TYPE = "application/vnd.budgetbuddy.v1+json";
 const REFRESH_REUSE_DETECTED_TYPE = "https://api.budgetbuddy.dev/problems/refresh-reuse-detected";
 
-let pageLifecycleBound = false;
-let pageIsUnloading = false;
+type PageLifecycleState = {
+  bound: boolean;
+  isUnloading: boolean;
+  markUnloading: (() => void) | null;
+  markActive: (() => void) | null;
+  handleVisibilityChange: (() => void) | null;
+};
+
+const pageLifecycle: PageLifecycleState = {
+  bound: false,
+  isUnloading: false,
+  markUnloading: null,
+  markActive: null,
+  handleVisibilityChange: null
+};
 
 function bindPageLifecycleSignals(): void {
-  if (pageLifecycleBound || typeof window === "undefined") {
+  if (pageLifecycle.bound || typeof window === "undefined") {
     return;
   }
-  const markUnloading = () => {
-    pageIsUnloading = true;
+  pageLifecycle.markUnloading = () => {
+    pageLifecycle.isUnloading = true;
   };
-  const markActive = () => {
-    pageIsUnloading = false;
+  pageLifecycle.markActive = () => {
+    pageLifecycle.isUnloading = false;
   };
-  window.addEventListener("beforeunload", markUnloading, { capture: true });
-  window.addEventListener("pagehide", markUnloading, { capture: true });
-  window.addEventListener("pageshow", markActive, { capture: true });
+  window.addEventListener("beforeunload", pageLifecycle.markUnloading, true);
+  window.addEventListener("pagehide", pageLifecycle.markUnloading, true);
+  window.addEventListener("pageshow", pageLifecycle.markActive, true);
   if (typeof document !== "undefined") {
+    pageLifecycle.handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        pageLifecycle.markActive?.();
+      }
+    };
     document.addEventListener(
       "visibilitychange",
-      () => {
-        if (document.visibilityState === "visible") {
-          markActive();
-        }
-      },
-      { capture: true }
+      pageLifecycle.handleVisibilityChange,
+      true
     );
   }
-  pageLifecycleBound = true;
+  pageLifecycle.bound = true;
 }
 
 function isPageUnloading(): boolean {
   bindPageLifecycleSignals();
-  return pageIsUnloading;
+  return pageLifecycle.isUnloading;
+}
+
+export function resetPageLifecycleForTests(): void {
+  if (typeof window !== "undefined" && pageLifecycle.markUnloading) {
+    window.removeEventListener("beforeunload", pageLifecycle.markUnloading, true);
+    window.removeEventListener("pagehide", pageLifecycle.markUnloading, true);
+  }
+  if (typeof window !== "undefined" && pageLifecycle.markActive) {
+    window.removeEventListener("pageshow", pageLifecycle.markActive, true);
+  }
+  if (typeof document !== "undefined" && pageLifecycle.handleVisibilityChange) {
+    document.removeEventListener("visibilitychange", pageLifecycle.handleVisibilityChange, true);
+  }
+  pageLifecycle.bound = false;
+  pageLifecycle.isUnloading = false;
+  pageLifecycle.markUnloading = null;
+  pageLifecycle.markActive = null;
+  pageLifecycle.handleVisibilityChange = null;
 }
 
 type AuthBindings = {
@@ -278,8 +310,6 @@ export function createApiClient(bindings: AuthBindings, options: ClientOptions =
       } catch (error) {
         await publishAuthProblem(error, "Logout failed");
         throw error;
-      } finally {
-        bindings.clearSession();
       }
     }
   };

@@ -16,7 +16,7 @@ describe("money helpers", () => {
 
   it("parses major-unit money input into cents for base currencies", () => {
     expect(parseMoneyInputToCents("USD", "12.34")).toBe(1234);
-    expect(parseMoneyInputToCents("COP", "4,000,000")).toBe(400000000);
+    expect(parseMoneyInputToCents("COP", "4,000,000")).toBe(4000000);
     expect(parseMoneyInputToCents("EUR", "1.234,56")).toBe(123456);
     expect(parseMoneyInputToCents("MXN", "12,3")).toBe(1230);
   });
@@ -37,7 +37,7 @@ describe("money helpers", () => {
 
   it("converts cents to normalized form input value", () => {
     expect(centsToInputValue("USD", 1234)).toBe("12.34");
-    expect(centsToInputValue("COP", 400000000)).toBe("4000000.00");
+    expect(centsToInputValue("COP", 4000000)).toBe("4000000");
   });
 
   it("converts cents to decimal string", () => {

@@ -1,14 +1,18 @@
 const CURRENCY_MINOR_UNITS: Record<string, number> = {
   USD: 2,
-  COP: 2,
+  COP: 0,
   EUR: 2,
   MXN: 2
 };
 
 const DEFAULT_MAX_CENTS = 999_999_999_999;
 
-function resolveMinorUnits(currencyCode: string): number {
+export function resolveMinorUnits(currencyCode: string): number {
   return CURRENCY_MINOR_UNITS[currencyCode.toUpperCase()] ?? 2;
+}
+
+export function toMajorUnits(currencyCode: string, minorAmount: number): number {
+  return minorAmount / (10 ** resolveMinorUnits(currencyCode));
 }
 
 function normalizeMoneyInput(raw: string, fractionDigits: number): string | null {
@@ -66,7 +70,9 @@ function normalizeMoneyInput(raw: string, fractionDigits: number): string | null
 export function parseMoneyInputToCents(currencyCode: string, input: string, maxCents = DEFAULT_MAX_CENTS): number | null {
   const fractionDigits = resolveMinorUnits(currencyCode);
   const normalized = normalizeMoneyInput(input, fractionDigits);
-  const amountPattern = new RegExp(`^\\d+(\\.\\d{1,${fractionDigits}})?$`);
+  const amountPattern = fractionDigits > 0
+    ? new RegExp(`^\\d+(\\.\\d{1,${fractionDigits}})?$`)
+    : /^\d+$/;
   if (!normalized || !amountPattern.test(normalized)) {
     return null;
   }
@@ -101,7 +107,7 @@ export function parseNonNegativeMoneyInputToCents(
 
 export function centsToInputValue(currencyCode: string, cents: number): string {
   const fractionDigits = resolveMinorUnits(currencyCode);
-  return (cents / (10 ** fractionDigits)).toFixed(fractionDigits);
+  return toMajorUnits(currencyCode, cents).toFixed(fractionDigits);
 }
 
 export function formatCents(currencyCode: string, cents: number): string {
@@ -111,7 +117,7 @@ export function formatCents(currencyCode: string, cents: number): string {
     currency: currencyCode,
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits
-  }).format(cents / (10 ** fractionDigits));
+  }).format(toMajorUnits(currencyCode, cents));
 }
 
 export function centsToDecimalString(cents: number): string {

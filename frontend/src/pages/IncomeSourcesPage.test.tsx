@@ -69,7 +69,7 @@ describe("IncomeSourcesPage", () => {
         {
           id: "s1",
           name: "Paycheck 1",
-          expected_amount_cents: 400000000,
+          expected_amount_cents: 4000000,
           frequency: "monthly",
           is_active: true,
           note: null,
@@ -82,7 +82,7 @@ describe("IncomeSourcesPage", () => {
     vi.mocked(createIncomeSource).mockResolvedValue({
       id: "s2",
       name: "Freelance",
-      expected_amount_cents: 50000000,
+      expected_amount_cents: 500000,
       frequency: "monthly",
       is_active: true,
       note: null,
@@ -99,8 +99,8 @@ describe("IncomeSourcesPage", () => {
     renderPage();
 
     await screen.findByText("Paycheck 1");
-    expect(screen.getAllByText(/4,000,000\.00/).length).toBeGreaterThan(0);
-    expect(screen.queryByText("400000000")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/4,000,000/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("4000000")).not.toBeInTheDocument();
   });
 
   it("converts major-unit input to expected_amount_cents on create", async () => {
@@ -117,7 +117,7 @@ describe("IncomeSourcesPage", () => {
         apiClientStub,
         expect.objectContaining({
           name: "Freelance",
-          expected_amount_cents: 50000000
+          expected_amount_cents: 500000
         })
       )
     );
@@ -127,7 +127,7 @@ describe("IncomeSourcesPage", () => {
     vi.mocked(updateIncomeSource).mockResolvedValue({
       id: "s1",
       name: "Paycheck 1",
-      expected_amount_cents: 450000000,
+      expected_amount_cents: 4500000,
       frequency: "monthly",
       is_active: true,
       note: null,
@@ -144,10 +144,10 @@ describe("IncomeSourcesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() =>
-      expect(updateIncomeSource).toHaveBeenCalledWith(
+        expect(updateIncomeSource).toHaveBeenCalledWith(
         apiClientStub,
         "s1",
-        expect.objectContaining({ expected_amount_cents: 450000000 })
+        expect.objectContaining({ expected_amount_cents: 4500000 })
       )
     );
   });
@@ -169,7 +169,7 @@ describe("IncomeSourcesPage", () => {
         {
           id: "s1",
           name: "Paycheck 1",
-          expected_amount_cents: 400000000,
+          expected_amount_cents: 4000000,
           frequency: "monthly",
           is_active: true,
           note: null,
@@ -235,7 +235,7 @@ describe("IncomeSourcesPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New income source" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Consulting" } });
-    fireEvent.change(screen.getByLabelText("Expected amount"), { target: { value: "3000.00" } });
+    fireEvent.change(screen.getByLabelText("Expected amount"), { target: { value: "3000" } });
     fireEvent.click(screen.getByRole("button", { name: "Create income source" }));
 
     await waitFor(() => expect(createIncomeSource).toHaveBeenCalledTimes(1));
@@ -248,7 +248,7 @@ describe("IncomeSourcesPage", () => {
         {
           id: "s1",
           name: "Paycheck 1",
-          expected_amount_cents: 400000000,
+          expected_amount_cents: 4000000,
           frequency: "monthly",
           is_active: true,
           note: null,

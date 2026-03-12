@@ -7,7 +7,7 @@ vi.mock("@/components/errors/problemToastStore", () => ({
   publishProblemToast
 }));
 
-import { createApiClient } from "@/api/client";
+import { createApiClient, resetPageLifecycleForTests } from "@/api/client";
 import { ApiProblemError, OfflineMutationError } from "@/api/errors";
 import type { User } from "@/api/types";
 
@@ -17,6 +17,7 @@ function makeUser(): User {
 
 describe("api client refresh behavior", () => {
   beforeEach(() => {
+    resetPageLifecycleForTests();
     vi.restoreAllMocks();
     publishProblemToast.mockClear();
     window.dispatchEvent(new Event("pageshow"));
@@ -415,6 +416,48 @@ describe("api client refresh behavior", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("can reset page lifecycle state between instances", async () => {
+    const firstFetch = vi.fn<typeof fetch>().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const firstClient = createApiClient(
+      {
+        getAccessToken: () => "old-token",
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      { fetchImpl: firstFetch, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    window.dispatchEvent(new Event("beforeunload"));
+    const firstResponse = await firstClient.request("/protected", { method: "GET" });
+    expect(firstResponse.status).toBe(401);
+    expect(firstFetch).toHaveBeenCalledTimes(1);
+
+    resetPageLifecycleForTests();
+
+    const secondFetch = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: makeUser(),
+          access_token: "token-fresh",
+          access_token_expires_in: 900
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const secondClient = createApiClient(
+      {
+        getAccessToken: () => null,
+        setSession: () => undefined,
+        clearSession: () => undefined
+      },
+      { fetchImpl: secondFetch, baseUrl: "http://test.local/api", onAuthFailure: () => undefined }
+    );
+
+    const refreshed = await secondClient.refresh();
+    expect(refreshed?.access_token).toBe("token-fresh");
+    expect(secondFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("throws on login failure and on me failure", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -606,7 +649,7 @@ describe("api client refresh behavior", () => {
     expect(window.location.pathname).toBe("/login");
   });
 
-  it("clears session on logout", async () => {
+  it("does not clear session on logout", async () => {
     const clearSession = vi.fn();
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("ok", { status: 200 }));
     const client = createApiClient(
@@ -620,10 +663,10 @@ describe("api client refresh behavior", () => {
 
     await client.logout();
 
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
   });
 
-  it("clears session on logout even when request fails", async () => {
+  it("does not clear session on logout when request fails", async () => {
     const clearSession = vi.fn();
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("network down"));
     const client = createApiClient(
@@ -636,7 +679,7 @@ describe("api client refresh behavior", () => {
     );
 
     await expect(client.logout()).rejects.toThrow("network down");
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
   });
 
   it("blocks non-GET requests when browser is offline", async () => {
@@ -693,7 +736,7 @@ describe("api client refresh behavior", () => {
     );
 
     await expect(client.logout()).resolves.toBeUndefined();
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
     expect(publishProblemToast).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: "req-logout-500",

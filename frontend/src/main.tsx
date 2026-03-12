@@ -18,6 +18,7 @@ import RequireAuth from "@/routes/RequireAuth";
 import RouteChunkErrorBoundary from "@/routes/RouteChunkErrorBoundary";
 import { createAppQueryClient } from "@/query/queryClient";
 import { initializeObservability } from "@/observability/runtime";
+import { getRequiredRootElement } from "@/lib/rootElement";
 import { incrementPwaSessionCount } from "@/lib/pwaSessionCounter";
 
 const Dashboard = lazy(() => import("@/routes/Dashboard"));
@@ -86,7 +87,7 @@ if (typeof window !== "undefined") {
   incrementPwaSessionCount();
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(getRequiredRootElement()).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>

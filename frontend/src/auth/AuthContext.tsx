@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accessToken: null
   }));
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const userRef = useRef<User | null>(session.user);
   const tokenRef = useRef<string | null>(null);
   const skipNextBootstrapRef = useRef(false);
   const bootstrapInFlightRef = useRef<Promise<boolean> | null>(null);
@@ -121,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setSessionState = useCallback((next: SessionState) => {
+    userRef.current = next.user;
     tokenRef.current = next.accessToken;
     if (next.accessToken) {
       scheduleSilentRefresh(next.accessToken);
@@ -198,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       skipNextBootstrapRef.current = false;
       return false;
     }
-    if (tokenRef.current && session.user) {
+    if (tokenRef.current && userRef.current) {
       lastBootstrapFailureAtRef.current = null;
       return true;
     }
@@ -241,14 +243,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     bootstrapInFlightRef.current = bootstrapPromise;
     return bootstrapPromise;
-  }, [client, session.user, setSessionState]);
+  }, [client, setSessionState]);
 
   useEffect(() => {
     if (providerBootstrapTriggeredRef.current) {
       return;
     }
     providerBootstrapTriggeredRef.current = true;
-    void bootstrapSession();
+    void bootstrapSession().catch(() => undefined);
   }, [bootstrapSession]);
 
   useEffect(() => {
