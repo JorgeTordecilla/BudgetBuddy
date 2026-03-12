@@ -31,7 +31,7 @@ type TransactionFormProps = {
   categories: Category[];
   incomeSources?: IncomeSource[];
   currencyCode?: string;
-  problem: unknown | null;
+  problem: unknown;
   onFieldChange: (field: keyof TransactionFormState, value: string) => void;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
