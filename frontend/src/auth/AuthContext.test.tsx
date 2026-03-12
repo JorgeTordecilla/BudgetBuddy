@@ -125,6 +125,18 @@ describe("AuthProvider", () => {
     expect(mockMe).toHaveBeenCalledTimes(meCallsBeforeManualBootstrap);
   });
 
+  it("keeps bootstrapSession callback stable when user state changes", async () => {
+    mockRefresh.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    const bootstrapBeforeLogin = result.current.bootstrapSession;
+
+    await act(async () => {
+      await result.current.login("demo", "secret");
+    });
+
+    expect(result.current.bootstrapSession).toBe(bootstrapBeforeLogin);
+  });
+
   it("uses cached user during bootstrap before refresh resolves", async () => {
     window.localStorage.setItem(
       "bb_session_user",
