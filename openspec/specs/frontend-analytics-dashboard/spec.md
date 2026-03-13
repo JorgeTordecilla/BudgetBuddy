@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the frontend contract and behavior for authenticated analytics reporting, including date-range filtering, monthly and category views, budget overlays, deterministic ProblemDetails handling, and quality gates aligned with the BudgetBuddy API contract.
+Define the frontend contract and behavior for authenticated analytics reporting, including date-range filtering, monthly and category views, budget overlays, deterministic ProblemDetails handling, and quality gates aligned with the BeBudget API contract.
 
 ## Requirements
 

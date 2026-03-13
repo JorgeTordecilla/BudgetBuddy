@@ -23,7 +23,7 @@ Shadcn-backed form controls SHALL preserve the existing frontend domain contract
 #### Scenario: Existing payload shapes remain unchanged
 - **WHEN** users submit forms after control migration to shadcn primitives
 - **THEN** request payload keys and value formats SHALL remain identical to pre-migration behavior
-- **AND** API media-type usage SHALL remain `application/vnd.budgetbuddy.v1+json` for success and `application/problem+json` for errors.
+- **AND** API media-type usage SHALL remain `application/vnd.bebudget.v1+json` for success and `application/problem+json` for errors.
 
 #### Scenario: Validation and ProblemDetails rendering remain stable
 - **WHEN** local validation or backend ProblemDetails errors occur

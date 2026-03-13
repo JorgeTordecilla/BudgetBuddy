@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the frontend contract and behavior for authenticated budget management, including list/create/update/archive flows, deterministic ProblemDetails handling, and quality gates aligned with the BudgetBuddy API contract.
+Define the frontend contract and behavior for authenticated budget management, including list/create/update/archive flows, deterministic ProblemDetails handling, and quality gates aligned with the BeBudget API contract.
 ## Requirements
 ### Requirement: Authenticated budgets route and range list must be available
 The frontend SHALL expose a protected budgets page under the authenticated app shell, support month-range list retrieval, and keep month/range controls synchronized with URL state.

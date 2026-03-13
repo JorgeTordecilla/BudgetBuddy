@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the frontend contract and behavior for the authenticated dashboard cockpit, including month-health KPIs, deterministic alerts, contextual bridge navigation, and quality/error handling aligned with BudgetBuddy API contracts.
+Define the frontend contract and behavior for the authenticated dashboard cockpit, including month-health KPIs, deterministic alerts, contextual bridge navigation, and quality/error handling aligned with BeBudget API contracts.
 
 ## Requirements
 

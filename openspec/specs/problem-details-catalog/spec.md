@@ -17,7 +17,7 @@ The API contract MUST provide a single canonical catalog of supported ProblemDet
 
 #### Scenario: Canonical fields are exact for invalid date range
 - **WHEN** runtime emits invalid date range errors for list endpoints
-- **THEN** the payload SHALL use exact `type=https://api.budgetbuddy.dev/problems/invalid-date-range`, `title=Invalid date range`, `status=400`
+- **THEN** the payload SHALL use exact `type=https://api.bebudget.dev/problems/invalid-date-range`, `title=Invalid date range`, `status=400`
 
 #### Scenario: Catalog includes canonical money validation errors
 - **WHEN** money validation rules reject invalid `amount_cents` values or currency mismatches
@@ -165,7 +165,7 @@ ProblemDetails catalog MUST explicitly cover cookie-transport auth failures with
 
 #### Scenario: Missing or invalid refresh cookie maps to canonical unauthorized
 - **WHEN** `POST /auth/refresh` is called without `bb_refresh` cookie or with malformed/expired cookie value
-- **THEN** response SHALL use canonical `401` ProblemDetails (`type=https://api.budgetbuddy.dev/problems/unauthorized`, `title=Unauthorized`, `status=401`)
+- **THEN** response SHALL use canonical `401` ProblemDetails (`type=https://api.bebudget.dev/problems/unauthorized`, `title=Unauthorized`, `status=401`)
 
 #### Scenario: Revoked or reused refresh cookie maps to canonical forbidden
 - **WHEN** refresh token represented by `bb_refresh` is revoked or reuse-detected
@@ -184,7 +184,7 @@ Blocked origin checks for refresh MUST produce a stable ProblemDetails mapping.
 #### Scenario: Blocked origin maps to origin-not-allowed
 - **WHEN** `POST /auth/refresh` is rejected by origin allowlist policy
 - **THEN** response SHALL be `403` `application/problem+json`
-- **AND** `type` SHALL be `https://api.budgetbuddy.dev/problems/origin-not-allowed`
+- **AND** `type` SHALL be `https://api.bebudget.dev/problems/origin-not-allowed`
 - **AND** `title` SHALL be `Forbidden`
 - **AND** `status` SHALL be `403`
 
@@ -204,7 +204,7 @@ The ProblemDetails catalog MUST include a canonical entry for invalid transactio
 
 #### Scenario: Catalog includes transaction-mood-invalid identity
 - **WHEN** canonical problem catalog is defined
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/transaction-mood-invalid`, `title=Transaction mood value is invalid`, and `status=422`.
+- **THEN** it SHALL include `type=https://api.bebudget.dev/problems/transaction-mood-invalid`, `title=Transaction mood value is invalid`, and `status=422`.
 
 ### Requirement: Runtime mood validation errors align with canonical catalog entry
 Runtime responses for invalid transaction mood MUST match catalog identity and media-type policy.
@@ -218,19 +218,19 @@ The ProblemDetails catalog MUST include stable canonical identities for recurrin
 
 #### Scenario: Catalog includes bill category mismatch
 - **WHEN** catalog entries are reviewed
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-category-type-mismatch`, title `Bill category must be of type expense`, status `409`.
+- **THEN** it SHALL include `type=https://api.bebudget.dev/problems/bill-category-type-mismatch`, title `Bill category must be of type expense`, status `409`.
 
 #### Scenario: Catalog includes bill due day invalid
 - **WHEN** catalog entries are reviewed
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-due-day-invalid`, title `Bill due day must be between 1 and 31`, status `422`.
+- **THEN** it SHALL include `type=https://api.bebudget.dev/problems/bill-due-day-invalid`, title `Bill due day must be between 1 and 31`, status `422`.
 
 #### Scenario: Catalog includes bill already paid
 - **WHEN** catalog entries are reviewed
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-already-paid`, title `Bill already paid for this month`, status `409`.
+- **THEN** it SHALL include `type=https://api.bebudget.dev/problems/bill-already-paid`, title `Bill already paid for this month`, status `409`.
 
 #### Scenario: Catalog includes bill inactive for month
 - **WHEN** catalog entries are reviewed
-- **THEN** it SHALL include `type=https://api.budgetbuddy.dev/problems/bill-inactive-for-month`, title `Bill is inactive for this month`, status `409`.
+- **THEN** it SHALL include `type=https://api.bebudget.dev/problems/bill-inactive-for-month`, title `Bill is inactive for this month`, status `409`.
 
 ### Requirement: Runtime bill errors map exactly to canonical catalog
 Runtime bill endpoint failures MUST emit ProblemDetails that match documented identities.
@@ -244,27 +244,27 @@ ProblemDetails catalog MUST define stable canonical identities for savings-goal 
 
 #### Scenario: Catalog includes savings target invalid
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-goal-invalid-target`, title `Savings goal target must be greater than zero`, status `422`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-goal-invalid-target`, title `Savings goal target must be greater than zero`, status `422`.
 
 #### Scenario: Catalog includes savings category mismatch
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-goal-category-type-mismatch`, title `Savings goal category must be of type expense`, status `409`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-goal-category-type-mismatch`, title `Savings goal category must be of type expense`, status `409`.
 
 #### Scenario: Catalog includes savings deadline past
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-goal-deadline-past`, title `Savings goal deadline cannot be in the past`, status `422`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-goal-deadline-past`, title `Savings goal deadline cannot be in the past`, status `422`.
 
 #### Scenario: Catalog includes savings goal not active
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-goal-not-active`, title `Savings goal is not active and cannot receive contributions`, status `409`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-goal-not-active`, title `Savings goal is not active and cannot receive contributions`, status `409`.
 
 #### Scenario: Catalog includes contribution invalid amount
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-contribution-invalid-amount`, title `Contribution amount must be greater than zero`, status `422`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-contribution-invalid-amount`, title `Contribution amount must be greater than zero`, status `422`.
 
 #### Scenario: Catalog includes already completed transition conflict
 - **WHEN** catalog is reviewed
-- **THEN** it includes `type=https://api.budgetbuddy.dev/problems/savings-goal-already-completed`, title `Savings goal is already completed`, status `409`.
+- **THEN** it includes `type=https://api.bebudget.dev/problems/savings-goal-already-completed`, title `Savings goal is already completed`, status `409`.
 
 ### Requirement: Runtime savings errors match canonical catalog
 Runtime savings endpoint failures MUST emit exact cataloged `type/title/status` triples.

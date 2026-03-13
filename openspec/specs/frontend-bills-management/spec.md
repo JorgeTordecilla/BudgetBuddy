@@ -1,5 +1,5 @@
 ## Purpose
-Define frontend behavior for recurring bills management in BudgetBuddy.
+Define frontend behavior for recurring bills management in BeBudget.
 
 ## Requirements
 

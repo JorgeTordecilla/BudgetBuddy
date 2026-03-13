@@ -237,7 +237,7 @@ The frontend SHALL download CSV responses using browser-safe blob handling and s
 #### Scenario: Filename resolution is deterministic
 - **WHEN** export download is prepared
 - **THEN** frontend SHALL prefer filename from `Content-Disposition` if present
-- **AND** fallback to `budgetbuddy-transactions-YYYYMMDD-HHmm.csv` when absent.
+- **AND** fallback to `BeBudget-transactions-YYYYMMDD-HHmm.csv` when absent.
 
 ### Requirement: Exported CSV content must be user-facing
 The transactions export contract SHALL provide analysis-ready business columns and SHALL NOT expose internal storage identifiers by default.

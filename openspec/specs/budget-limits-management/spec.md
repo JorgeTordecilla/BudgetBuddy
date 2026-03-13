@@ -9,7 +9,7 @@ The backend MUST implement `/budgets` and `/budgets/{budget_id}` with create, li
 
 #### Scenario: Create budget succeeds for owned active category
 - **WHEN** an authenticated user calls `POST /budgets` with valid `month`, `category_id`, and `limit_cents` for a category owned by that user and not archived
-- **THEN** the API SHALL return `201` with `Content-Type: application/vnd.budgetbuddy.v1+json` and a `Budget` payload
+- **THEN** the API SHALL return `201` with `Content-Type: application/vnd.bebudget.v1+json` and a `Budget` payload
 
 #### Scenario: List budgets by month range
 - **WHEN** an authenticated user calls `GET /budgets` with valid `from` and `to` month query parameters

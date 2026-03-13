@@ -85,11 +85,11 @@ The backend MUST implement `/transactions` and `/transactions/{transaction_id}` 
 
 #### Scenario: Creating transaction on archived account is rejected
 - **WHEN** a client calls `POST /transactions` with an `account_id` that belongs to the user and has `archived_at != null`
-- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.budgetbuddy.dev/problems/account-archived`, `title=Account is archived`, `status=409`
+- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.bebudget.dev/problems/account-archived`, `title=Account is archived`, `status=409`
 
 #### Scenario: Category type mismatch on transaction write is rejected
 - **WHEN** a client calls `POST /transactions` or `PATCH /transactions/{transaction_id}` with `type` not matching selected `category.type`
-- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.budgetbuddy.dev/problems/category-type-mismatch`, `title=Category type mismatch`, `status=409`
+- **THEN** the API SHALL reject with `409` `ProblemDetails` and canonical `type=https://api.bebudget.dev/problems/category-type-mismatch`, `title=Category type mismatch`, `status=409`
 
 #### Scenario: Income transaction with expense category is rejected
 - **WHEN** `POST /transactions` or `PATCH /transactions/{transaction_id}` uses `type=income` and `category.type=expense`
@@ -361,7 +361,7 @@ The backend MUST reject non-canonical `mood` values with deterministic ProblemDe
 
 #### Scenario: Invalid mood returns canonical 422
 - **WHEN** transaction create or update receives `mood` outside the allowed taxonomy
-- **THEN** the API SHALL return `422` with canonical ProblemDetails `type=https://api.budgetbuddy.dev/problems/transaction-mood-invalid`.
+- **THEN** the API SHALL return `422` with canonical ProblemDetails `type=https://api.bebudget.dev/problems/transaction-mood-invalid`.
 
 ### Requirement: Transactions CSV export includes enrichment columns
 The backend MUST expose enrichment fields in transactions CSV export as additive trailing columns.

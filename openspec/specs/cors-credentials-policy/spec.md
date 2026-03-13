@@ -12,7 +12,7 @@ The backend MUST load CORS origins from configuration and apply an explicit allo
 - **THEN** the backend SHALL allow `http://localhost:5173` for local frontend development against `http://localhost:8000`
 
 #### Scenario: Production origins are parsed from environment
-- **WHEN** `BUDGETBUDDY_CORS_ORIGINS` is configured with a comma-separated list
+- **WHEN** `BEBUDGET_CORS_ORIGINS` is configured with a comma-separated list
 - **THEN** the backend SHALL parse and apply each non-empty origin entry deterministically
 
 ### Requirement: Credentialed CORS policy is enforced

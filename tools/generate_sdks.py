@@ -96,8 +96,6 @@ def _ts_client(spec_hash: str, ts_cfg: dict, ops: list[Operation]) -> str:
 
     lines.append("}")
     lines.append("")
-    lines.append("export { BeBudgetClient as BudgetBuddyClient };")
-    lines.append("")
     return "\n".join(lines)
 
 
@@ -154,11 +152,10 @@ def _py_init(spec_hash: str) -> str:
             '"""Generated BeBudget Python SDK."""',
             "",
             'from .client import BeBudgetClient',
-            "BudgetBuddyClient = BeBudgetClient",
             "",
             f'SPEC_SHA256 = "{spec_hash}"',
             "",
-            '__all__ = ["BeBudgetClient", "BudgetBuddyClient", "SPEC_SHA256"]',
+            '__all__ = ["BeBudgetClient", "SPEC_SHA256"]',
             "",
         ]
     )
@@ -212,8 +209,8 @@ def _generate_files() -> dict[Path, str]:
     return {
         Path("sdk/typescript/src/client.ts"): _ts_client(spec_hash, ts_cfg, ops),
         Path("sdk/typescript/src/index.ts"): _ts_index(spec_hash),
-        Path("sdk/python/budgetbuddy_sdk/client.py"): _py_client(spec_hash, py_cfg, ops),
-        Path("sdk/python/budgetbuddy_sdk/__init__.py"): _py_init(spec_hash),
+        Path("sdk/python/bebudget_sdk/client.py"): _py_client(spec_hash, py_cfg, ops),
+        Path("sdk/python/bebudget_sdk/__init__.py"): _py_init(spec_hash),
         Path("sdk/README.md"): _sdk_readme(ts_cfg, py_cfg),
     }
 

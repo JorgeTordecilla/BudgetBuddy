@@ -271,5 +271,3 @@ export class BeBudgetClient {
   }
 
 }
-
-export { BeBudgetClient as BudgetBuddyClient };

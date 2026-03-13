@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: BudgetBuddy API
+  title: BeBudget API
   version: '1'
   description: 'Operational header behavior: responses include `X-Request-Id`.
 

@@ -2,5 +2,5 @@
   "generator_name": "bebudget-py-sdkgen",
   "generator_version": "1.0.0",
   "output_dir": "sdk/python",
-  "package": "budgetbuddy_sdk"
+  "package": "bebudget_sdk"
 }

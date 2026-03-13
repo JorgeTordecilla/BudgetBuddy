@@ -58,9 +58,9 @@ The frontend API client MUST centralize HTTP policy for authenticated and refres
 
 #### Scenario: Standard headers and credentials are attached
 - **WHEN** the client issues API requests
-- **THEN** it SHALL send `Accept: application/vnd.budgetbuddy.v1+json`
+- **THEN** it SHALL send `Accept: application/vnd.bebudget.v1+json`
 - **AND** it SHALL send `credentials: include`
-- **AND** it SHALL include `Content-Type: application/vnd.budgetbuddy.v1+json` when request body is sent
+- **AND** it SHALL include `Content-Type: application/vnd.bebudget.v1+json` when request body is sent
 
 #### Scenario: Optional request-id is available for diagnostics
 - **WHEN** the client issues a request

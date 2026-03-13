@@ -1,5 +1,5 @@
 ## Purpose
-Define the canonical HTTP/API contract for BudgetBuddy, including media types, error semantics, and endpoint behavior guarantees.
+Define the canonical HTTP/API contract for BeBudget, including media types, error semantics, and endpoint behavior guarantees.
 ## Requirements
 ### Requirement: Vendor media type for successful payloads
 The backend MUST return response bodies for successful non-204 operations using `application/vnd.bebudget.v1+json`, including endpoints whose request and response models are reorganized into backend domain schema modules.

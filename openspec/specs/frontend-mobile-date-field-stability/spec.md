@@ -18,7 +18,7 @@ The frontend SHALL render date/month selection controls using a shared picker im
 - **AND** the page or modal SHALL NOT require horizontal scrolling to edit the month.
 
 #### Scenario: Browser matrix coverage is explicit
-- **WHEN** BudgetBuddy date/month controls are exercised in iOS Safari/Chrome/Brave and Android Chrome/Brave
+- **WHEN** BeBudget date/month controls are exercised in iOS Safari/Chrome/Brave and Android Chrome/Brave
 - **THEN** date/month control width behavior SHALL remain visually bounded
 - **AND** responsive layout integrity SHALL remain consistent across those browsers.
 
