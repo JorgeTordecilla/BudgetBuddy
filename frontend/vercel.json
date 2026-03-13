@@ -2,8 +2,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api", "destination": "https://api.bebudget.dev/api" },
-    { "source": "/api/:path*", "destination": "https://api.bebudget.dev/api/:path*" },
+    { "source": "/api", "destination": "https://bebudget.onrender.com/api" },
+    { "source": "/api/:path*", "destination": "https://bebudget.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
