@@ -3,6 +3,7 @@ import json
 from datetime import date
 
 from app.core.config import settings
+from app.core.money import resolve_minor_units
 from app.models import Bill, PushSubscription
 
 
@@ -34,8 +35,12 @@ def send_push(subscription: PushSubscription, payload: dict) -> bool:
 
 
 def format_cents(cents: int, currency_code: str = "USD") -> str:
-    major = cents // 100
-    formatted = f"{major:,}".replace(",", ".")
+    digits = resolve_minor_units(currency_code)
+    scale = 10**digits
+    major_value = cents / scale
+    formatted_en = f"{major_value:,.{digits}f}"
+    # Use dot for thousands and comma for decimals for compact push copy.
+    formatted = formatted_en.replace(",", "_").replace(".", ",").replace("_", ".")
     symbols = {
         "USD": "$",
         "COP": "$",

@@ -14,7 +14,7 @@ import MonthTrendChart from "@/features/analytics/components/MonthTrendChart";
 import RolloverApplyModal from "@/features/analytics/components/RolloverApplyModal";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { defaultAnalyticsRange, isValidDateRange } from "@/utils/dates";
+import { defaultAnalyticsRange, isValidDateRange, localIsoDateToApiUtcDate } from "@/utils/dates";
 import { formatCents } from "@/utils/money";
 import { normalizeIsoDateParam } from "@/lib/queryState";
 
@@ -99,10 +99,17 @@ export default function AnalyticsPage() {
   }, [initialRange]);
 
   const rangeValid = isValidDateRange(appliedRange.from, appliedRange.to);
-  const monthQuery = useAnalyticsByMonth(apiClient, appliedRange, rangeValid);
-  const categoryQuery = useAnalyticsByCategory(apiClient, appliedRange, rangeValid);
-  const incomeQuery = useAnalyticsIncome(apiClient, appliedRange, rangeValid);
-  const impulseSummaryQuery = useImpulseSummary(apiClient, appliedRange, rangeValid);
+  const apiAppliedRange = useMemo(
+    () => ({
+      from: localIsoDateToApiUtcDate(appliedRange.from),
+      to: localIsoDateToApiUtcDate(appliedRange.to)
+    }),
+    [appliedRange.from, appliedRange.to]
+  );
+  const monthQuery = useAnalyticsByMonth(apiClient, apiAppliedRange, rangeValid);
+  const categoryQuery = useAnalyticsByCategory(apiClient, apiAppliedRange, rangeValid);
+  const incomeQuery = useAnalyticsIncome(apiClient, apiAppliedRange, rangeValid);
+  const impulseSummaryQuery = useImpulseSummary(apiClient, apiAppliedRange, rangeValid);
   const applyRolloverMutation = useApplyRollover(apiClient);
 
   const monthItems = monthQuery.data?.items ?? [];

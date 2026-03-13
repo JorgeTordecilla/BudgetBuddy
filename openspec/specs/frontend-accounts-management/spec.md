@@ -27,6 +27,16 @@ The frontend accounts list and mobile card views SHALL render balances using use
 - **THEN** helper/description text SHALL describe user-facing money input semantics
 - **AND** it SHALL NOT instruct users to enter backend raw cents invariants.
 
+#### Scenario: Initial balance parser handles locale decimal separators without inflation
+- **WHEN** user enters locale-formatted values such as `1,00`, `1.00`, or grouped variants in the initial balance field
+- **THEN** the parser SHALL normalize those inputs to the same major-unit amount
+- **AND** generated `initial_balance_cents` SHALL not be inflated by separator interpretation.
+
+#### Scenario: Ambiguous or invalid initial balance input is rejected with canonical inline error
+- **WHEN** the initial balance field contains a malformed money value
+- **THEN** the UI SHALL block submit
+- **AND** SHALL surface deterministic inline problem feedback consistent with existing ProblemDetails-aware UX.
+
 ### Requirement: Accounts ProblemDetails helper usage must be shared
 Accounts frontend SHALL reuse the shared local ProblemDetails wrapper helper instead of maintaining a duplicated local implementation.
 

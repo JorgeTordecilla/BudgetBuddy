@@ -19,6 +19,7 @@ import {
 import { AuthContext } from "@/auth/AuthContext";
 import TransactionsPage from "@/pages/TransactionsPage";
 import * as downloadUtils from "@/utils/download";
+import { localIsoDateToApiUtcDate } from "@/utils/dates";
 
 vi.mock("@/api/accounts", () => ({
   listAccounts: vi.fn()
@@ -326,7 +327,7 @@ describe("TransactionsPage", () => {
           account_id: "a1",
           category_id: "c1",
           amount_cents: 1200,
-          date: "2026-02-20"
+          date: localIsoDateToApiUtcDate("2026-02-20")
         })
       )
     );
@@ -416,7 +417,7 @@ describe("TransactionsPage", () => {
     fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Create transaction" }));
 
-    expect(await screen.findByText("Amount must be a positive money value with up to two decimals.")).toBeInTheDocument();
+    expect(await screen.findByText("Amount must be a positive money value for the selected currency.")).toBeInTheDocument();
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
@@ -525,8 +526,8 @@ describe("TransactionsPage", () => {
       apiClientStub,
       expect.objectContaining({
         type: "income",
-        from: "2026-02-01",
-        to: "2026-02-28"
+        from: localIsoDateToApiUtcDate("2026-02-01"),
+        to: localIsoDateToApiUtcDate("2026-02-28")
       })
     );
   });
@@ -538,8 +539,8 @@ describe("TransactionsPage", () => {
     expect(listTransactions).not.toHaveBeenCalledWith(
       apiClientStub,
       expect.objectContaining({
-        from: "2026-03-20",
-        to: "2026-03-01"
+        from: localIsoDateToApiUtcDate("2026-03-20"),
+        to: localIsoDateToApiUtcDate("2026-03-01")
       })
     );
   });
@@ -551,8 +552,8 @@ describe("TransactionsPage", () => {
     expect(listTransactions).toHaveBeenCalledWith(
       apiClientStub,
       expect.objectContaining({
-        from: "2026-03-20",
-        to: "2026-03-20",
+        from: localIsoDateToApiUtcDate("2026-03-20"),
+        to: localIsoDateToApiUtcDate("2026-03-20"),
         type: "income"
       })
     );
@@ -610,8 +611,8 @@ describe("TransactionsPage", () => {
         apiClientStub,
         expect.objectContaining({
           type: "income",
-          from: "2026-02-01",
-          to: "2026-02-28"
+          from: localIsoDateToApiUtcDate("2026-02-01"),
+          to: localIsoDateToApiUtcDate("2026-02-28")
         })
       )
     );

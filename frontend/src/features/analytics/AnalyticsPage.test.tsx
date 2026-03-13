@@ -11,6 +11,7 @@ import { applyRollover, getRolloverPreview } from "@/api/rollover";
 import type { ApiClient } from "@/api/client";
 import { AuthContext } from "@/auth/AuthContext";
 import AnalyticsPage from "@/features/analytics/AnalyticsPage";
+import { localIsoDateToApiUtcDate } from "@/utils/dates";
 
 vi.mock("@/api/analytics", () => ({
   getAnalyticsByMonth: vi.fn(),
@@ -182,7 +183,10 @@ describe("AnalyticsPage", () => {
     renderPage(["/app/analytics?from=2026-02-01&to=2026-02-28"]);
 
     await waitFor(() =>
-      expect(getAnalyticsByMonth).toHaveBeenCalledWith(apiClientStub, { from: "2026-02-01", to: "2026-02-28" })
+      expect(getAnalyticsByMonth).toHaveBeenCalledWith(apiClientStub, {
+        from: localIsoDateToApiUtcDate("2026-02-01"),
+        to: localIsoDateToApiUtcDate("2026-02-28")
+      })
     );
   });
 
@@ -231,7 +235,10 @@ describe("AnalyticsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Navigate with range" }));
 
     await waitFor(() =>
-      expect(getAnalyticsByMonth).toHaveBeenLastCalledWith(apiClientStub, { from: "2026-02-01", to: "2026-02-28" })
+      expect(getAnalyticsByMonth).toHaveBeenLastCalledWith(apiClientStub, {
+        from: localIsoDateToApiUtcDate("2026-02-01"),
+        to: localIsoDateToApiUtcDate("2026-02-28")
+      })
     );
   });
 

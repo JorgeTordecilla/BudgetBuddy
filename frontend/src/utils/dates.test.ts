@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { currentIsoMonth, defaultAnalyticsRange, isValidDateRange, isValidIsoDate, monthStartIsoDate, todayIsoDate } from "@/utils/dates";
+import {
+  apiUtcDateToLocalIsoDate,
+  currentIsoMonth,
+  defaultAnalyticsRange,
+  isValidDateRange,
+  isValidIsoDate,
+  localIsoDateToApiUtcDate,
+  monthStartIsoDate,
+  todayIsoDate
+} from "@/utils/dates";
 
 describe("date helpers", () => {
   it("returns month-start in ISO format", () => {
@@ -40,5 +49,17 @@ describe("date helpers", () => {
       from: "2026-02-01",
       to: "2026-02-03"
     });
+  });
+
+  it("keeps invalid date inputs unchanged for conversion helpers", () => {
+    expect(localIsoDateToApiUtcDate("bad")).toBe("bad");
+    expect(apiUtcDateToLocalIsoDate("bad")).toBe("bad");
+  });
+
+  it("returns ISO dates for valid local/api conversion inputs", () => {
+    const apiDate = localIsoDateToApiUtcDate("2026-03-12");
+    const localDate = apiUtcDateToLocalIsoDate("2026-03-12");
+    expect(isValidIsoDate(apiDate)).toBe(true);
+    expect(isValidIsoDate(localDate)).toBe(true);
   });
 });

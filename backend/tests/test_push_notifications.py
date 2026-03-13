@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 import app.routers.push as push_router
 from app.core.config import settings
-from app.core.push_dispatcher import build_bill_payload, due_date_for_month, send_push
+from app.core.push_dispatcher import build_bill_payload, due_date_for_month, format_cents, send_push
 from app.main import app
 from app.db import SessionLocal
 from app.models import Account, Bill, Category, PushSubscription, User
@@ -190,6 +190,11 @@ def test_payload_builder_due_today_and_in_three_days():
     due_three = due_date_for_month(8, today)
     payload_three = build_bill_payload(bill=bill, today=today, due_date=due_three)
     assert "3 days" in payload_three["title"].lower()
+
+
+def test_format_cents_respects_currency_minor_units():
+    assert format_cents(150000, "COP") == "$150.000"
+    assert format_cents(150000, "USD") == "$1.500,00"
 
 
 def test_due_date_for_month_clamps_to_month_end_for_short_months():

@@ -9,6 +9,16 @@ from app.models.enums import TransactionType
 # Conservative product-level bound to avoid absurd values while staying far from DB limits.
 MAX_ABSOLUTE_AMOUNT_CENTS = 9_999_999_999_99
 SUPPORTED_CURRENCIES = {"USD", "COP", "EUR", "MXN"}
+CURRENCY_MINOR_UNITS = {
+    "USD": 2,
+    "COP": 0,
+    "EUR": 2,
+    "MXN": 2,
+}
+
+
+def resolve_minor_units(currency_code: str) -> int:
+    return CURRENCY_MINOR_UNITS.get(currency_code.upper(), 2)
 
 
 def validate_user_currency_for_money(currency_code: str) -> None:

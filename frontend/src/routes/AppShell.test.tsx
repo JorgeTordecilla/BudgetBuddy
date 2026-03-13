@@ -228,6 +228,19 @@ describe("AppShell", () => {
     }
   });
 
+  it("keeps focus on More trigger when opening overflow menu on mobile", async () => {
+    setupModalDataMocks();
+    renderShellAt(375);
+
+    const moreButton = screen.getByRole("button", { name: "More" });
+    fireEvent.click(moreButton);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(moreButton);
+    });
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
+  });
+
   it("uses standalone-safe bottom nav sizing when display-mode is standalone on mobile", () => {
     setupModalDataMocks();
     const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({

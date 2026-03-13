@@ -32,6 +32,8 @@ describe("money helpers", () => {
     expect(parseNonNegativeMoneyInputToCents("USD", "0")).toBe(0);
     expect(parseNonNegativeMoneyInputToCents("USD", "0.00")).toBe(0);
     expect(parseNonNegativeMoneyInputToCents("USD", "12.34")).toBe(1234);
+    expect(parseNonNegativeMoneyInputToCents("USD", "1,00")).toBe(100);
+    expect(parseNonNegativeMoneyInputToCents("USD", "1.234,56")).toBe(123456);
     expect(parseNonNegativeMoneyInputToCents("USD", "-1.00")).toBeNull();
   });
 

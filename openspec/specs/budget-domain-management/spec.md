@@ -24,6 +24,15 @@ The backend MUST implement `/accounts` and `/accounts/{account_id}` with create,
 - **WHEN** an authenticated user calls `GET`, `PATCH`, or `DELETE` on `/accounts/{account_id}` for another user's resource
 - **THEN** the API SHALL return canonical `403` ProblemDetails
 
+#### Scenario: Account creation with non-zero initial balance creates opening transaction
+- **WHEN** `POST /accounts` succeeds and `initial_balance_cents` is non-zero
+- **THEN** the backend SHALL create exactly one opening transaction for the created account in the same write unit
+- **AND** that transaction SHALL be visible from `GET /transactions` for the account owner.
+
+#### Scenario: Account creation with zero initial balance does not create opening transaction
+- **WHEN** `POST /accounts` succeeds and `initial_balance_cents` is zero
+- **THEN** no synthetic opening transaction SHALL be created.
+
 ### Requirement: Categories resource behavior
 The backend MUST implement `/categories` and `/categories/{category_id}` with list filters, CRUD/archive semantics, type-aware uniqueness rules, and restore semantics through patch updates.
 

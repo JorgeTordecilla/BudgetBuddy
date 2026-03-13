@@ -19,7 +19,7 @@ import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
 import { Textarea } from "@/ui/textarea";
-import { centsToInputValue, formatCents } from "@/utils/money";
+import { centsToInputValue, formatCents, parseNonNegativeMoneyInputToCents } from "@/utils/money";
 
 type AccountFormState = {
   name: string;
@@ -159,11 +159,8 @@ export default function AccountsPage() {
   }, [currencyCode]);
 
   function parseFormPayload(): AccountCreate | null {
-    const raw = formState.initialBalanceCents.trim();
-    const normalized = raw.replace(/\s/g, "").replace(/,/g, "");
-    const parsed = Number(normalized);
-    const scaled = parsed * 100;
-    if (!Number.isFinite(parsed) || Math.abs(scaled - Math.round(scaled)) > 1e-8) {
+    const cents = parseNonNegativeMoneyInputToCents(currencyCode, formState.initialBalanceCents);
+    if (cents === null) {
       setFormProblem(toLocalProblem({
         type: "about:blank",
         title: "Invalid amount",
@@ -175,7 +172,7 @@ export default function AccountsPage() {
     return {
       name: formState.name.trim(),
       type: formState.type,
-      initial_balance_cents: Math.round(scaled),
+      initial_balance_cents: cents,
       note: formState.note.trim() ? formState.note.trim() : undefined
     };
   }

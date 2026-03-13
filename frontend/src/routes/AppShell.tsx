@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -17,7 +17,7 @@ import TransactionForm, { type TransactionFormState } from "@/components/transac
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { clearAppBadgeIfSupported } from "@/hooks/useAppBadge";
 import { Button } from "@/ui/button";
-import { todayIsoDate } from "@/utils/dates";
+import { localIsoDateToApiUtcDate, todayIsoDate } from "@/utils/dates";
 import { parseMoneyInputToCents } from "@/utils/money";
 import { toLocalProblem } from "@/lib/problemDetails";
 import { optionQueryKeys } from "@/query/queryKeys";
@@ -75,6 +75,7 @@ export default function AppShell() {
   const { apiClient, logout, user } = useAuth();
   const queryClient = useQueryClient();
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formProblem, setFormProblem] = useState<unknown>(null);
@@ -184,6 +185,18 @@ export default function AppShell() {
     setFormOpen(false);
   }
 
+  function toggleOverflowMenu() {
+    setOverflowOpen((current) => {
+      const next = !current;
+      if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(() => {
+          overflowTriggerRef.current?.focus({ preventScroll: true });
+        });
+      }
+      return next;
+    });
+  }
+
   function buildCreatePayload(): TransactionCreate | null {
     const amount = parseMoneyInputToCents(currencyCode, formState.amount);
     if (amount === null) {
@@ -210,7 +223,7 @@ export default function AppShell() {
       category_id: formState.categoryId,
       income_source_id: formState.type === "income" ? formState.incomeSourceId || null : null,
       amount_cents: amount,
-      date: formState.date,
+      date: localIsoDateToApiUtcDate(formState.date),
       merchant: formState.merchant.trim() || undefined,
       note: formState.note.trim() || undefined,
       ...(formState.mood ? { mood: formState.mood } : {}),
@@ -349,8 +362,8 @@ export default function AppShell() {
                   }}
                   className={({ isActive }) =>
                     cn(
-                      "flex min-h-12 min-w-0 items-center justify-center whitespace-nowrap rounded-xl px-1 text-[clamp(9px,2.6vw,11px)] font-semibold",
-                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70"
+                      "flex min-h-12 min-w-0 touch-manipulation select-none items-center justify-center whitespace-nowrap rounded-xl px-1 text-[clamp(9px,2.6vw,11px)] font-semibold transition-transform duration-150 active:scale-[0.98]",
+                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70 active:bg-muted/80"
                     )
                   }
                 >
@@ -358,12 +371,13 @@ export default function AppShell() {
                 </NavLink>
               ))}
               <Button
+                ref={overflowTriggerRef}
                 type="button"
                 variant={overflowOpen ? "outline" : "ghost"}
-                className="flex min-h-12 min-w-0 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2 text-[11px] font-semibold"
+                className="flex min-h-12 min-w-0 touch-manipulation select-none items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2 text-[11px] font-semibold transition-transform duration-150 active:scale-[0.98]"
                 aria-expanded={overflowOpen}
                 aria-controls="mobile-nav-overflow"
-                onClick={() => setOverflowOpen((current) => !current)}
+                onClick={toggleOverflowMenu}
               >
                 More
               </Button>
@@ -379,8 +393,8 @@ export default function AppShell() {
                     }}
                     className={({ isActive }) =>
                       cn(
-                        "rounded-lg px-3 py-2 text-sm font-semibold",
-                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70"
+                        "min-h-10 touch-manipulation select-none rounded-lg px-3 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.99]",
+                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70 active:bg-muted/80"
                       )
                     }
                   >
@@ -390,7 +404,7 @@ export default function AppShell() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
+                  className="min-h-10 touch-manipulation select-none justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-transform duration-150 active:scale-[0.99] active:bg-muted/80 hover:text-foreground"
                   onClick={() => {
                     setOverflowOpen(false);
                     void handleLogout();

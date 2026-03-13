@@ -44,7 +44,7 @@ import { Button } from "@/ui/button";
 import { optionQueryKeys } from "@/query/queryKeys";
 import { Card, CardContent } from "@/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/ui/table";
-import { defaultAnalyticsRange } from "@/utils/dates";
+import { apiUtcDateToLocalIsoDate, defaultAnalyticsRange, localIsoDateToApiUtcDate } from "@/utils/dates";
 import { downloadBlob, resolveCsvFilename } from "@/utils/download";
 import { centsToInputValue, formatCents, parseMoneyInputToCents } from "@/utils/money";
 
@@ -183,13 +183,20 @@ export default function TransactionsPage() {
 
   const hasMore = Boolean(nextCursor);
   const isEditing = Boolean(editing);
+  const apiRange = useMemo(
+    () => ({
+      from: filters.from ? localIsoDateToApiUtcDate(filters.from) : "",
+      to: filters.to ? localIsoDateToApiUtcDate(filters.to) : ""
+    }),
+    [filters.from, filters.to]
+  );
   const queryKey = [
     "transactions",
     filters.type,
     filters.accountId,
     filters.categoryId,
-    filters.from,
-    filters.to,
+    apiRange.from,
+    apiRange.to,
     filters.includeArchived
   ] as const;
   const isDateRangeInvalid = Boolean(filters.from && filters.to && filters.from > filters.to);
@@ -230,8 +237,8 @@ export default function TransactionsPage() {
         type: filters.type,
         accountId: filters.accountId || undefined,
         categoryId: filters.categoryId || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
+        from: apiRange.from || undefined,
+        to: apiRange.to || undefined,
         limit: 20
       })
   });
@@ -244,8 +251,8 @@ export default function TransactionsPage() {
         type: filters.type,
         accountId: filters.accountId || undefined,
         categoryId: filters.categoryId || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
+        from: apiRange.from || undefined,
+        to: apiRange.to || undefined,
         cursor,
         limit: 20
       }),
@@ -310,8 +317,8 @@ export default function TransactionsPage() {
         type: filters.type,
         accountId: filters.accountId || undefined,
         categoryId: filters.categoryId || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined
+        from: apiRange.from || undefined,
+        to: apiRange.to || undefined
       }),
     onSuccess: ({ blob, contentDisposition }) => {
       const filename = resolveCsvFilename(contentDisposition);
@@ -414,7 +421,7 @@ export default function TransactionsPage() {
       mood: transaction.mood ?? "",
       impulseTag: transaction.is_impulse === true ? "impulsive" : transaction.is_impulse === false ? "intentional" : "",
       amount: centsToInputValue(currencyCode, transaction.amount_cents),
-      date: transaction.date,
+      date: apiUtcDateToLocalIsoDate(transaction.date),
       merchant: transaction.merchant ?? "",
       note: transaction.note ?? ""
     });
@@ -457,7 +464,7 @@ export default function TransactionsPage() {
       category_id: formState.categoryId,
       income_source_id: formState.type === "income" ? formState.incomeSourceId || null : null,
       amount_cents: amount,
-      date: formState.date,
+      date: localIsoDateToApiUtcDate(formState.date),
       merchant: formState.merchant.trim() || undefined,
       note: formState.note.trim() || undefined,
       ...(formState.mood ? { mood: formState.mood } : {}),
@@ -496,8 +503,9 @@ export default function TransactionsPage() {
     if (amount !== editing.amount_cents) {
       payload.amount_cents = amount;
     }
-    if (formState.date !== editing.date) {
-      payload.date = formState.date;
+    const formApiDate = localIsoDateToApiUtcDate(formState.date);
+    if (formApiDate !== editing.date) {
+      payload.date = formApiDate;
     }
     const merchant = normalizeOptional(formState.merchant);
     if (merchant !== (editing.merchant ?? null)) {
@@ -569,7 +577,7 @@ export default function TransactionsPage() {
     () =>
       items.map((transaction) => (
         <tr key={transaction.id} className="border-t">
-          <td className="px-3 py-2">{transaction.date}</td>
+          <td className="px-3 py-2">{apiUtcDateToLocalIsoDate(transaction.date)}</td>
           <td className="px-3 py-2">{transaction.type}</td>
           <td className="px-3 py-2 text-right">{formatCents(currencyCode, transaction.amount_cents)}</td>
           <td className="px-3 py-2">{transaction.merchant ?? "-"}</td>
@@ -617,7 +625,7 @@ export default function TransactionsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold">{transaction.merchant ?? "(no merchant)"}</p>
-                  <p className="text-xs text-muted-foreground">{transaction.date}</p>
+                  <p className="text-xs text-muted-foreground">{apiUtcDateToLocalIsoDate(transaction.date)}</p>
                 </div>
                 <span className="rounded-full border border-border/80 bg-muted/60 px-2 py-1 text-[11px] font-semibold uppercase">
                   {transaction.type}
@@ -900,7 +908,7 @@ export default function TransactionsPage() {
       <ConfirmDialog
         open={Boolean(archiveTarget)}
         title="Archive transaction?"
-        description={archiveTarget ? `This will archive transaction from ${archiveTarget.date}.` : "This action archives the selected transaction."}
+        description={archiveTarget ? `This will archive transaction from ${apiUtcDateToLocalIsoDate(archiveTarget.date)}.` : "This action archives the selected transaction."}
         confirmLabel="Archive"
         confirming={archiveMutation.isPending}
         onCancel={() => setArchiveTarget(null)}

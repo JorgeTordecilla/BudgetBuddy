@@ -12,10 +12,13 @@ from http.cookies import SimpleCookie
 from threading import Barrier, BrokenBarrierError, Event, Lock, Thread
 
 from fastapi.testclient import TestClient
+import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 import app.routers.auth as auth_router
 import app.routers.analytics as analytics_router
+import app.routers.accounts as accounts_router
 import app.routers.savings as savings_router
 import app.main as app_main
 import app.core.utils as core_utils
@@ -24,7 +27,7 @@ from app.main import app
 from app.core.security import hash_refresh_token
 from app.db import SessionLocal
 from app.core.utils import as_utc, utcnow
-from app.models import MonthlyRollover, RefreshToken, Transaction, User
+from app.models import Account, MonthlyRollover, RefreshToken, Transaction, User
 
 VENDOR = "application/vnd.budgetbuddy.v1+json"
 PROBLEM = "application/problem+json"
@@ -160,7 +163,7 @@ def _refresh_cookie_from_response(response) -> str:
 def _create_account(client: TestClient, headers: dict[str, str], name: str) -> str:
     response = client.post(
         "/api/accounts",
-        json={"name": name, "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
+        json={"name": name, "type": "cash", "initial_balance_cents": 0, "note": "acct"},
         headers=headers,
     )
     assert response.status_code == 201
@@ -2061,6 +2064,89 @@ def test_domain_and_analytics_flow():
         forbidden = client.get(f"/api/accounts/{uuid.uuid4()}", headers=auth_headers)
         assert forbidden.status_code == 403
         assert forbidden.headers["content-type"].startswith(PROBLEM)
+
+
+def test_account_creation_materializes_opening_transaction_from_initial_balance():
+    with TestClient(app) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+
+        positive = client.post(
+            "/api/accounts",
+            json={"name": "opening-positive", "type": "cash", "initial_balance_cents": 1234, "note": "acct"},
+            headers=headers,
+        )
+        assert positive.status_code == 201
+        positive_account_id = positive.json()["id"]
+
+        negative = client.post(
+            "/api/accounts",
+            json={"name": "opening-negative", "type": "cash", "initial_balance_cents": -765, "note": "acct"},
+            headers=headers,
+        )
+        assert negative.status_code == 201
+        negative_account_id = negative.json()["id"]
+
+        zero = client.post(
+            "/api/accounts",
+            json={"name": "opening-zero", "type": "cash", "initial_balance_cents": 0, "note": "acct"},
+            headers=headers,
+        )
+        assert zero.status_code == 201
+        zero_account_id = zero.json()["id"]
+
+        today = utcnow().date().isoformat()
+        listed = client.get(
+            f"/api/transactions?from={today}&to={today}",
+            headers=headers,
+        )
+        assert listed.status_code == 200
+        items = listed.json()["items"]
+
+        positive_rows = [item for item in items if item["account_id"] == positive_account_id and item["merchant"] == "Opening Balance"]
+        assert len(positive_rows) == 1
+        assert positive_rows[0]["type"] == "income"
+        assert positive_rows[0]["amount_cents"] == 1234
+        assert positive_rows[0]["note"] == "Account opening balance"
+
+        negative_rows = [item for item in items if item["account_id"] == negative_account_id and item["merchant"] == "Opening Balance"]
+        assert len(negative_rows) == 1
+        assert negative_rows[0]["type"] == "expense"
+        assert negative_rows[0]["amount_cents"] == 765
+        assert negative_rows[0]["note"] == "Account opening balance"
+
+        zero_rows = [item for item in items if item["account_id"] == zero_account_id and item["merchant"] == "Opening Balance"]
+        assert zero_rows == []
+
+
+def test_account_creation_rolls_back_when_opening_transaction_side_effect_fails(monkeypatch):
+    with TestClient(app, raise_server_exceptions=False) as client:
+        user = _register_user(client)
+        headers = _auth_headers(user["access"])
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(accounts_router, "_create_opening_balance_transaction", _boom)
+
+        response = client.post(
+            "/api/accounts",
+            json={"name": "opening-rollback", "type": "cash", "initial_balance_cents": 1000, "note": "acct"},
+            headers=headers,
+        )
+        assert response.status_code == 500
+        assert response.headers["content-type"].startswith(PROBLEM)
+        body = response.json()
+        assert body["status"] == 500
+        assert body["title"] == "Internal Server Error"
+        assert body["type"] == "about:blank"
+
+        with SessionLocal() as db:
+            account = db.scalar(
+                select(Account)
+                .where(Account.name == "opening-rollback")
+            )
+            assert account is None
 
 
 def test_include_archived_toggle_policy_is_consistent_across_list_endpoints():

@@ -12,12 +12,68 @@ from app.core.utils import utcnow
 from app.dependencies import get_current_user
 from app.core.errors import APIError
 from app.errors import forbidden_error
-from app.models import Account, User
+from app.models import Account, Category, Transaction, User
 from app.repositories import SQLAlchemyAccountRepository
 from app.routers._crud_common import apply_created_cursor, build_created_cursor_page, commit_or_conflict
 from app.schemas import AccountCreate, AccountOut, AccountUpdate
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+_OPENING_CATEGORY_NAME_BY_TYPE = {
+    "income": "Opening Balance Income",
+    "expense": "Opening Balance Expense",
+}
+
+
+def _get_or_create_opening_category(db: Session, user_id: str, tx_type: str) -> Category:
+    category_name = _OPENING_CATEGORY_NAME_BY_TYPE[tx_type]
+    category = db.scalar(
+        select(Category)
+        .where(Category.user_id == user_id)
+        .where(Category.name == category_name)
+        .where(Category.type == tx_type)
+    )
+    if category is not None:
+        if category.archived_at is not None:
+            category.archived_at = None
+            category.updated_at = utcnow()
+        return category
+
+    category = Category(
+        user_id=user_id,
+        name=category_name,
+        type=tx_type,
+        note="System category for account opening balance",
+    )
+    db.add(category)
+    db.flush()
+    return category
+
+
+def _create_opening_balance_transaction(
+    db: Session,
+    *,
+    user: User,
+    account: Account,
+) -> Transaction | None:
+    if account.initial_balance_cents == 0:
+        return None
+
+    tx_type = "income" if account.initial_balance_cents > 0 else "expense"
+    category = _get_or_create_opening_category(db, user.id, tx_type)
+    row = Transaction(
+        user_id=user.id,
+        type=tx_type,
+        account_id=account.id,
+        category_id=category.id,
+        amount_cents=abs(account.initial_balance_cents),
+        date=utcnow().date(),
+        merchant="Opening Balance",
+        note="Account opening balance",
+    )
+    db.add(row)
+    db.flush()
+    return row
 
 
 def _owned_account_or_403(db: Session, user_id: str, account_id: str) -> Account:
@@ -65,9 +121,17 @@ def create_account(
     repo.add(row)
     try:
         db.flush()
+        opening_tx = _create_opening_balance_transaction(
+            db,
+            user=current_user,
+            account=row,
+        )
     except IntegrityError as exc:
         db.rollback()
         raise APIError(status=409, title="Conflict", detail="Account name already exists") from exc
+    except Exception:
+        db.rollback()
+        raise
     emit_audit_event(
         db,
         request=request,
@@ -76,6 +140,15 @@ def create_account(
         resource_id=row.id,
         action="account.create",
     )
+    if opening_tx is not None:
+        emit_audit_event(
+            db,
+            request=request,
+            user_id=current_user.id,
+            resource_type="transaction",
+            resource_id=opening_tx.id,
+            action="transaction.create",
+        )
     db.commit()
     db.refresh(row)
     return vendor_response(AccountOut.model_validate(row).model_dump(mode="json"), status_code=201)

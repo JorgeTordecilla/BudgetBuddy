@@ -6,6 +6,20 @@ function toLocalIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
+function fromIsoDateParts(value: string): { year: number; month: number; day: number } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  const [yearPart, monthPart, dayPart] = value.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  return { year, month, day };
+}
+
 export function currentIsoMonth(date = new Date()): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
 }
@@ -38,4 +52,23 @@ export function isValidDateRange(from: string, to: string): boolean {
     return false;
   }
   return from <= to;
+}
+
+export function localIsoDateToApiUtcDate(value: string): string {
+  const parts = fromIsoDateParts(value);
+  if (!parts || !isValidIsoDate(value)) {
+    return value;
+  }
+  // Use local end-of-day so conversion is reversible with apiUtcDateToLocalIsoDate
+  // when API dates represent UTC-day buckets.
+  const localDate = new Date(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999);
+  return `${localDate.getUTCFullYear()}-${pad2(localDate.getUTCMonth() + 1)}-${pad2(localDate.getUTCDate())}`;
+}
+
+export function apiUtcDateToLocalIsoDate(value: string): string {
+  if (!isValidIsoDate(value)) {
+    return value;
+  }
+  const utcDate = new Date(`${value}T00:00:00Z`);
+  return toLocalIsoDate(utcDate);
 }

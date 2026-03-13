@@ -101,6 +101,23 @@ describe("AccountsPage", () => {
     );
   });
 
+  it("parses locale decimal input without inflating cents", async () => {
+    renderPage();
+    await screen.findByText("Main Wallet");
+
+    fireEvent.click(screen.getByRole("button", { name: "New account" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Locale" } });
+    fireEvent.change(screen.getByLabelText("Initial balance"), { target: { value: "1,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() =>
+      expect(createAccount).toHaveBeenCalledWith(
+        apiClientStub,
+        expect.objectContaining({ name: "Locale", initial_balance_cents: 100 })
+      )
+    );
+  });
+
   it("archives account after confirmation", async () => {
     renderPage();
     await screen.findByText("Main Wallet");
