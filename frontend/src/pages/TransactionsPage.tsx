@@ -177,6 +177,7 @@ export default function TransactionsPage() {
   const [archiveTarget, setArchiveTarget] = useState<Transaction | null>(null);
   const [formState, setFormState] = useState<TransactionFormState>(EMPTY_FORM);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const moreActionsRef = useRef<HTMLDivElement | null>(null);
   const isDesktop = useIsDesktop();
   const currencyCode = user?.currency_code ?? "USD";
@@ -731,105 +732,232 @@ export default function TransactionsPage() {
 
       <Card className="border-border/70 bg-card/95 shadow-sm">
         <CardContent className="overflow-x-hidden p-3 sm:p-4">
-          <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
-          <label className="min-w-0 space-y-1">
-            <span className="block">From</span>
-            <DatePickerField
-              mode="date"
-              ariaLabel="From"
-              value={filters.from}
-              onChange={(value) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  from: value
-                }))
-              }
-            />
-          </label>
-          <label className="min-w-0 space-y-1">
-            <span className="block">To</span>
-            <DatePickerField
-              mode="date"
-              ariaLabel="To"
-              value={filters.to}
-              onChange={(value) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  to: value
-                }))
-              }
-            />
-          </label>
-          <label className="min-w-0 space-y-1">
-            <span className="block">Type</span>
-            <SelectField
-              ariaLabel="Type"
-              value={filters.type}
-              onChange={(value) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  type: value as TransactionType | "all"
-                }))
-              }
-              options={[
-                { value: "all", label: "All" },
-                { value: "income", label: "income" },
-                { value: "expense", label: "expense" }
-              ]}
-            />
-          </label>
-          <label className="min-w-0 space-y-1">
-            <span className="block">Account</span>
-            <SelectField
-              ariaLabel="Account"
-              value={filters.accountId}
-              onChange={(value) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  accountId: value
-                }))
-              }
-              options={[
-                { value: "", label: "All" },
-                ...accountOptions.map((account) => ({ value: account.id, label: account.name }))
-              ]}
-            />
-          </label>
-          <label className="min-w-0 space-y-1">
-            <span className="block">Category</span>
-            <SelectField
-              ariaLabel="Category"
-              value={filters.categoryId}
-              onChange={(value) =>
-                setFilters((previous) => ({
-                  ...previous,
-                  categoryId: value
-                }))
-              }
-              options={[
-                { value: "", label: "All" },
-                ...categoryOptions.map((category) => ({ value: category.id, label: category.name }))
-              ]}
-            />
-          </label>
-          <label className="min-w-0 space-y-1">
-            <span className="block opacity-0">Options</span>
-            <span className="inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
-              <input
-                type="checkbox"
-                aria-label="Show archived"
-                checked={filters.includeArchived}
-                onChange={(event) =>
-                  setFilters((previous) => ({
-                    ...previous,
-                    includeArchived: event.target.checked
-                  }))
-                }
-              />
-              Show archived
-            </span>
-          </label>
-          </div>
+          {!isDesktop ? (
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="min-w-0 space-y-1">
+                  <span className="block text-xs uppercase tracking-[0.08em]">From</span>
+                  <DatePickerField
+                    mode="date"
+                    ariaLabel="From"
+                    value={filters.from}
+                    onChange={(value) =>
+                      setFilters((previous) => ({
+                        ...previous,
+                        from: value
+                      }))
+                    }
+                  />
+                </label>
+                <label className="min-w-0 space-y-1">
+                  <span className="block text-xs uppercase tracking-[0.08em]">To</span>
+                  <DatePickerField
+                    mode="date"
+                    ariaLabel="To"
+                    value={filters.to}
+                    onChange={(value) =>
+                      setFilters((previous) => ({
+                        ...previous,
+                        to: value
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+                <label className="min-w-0 space-y-1">
+                  <span className="block text-xs uppercase tracking-[0.08em]">Type</span>
+                  <SelectField
+                    ariaLabel="Type"
+                    value={filters.type}
+                    onChange={(value) =>
+                      setFilters((previous) => ({
+                        ...previous,
+                        type: value as TransactionType | "all"
+                      }))
+                    }
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "income", label: "income" },
+                      { value: "expense", label: "expense" }
+                    ]}
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 min-w-28"
+                  onClick={() => setMobileFiltersOpen((open) => !open)}
+                  aria-expanded={mobileFiltersOpen}
+                  aria-label={mobileFiltersOpen ? "Hide advanced filters" : "Show advanced filters"}
+                >
+                  {mobileFiltersOpen ? "Hide more" : "More filters"}
+                </Button>
+              </div>
+              <div
+                aria-hidden={!mobileFiltersOpen}
+                className={[
+                  "overflow-hidden transition-all duration-200 ease-out motion-reduce:transition-none",
+                  mobileFiltersOpen ? "max-h-80 opacity-100 visible" : "max-h-0 opacity-0 invisible"
+                ].join(" ")}
+              >
+                <div className="mt-2 space-y-2 rounded-lg border border-border/60 bg-background/70 p-2.5">
+                  <label className="min-w-0 space-y-1">
+                    <span className="block text-xs uppercase tracking-[0.08em]">Account</span>
+                    <SelectField
+                      ariaLabel="Account"
+                      value={filters.accountId}
+                      onChange={(value) =>
+                        setFilters((previous) => ({
+                          ...previous,
+                          accountId: value
+                        }))
+                      }
+                      options={[
+                        { value: "", label: "All" },
+                        ...accountOptions.map((account) => ({ value: account.id, label: account.name }))
+                      ]}
+                    />
+                  </label>
+                  <label className="min-w-0 space-y-1">
+                    <span className="block text-xs uppercase tracking-[0.08em]">Category</span>
+                    <SelectField
+                      ariaLabel="Category"
+                      value={filters.categoryId}
+                      onChange={(value) =>
+                        setFilters((previous) => ({
+                          ...previous,
+                          categoryId: value
+                        }))
+                      }
+                      options={[
+                        { value: "", label: "All" },
+                        ...categoryOptions.map((category) => ({ value: category.id, label: category.name }))
+                      ]}
+                    />
+                  </label>
+                  <label className="min-w-0 space-y-1">
+                    <span className="block text-xs uppercase tracking-[0.08em]">Options</span>
+                    <span className="inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Show archived"
+                        checked={filters.includeArchived}
+                        onChange={(event) =>
+                          setFilters((previous) => ({
+                            ...previous,
+                            includeArchived: event.target.checked
+                          }))
+                        }
+                      />
+                      Show archived
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-6">
+              <label className="min-w-0 space-y-1">
+                <span className="block">From</span>
+                <DatePickerField
+                  mode="date"
+                  ariaLabel="From"
+                  value={filters.from}
+                  onChange={(value) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      from: value
+                    }))
+                  }
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block">To</span>
+                <DatePickerField
+                  mode="date"
+                  ariaLabel="To"
+                  value={filters.to}
+                  onChange={(value) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      to: value
+                    }))
+                  }
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block">Type</span>
+                <SelectField
+                  ariaLabel="Type"
+                  value={filters.type}
+                  onChange={(value) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      type: value as TransactionType | "all"
+                    }))
+                  }
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "income", label: "income" },
+                    { value: "expense", label: "expense" }
+                  ]}
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block">Account</span>
+                <SelectField
+                  ariaLabel="Account"
+                  value={filters.accountId}
+                  onChange={(value) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      accountId: value
+                    }))
+                  }
+                  options={[
+                    { value: "", label: "All" },
+                    ...accountOptions.map((account) => ({ value: account.id, label: account.name }))
+                  ]}
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block">Category</span>
+                <SelectField
+                  ariaLabel="Category"
+                  value={filters.categoryId}
+                  onChange={(value) =>
+                    setFilters((previous) => ({
+                      ...previous,
+                      categoryId: value
+                    }))
+                  }
+                  options={[
+                    { value: "", label: "All" },
+                    ...categoryOptions.map((category) => ({ value: category.id, label: category.name }))
+                  ]}
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block opacity-0">Options</span>
+                <span className="inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-background/90 px-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Show archived"
+                    checked={filters.includeArchived}
+                    onChange={(event) =>
+                      setFilters((previous) => ({
+                        ...previous,
+                        includeArchived: event.target.checked
+                      }))
+                    }
+                  />
+                  Show archived
+                </span>
+              </label>
+            </div>
+          )}
           {isDateRangeInvalid ? (
             <p className="mt-2 text-sm text-destructive">From date must be on or before To date.</p>
           ) : null}

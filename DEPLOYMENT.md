@@ -18,6 +18,9 @@ Verify critical configuration is present and safe:
 - `REFRESH_COOKIE_SAMESITE`
 - `REFRESH_COOKIE_SECURE`
 - `MIGRATIONS_STRICT` (recommended `true` in production)
+- `VAPID_PUBLIC_KEY` (required for web push public-key endpoint)
+- `VAPID_PRIVATE_KEY` (required for web push delivery)
+- `VAPID_CONTACT` (required for web push VAPID claims)
 
 Fail-fast rules already enforced by startup:
 
@@ -26,6 +29,11 @@ Fail-fast rules already enforced by startup:
 - `REFRESH_COOKIE_SAMESITE=lax` is the recommended production baseline
 - `REFRESH_COOKIE_SAMESITE=none` still requires `REFRESH_COOKIE_SECURE=true`
 - CORS remains credentials-enabled with explicit allowlist; exposed headers are limited to `X-Request-Id` and `Retry-After`
+
+Push notes:
+
+- `GET /api/push/vapid-public-key` returns `503` when `VAPID_PUBLIC_KEY` is missing.
+- `POST /api/push/test` is non-production only and requires `PUSH_TEST_TOKEN` via `X-Push-Test-Token`.
 
 ### 1.3 Security response headers
 

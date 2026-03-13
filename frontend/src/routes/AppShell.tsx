@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -76,6 +76,7 @@ export default function AppShell() {
   const queryClient = useQueryClient();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const overflowMenuRef = useRef<HTMLDivElement | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formProblem, setFormProblem] = useState<unknown>(null);
@@ -185,17 +186,52 @@ export default function AppShell() {
     setFormOpen(false);
   }
 
+  function isCoarsePointerDevice(): boolean {
+    return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  function suppressTouchFocus(element: HTMLElement) {
+    if (!isCoarsePointerDevice()) {
+      return;
+    }
+    element.blur();
+  }
+
+  function preventTouchPointerFocus(event: ReactPointerEvent<HTMLElement>) {
+    if (!isCoarsePointerDevice()) {
+      return;
+    }
+    event.preventDefault();
+  }
+
   function toggleOverflowMenu() {
     setOverflowOpen((current) => {
       const next = !current;
       if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
         window.requestAnimationFrame(() => {
-          overflowTriggerRef.current?.focus({ preventScroll: true });
+          const trigger = overflowTriggerRef.current;
+          if (!trigger) {
+            return;
+          }
+          trigger.focus({ preventScroll: true });
         });
       }
       return next;
     });
   }
+
+  useEffect(() => {
+    if (!overflowOpen || !isCoarsePointerDevice()) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && overflowMenuRef.current?.contains(active)) {
+        active.blur();
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [overflowOpen]);
 
   function buildCreatePayload(): TransactionCreate | null {
     const amount = parseMoneyInputToCents(currencyCode, formState.amount);
@@ -280,7 +316,10 @@ export default function AppShell() {
                 <div className="shrink-0">
                   <p className="text-[0.62rem] uppercase tracking-[0.22em] text-muted-foreground">BudgetBuddy</p>
                 </div>
-                <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto pb-0.5" aria-label="Main">
+                <nav
+                  className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                  aria-label="Main"
+                >
                   {appNavLinks.map((link) => (
                     <NavLink
                       key={link.to}
@@ -362,10 +401,11 @@ export default function AppShell() {
                   }}
                   className={({ isActive }) =>
                     cn(
-                      "flex min-h-12 min-w-0 touch-manipulation select-none items-center justify-center whitespace-nowrap rounded-xl px-1 text-[clamp(9px,2.6vw,11px)] font-semibold transition-transform duration-150 active:scale-[0.98]",
-                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70 active:bg-muted/80"
+                      "flex min-h-12 min-w-0 touch-manipulation select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] items-center justify-center whitespace-nowrap rounded-xl px-1 text-[clamp(9px,2.6vw,11px)] font-semibold outline-none transition-colors duration-100 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted/80"
                     )
                   }
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   {link.label}
                 </NavLink>
@@ -374,16 +414,19 @@ export default function AppShell() {
                 ref={overflowTriggerRef}
                 type="button"
                 variant={overflowOpen ? "outline" : "ghost"}
-                className="flex min-h-12 min-w-0 touch-manipulation select-none items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2 text-[11px] font-semibold transition-transform duration-150 active:scale-[0.98]"
+                className="flex min-h-12 min-w-0 touch-manipulation select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-2 text-[11px] font-semibold transition-colors duration-100 focus-visible:ring-0 focus-visible:ring-offset-0"
                 aria-expanded={overflowOpen}
                 aria-controls="mobile-nav-overflow"
                 onClick={toggleOverflowMenu}
+                onContextMenu={(event) => event.preventDefault()}
+                onFocus={(event) => suppressTouchFocus(event.currentTarget)}
+                onPointerDown={preventTouchPointerFocus}
               >
                 More
               </Button>
             </div>
             {overflowOpen ? (
-              <div id="mobile-nav-overflow" className="mt-2 grid gap-1 border-t border-border/70 pt-2">
+              <div id="mobile-nav-overflow" ref={overflowMenuRef} className="mt-2 grid gap-1 border-t border-border/70 pt-2">
                 {mobileSecondaryLinks.map((link) => (
                   <NavLink
                     key={link.to}
@@ -393,10 +436,13 @@ export default function AppShell() {
                     }}
                     className={({ isActive }) =>
                       cn(
-                        "min-h-10 touch-manipulation select-none rounded-lg px-3 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.99]",
-                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/70 active:bg-muted/80"
+                        "min-h-10 touch-manipulation select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] rounded-lg px-3 py-2 text-sm font-semibold outline-none transition-colors duration-100 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground active:bg-muted/80"
                       )
                     }
+                    onContextMenu={(event) => event.preventDefault()}
+                    onFocus={(event) => suppressTouchFocus(event.currentTarget)}
+                    onPointerDown={preventTouchPointerFocus}
                   >
                     {link.label}
                   </NavLink>
@@ -404,11 +450,14 @@ export default function AppShell() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="min-h-10 touch-manipulation select-none justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-transform duration-150 active:scale-[0.99] active:bg-muted/80 hover:text-foreground"
+                  className="min-h-10 touch-manipulation select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] justify-start rounded-lg px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors duration-100 hover:bg-transparent active:bg-muted/80 focus-visible:ring-0 focus-visible:ring-offset-0"
                   onClick={() => {
                     setOverflowOpen(false);
                     void handleLogout();
                   }}
+                  onContextMenu={(event) => event.preventDefault()}
+                  onFocus={(event) => suppressTouchFocus(event.currentTarget)}
+                  onPointerDown={preventTouchPointerFocus}
                 >
                   Logout
                 </Button>

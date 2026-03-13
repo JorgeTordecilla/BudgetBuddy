@@ -343,39 +343,39 @@ export default function BillsPage() {
             {statusItems.map((item) => {
               const bill = billById.get(item.bill_id);
               return (
-                <Card key={item.bill_id} className="overflow-hidden">
-                  <CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate font-semibold">{item.name}</h3>
-                        <BillStatusBadge status={item.status} />
+                <Card key={item.bill_id} className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
+                  <CardContent className="space-y-3 p-5 sm:p-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-lg font-semibold leading-tight">{item.name}</h3>
+                          <BillStatusBadge status={item.status} />
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">Due date: {item.due_date}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Budget: {formatCents(user?.currency_code ?? "USD", item.budget_cents)}
-                      </p>
-                      {item.status === "paid" ? (
-                        <p className="text-sm text-muted-foreground">
-                          Actual: {formatCents(user?.currency_code ?? "USD", item.actual_cents ?? 0)} · Diff: {formatCents(user?.currency_code ?? "USD", item.diff_cents ?? 0)}
-                        </p>
-                      ) : null}
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <Button type="button" size="sm" variant="outline" onClick={() => bill && openEditForm(bill)}>
+                          Edit
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => handleArchiveBill(item.bill_id)}>
+                          Archive
+                        </Button>
+                        {item.status === "paid" ? (
+                          <Button type="button" size="sm" variant="outline" onClick={() => handleUnmarkPaid(item)}>
+                            Unmark
+                          </Button>
+                        ) : (
+                          <Button type="button" size="sm" onClick={() => openMarkPaid(item)}>
+                            Mark as paid
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" onClick={() => bill && openEditForm(bill)}>
-                        Edit
-                      </Button>
-                      <Button type="button" variant="outline" onClick={() => handleArchiveBill(item.bill_id)}>
-                        Archive
-                      </Button>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p>Due date: {item.due_date}</p>
+                      <p>Budget: {formatCents(user?.currency_code ?? "USD", item.budget_cents)}</p>
                       {item.status === "paid" ? (
-                        <Button type="button" variant="outline" onClick={() => handleUnmarkPaid(item)}>
-                          Unmark
-                        </Button>
-                      ) : (
-                        <Button type="button" onClick={() => openMarkPaid(item)}>
-                          Mark as paid
-                        </Button>
-                      )}
+                        <p>Actual: {formatCents(user?.currency_code ?? "USD", item.actual_cents ?? 0)} - Diff: {formatCents(user?.currency_code ?? "USD", item.diff_cents ?? 0)}</p>
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
@@ -438,3 +438,5 @@ export default function BillsPage() {
     </section>
   );
 }
+
+
