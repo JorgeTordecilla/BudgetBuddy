@@ -139,7 +139,7 @@ def _set_minimum_config_env(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "unit-test-secret")
     monkeypatch.setenv("ENV", "development")
     monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "http://localhost:5173")
+    monkeypatch.setenv("BEBUDGET_CORS_ORIGINS", "http://localhost:5173")
     monkeypatch.setenv("REFRESH_COOKIE_NAME", "bb_refresh")
     monkeypatch.setenv("REFRESH_COOKIE_PATH", "/api/auth")
     monkeypatch.setenv("REFRESH_COOKIE_SAMESITE", "none")
@@ -358,7 +358,7 @@ def test_settings_fail_fast_for_production_insecure_configuration(monkeypatch):
         Settings()
 
     monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "*")
+    monkeypatch.setenv("BEBUDGET_CORS_ORIGINS", "*")
     with pytest.raises(ValueError, match="must not contain '\\*' in production"):
         Settings()
 
@@ -718,7 +718,7 @@ def test_settings_refresh_origin_missing_mode_validation(monkeypatch):
 
 def test_settings_refresh_origin_allowlist_defaults_to_cors(monkeypatch):
     _set_minimum_config_env(monkeypatch)
-    monkeypatch.setenv("BUDGETBUDDY_CORS_ORIGINS", "http://localhost:5173,https://app.example.com")
+    monkeypatch.setenv("BEBUDGET_CORS_ORIGINS", "http://localhost:5173,https://app.example.com")
     monkeypatch.delenv("AUTH_REFRESH_ALLOWED_ORIGINS", raising=False)
     settings = Settings()
     assert settings.auth_refresh_allowed_origins == ["http://localhost:5173", "https://app.example.com"]

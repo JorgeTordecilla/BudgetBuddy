@@ -16,7 +16,7 @@ context: |
   - Vitest + Testing Library (frontend tests)
 
   API contract rules:
-  - Success payload media type: application/vnd.budgetbuddy.v1+json
+  - Success payload media type: application/vnd.bebudget.v1+json
   - Error payload media type: application/problem+json
   - Errors follow ProblemDetails with required fields: type, title, status
 

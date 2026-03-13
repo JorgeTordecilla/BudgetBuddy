@@ -55,10 +55,6 @@ async def lifespan(_app: FastAPI):
         safe["refresh_cookie_domain_configured"],
         safe["migrations_strict"],
     )
-    if settings.uses_legacy_cors_origins_env():
-        logger.warning(
-            "legacy env key in use: BUDGETBUDDY_CORS_ORIGINS; migrate to BEBUDGET_CORS_ORIGINS"
-        )
     start_import_job_workers()
     try:
         yield

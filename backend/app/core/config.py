@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     migrations_strict: bool | None = Field(default=None, alias="MIGRATIONS_STRICT")
     cors_origins: list[str] = Field(
         default_factory=lambda: list(_DEFAULT_CORS_ORIGINS),
-        validation_alias=AliasChoices("BEBUDGET_CORS_ORIGINS", "BUDGETBUDDY_CORS_ORIGINS"),
+        alias="BEBUDGET_CORS_ORIGINS",
     )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     auth_refresh_allowed_origins: list[str] | None = Field(default=None, alias="AUTH_REFRESH_ALLOWED_ORIGINS")
@@ -316,10 +316,8 @@ class Settings(BaseSettings):
                 raise ValueError("DEBUG must be false in production")
             if "*" in self.cors_origins:
                 raise ValueError("BEBUDGET_CORS_ORIGINS must not contain '*' in production")
-            if os.getenv("BEBUDGET_CORS_ORIGINS") is None and os.getenv("BUDGETBUDDY_CORS_ORIGINS") is None:
-                raise ValueError(
-                    "BEBUDGET_CORS_ORIGINS (or legacy BUDGETBUDDY_CORS_ORIGINS) must be explicitly configured in production"
-                )
+            if os.getenv("BEBUDGET_CORS_ORIGINS") is None:
+                raise ValueError("BEBUDGET_CORS_ORIGINS must be explicitly configured in production")
             if not self.refresh_cookie_secure:
                 raise ValueError("REFRESH_COOKIE_SECURE must be true in production")
             for var in ("REFRESH_COOKIE_NAME", "REFRESH_COOKIE_PATH", "REFRESH_COOKIE_SAMESITE", "REFRESH_COOKIE_SECURE"):
@@ -362,12 +360,6 @@ class Settings(BaseSettings):
             "vapid_configured": bool(self.vapid_private_key and self.vapid_public_key and self.vapid_contact),
             "push_test_token_configured": bool(self.push_test_token),
         }
-
-    def uses_legacy_cors_origins_env(self) -> bool:
-        legacy = os.getenv("BUDGETBUDDY_CORS_ORIGINS")
-        canonical = os.getenv("BEBUDGET_CORS_ORIGINS")
-        return bool(legacy and not canonical)
-
 
 settings = Settings()
 

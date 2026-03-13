@@ -524,7 +524,7 @@ def test_transaction_mood_invalid_problem_catalog_mapping_exists():
 
 def test_cors_cookie_cross_site_contract_notes_exist():
     description = SPEC["info"]["description"]
-    assert "BEBUDGET_CORS_ORIGINS" in description or "BUDGETBUDDY_CORS_ORIGINS" in description
+    assert "BEBUDGET_CORS_ORIGINS" in description
     assert "Access-Control-Allow-Credentials" in description
     assert "GET,POST,PATCH,DELETE,OPTIONS" in description
     assert "X-Request-Id,Retry-After" in description
