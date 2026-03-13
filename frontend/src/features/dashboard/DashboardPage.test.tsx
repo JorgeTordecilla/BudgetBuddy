@@ -28,7 +28,7 @@ vi.mock("@/api/transactions", () => ({ createTransaction: vi.fn() }));
 
 const apiClientStub = {} as ApiClient;
 
-function renderPage(width = 390) {
+function renderPage(width = 390, currencyCode = "USD") {
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
     writable: true,
@@ -46,7 +46,7 @@ function renderPage(width = 390) {
         <AuthContext.Provider
           value={{
             apiClient: apiClientStub,
-            user: { id: "u1", username: "demo", currency_code: "USD" },
+            user: { id: "u1", username: "demo", currency_code: currencyCode },
             accessToken: "token",
             isAuthenticated: true,
             isBootstrapping: false,
@@ -236,5 +236,12 @@ describe("DashboardPage", () => {
     renderPage(1280);
     expect(screen.getByText("No over-budget categories for this month.")).toBeInTheDocument();
     expect(screen.queryByText("Salary")).not.toBeInTheDocument();
+  });
+
+  it("uses zero fraction digits for COP in KPI cards", () => {
+    renderPage(1280, "COP");
+
+    expect(screen.getByText("500,000")).toBeInTheDocument();
+    expect(screen.queryByText("500,000.00")).not.toBeInTheDocument();
   });
 });
